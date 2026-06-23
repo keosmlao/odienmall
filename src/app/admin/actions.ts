@@ -1,0 +1,162 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import {
+  authenticateAdmin,
+  setAdminCookie,
+  clearAdminCookie,
+  isAdmin,
+  getAdminSession,
+} from "@/lib/auth";
+import {
+  updateOrderStatus,
+  getOrderByNo,
+  adminDeleteOrder,
+  getOrdersMissingSmlDoc,
+} from "@/lib/orders";
+import { allocateOrderToWarehouse } from "@/lib/order-warehouse";
+import {
+  createSmlSaleOrder,
+  confirmSmlSaleOrder,
+  smlDirectWriteEnabled,
+} from "@/lib/sml-sale-order";
+import { logAudit } from "@/lib/audit";
+import { checkRateLimit, recordFailure, recordSuccess, LOCKOUT_MINUTES } from "@/lib/rate-limit";
+
+export type AdminLoginResult = { ok: true } | { ok: false; error: string };
+
+// Best-effort client IP from the proxy header (falls back when absent locally).
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+}
+
+export async function adminLogin(
+  username: string,
+  password: string,
+): Promise<AdminLoginResult> {
+  // Per-IP throttle: limits total failed admin attempts (covers both per-account
+  // and break-glass passcode brute-force, which would otherwise vary username).
+  const key = `admin:${await clientIp()}`;
+  if (!checkRateLimit(key).allowed) {
+    return { ok: false, error: `ລອງເຂົ້າຫຼາຍຄັ້ງເກີນໄປ — ກະລຸນາລໍຖ້າ ${LOCKOUT_MINUTES} ນາທີ` };
+  }
+
+  const sess = await authenticateAdmin(username, password);
+  if (!sess) {
+    recordFailure(key);
+    return { ok: false, error: "ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານ ບໍ່ຖືກຕ້ອງ" };
+  }
+  recordSuccess(key);
+  await setAdminCookie(sess);
+  return { ok: true };
+}
+
+export async function adminLogout(): Promise<void> {
+  await clearAdminCookie();
+}
+
+export type ChangeStatusResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Issue the bill (ອອກບິນ): allocate the whole order to ONE warehouse, then promote
+ * the order's ic_trans from the ໃບສັ່ງຊື້ (flag 34) to the cash bill (flag 44 = paid),
+ * stamp the chosen warehouse/shelf onto each line, and post the cash-book receipt
+ * (cb_trans). Flag 44 IS the "paid" status — no separate status write.
+ */
+export async function saveOrderWarehouse(
+  orderNo: string,
+  whCode: string,
+  transportCode: string,
+): Promise<ChangeStatusResult> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const order = await getOrderByNo(orderNo);
+    if (!order) return { ok: false, error: "ບໍ່ພົບຄຳສັ່ງຊື້" };
+    if (order.status !== "awaiting_confirmation") {
+      return { ok: false, error: "ອອກບິນໄດ້ສະເພາະອໍເດີທີ່ຍັງເປັນ ໃບສັ່ງຊື້ (34)" };
+    }
+    if (!smlDirectWriteEnabled()) {
+      return { ok: false, error: "SML_DIRECT_WRITE ຍັງປິດ — ບໍ່ສາມາດອອກບິນ SML" };
+    }
+    const admin = await getAdminSession();
+    // Pick warehouse/shelf per line first (validated against live stock).
+    await allocateOrderToWarehouse(orderNo, whCode, admin?.code);
+    // 34 → 44 (= paid) + real warehouse + cb_trans, atomically.
+    const docNo = await confirmSmlSaleOrder(orderNo, transportCode);
+    await logAudit({
+      action: "order.sml.issue",
+      entity: orderNo,
+      detail: `doc ${docNo}; wh ${whCode}; transport ${transportCode}; 34→44 + shipment`,
+    });
+    revalidatePath(`/admin/orders/${orderNo}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+/**
+ * Backfill SML ໃບສັ່ງຊື້ (ic_trans flag 34) for orders created before direct
+ * write was enabled. Idempotent per order. Requires SML_DIRECT_WRITE=1.
+ */
+export async function backfillSmlDocs(): Promise<
+  { ok: true; created: number; failed: number } | { ok: false; error: string }
+> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  if (!smlDirectWriteEnabled()) {
+    return { ok: false, error: "SML_DIRECT_WRITE ຍັງປິດຢູ່ (ຕ້ອງ restart dev server ຫຼັງຕັ້ງເປັນ 1)" };
+  }
+  try {
+    const orderNos = await getOrdersMissingSmlDoc();
+    let created = 0;
+    let failed = 0;
+    for (const orderNo of orderNos) {
+      try {
+        const doc = await createSmlSaleOrder(orderNo);
+        if (doc) created++;
+      } catch {
+        failed++;
+      }
+    }
+    await logAudit({ action: "order.sml.backfill", entity: "*", detail: `created ${created}, failed ${failed}` });
+    revalidatePath("/admin");
+    return { ok: true, created, failed };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+/** Admin: delete an order permanently (clearing test data). */
+export async function deleteOrderAdmin(orderNo: string): Promise<ChangeStatusResult> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const ok = await adminDeleteOrder(orderNo);
+    if (!ok) return { ok: false, error: "ບໍ່ພົບຄຳສັ່ງຊື້" };
+    await logAudit({ action: "order.delete", entity: orderNo, detail: "admin deleted" });
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+export async function changeStatus(
+  orderNo: string,
+  status: string,
+): Promise<ChangeStatusResult> {
+  // Re-check admin server-side — never trust the client.
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const ok = await updateOrderStatus(orderNo, status);
+    if (!ok) return { ok: false, error: "ບໍ່ພົບຄຳສັ່ງຊື້" };
+    await logAudit({ action: "order.status", entity: orderNo, detail: status });
+    revalidatePath(`/admin/orders/${orderNo}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}

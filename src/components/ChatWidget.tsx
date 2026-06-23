@@ -1,0 +1,175 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  sendChatMessage,
+  fetchChatMessages,
+  markChatRead,
+} from "@/app/(shop)/chat/actions";
+
+interface Msg {
+  id: number;
+  sender: "customer" | "admin";
+  body: string;
+  createdAt: string;
+}
+
+const POLL_MS = 4000;
+
+export default function ChatWidget() {
+  const pathname = usePathname();
+  const productPage = pathname.startsWith("/product/");
+  const [open, setOpen] = useState(false);
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [unseen, setUnseen] = useState(0);
+  const lastId = useRef(0);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  const merge = useCallback((incoming: Msg[]) => {
+    if (incoming.length === 0) return;
+    setMsgs((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const next = [...prev];
+      for (const m of incoming) if (!seen.has(m.id)) next.push(m);
+      next.sort((a, b) => a.id - b.id);
+      return next;
+    });
+    lastId.current = Math.max(lastId.current, ...incoming.map((m) => m.id));
+  }, []);
+
+  // Poll while open and closed. The database is authoritative for unread state,
+  // so a refresh cannot count old admin messages as new again.
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      const result = await fetchChatMessages(lastId.current, open);
+      if (!alive) return;
+      if (result.messages.length) merge(result.messages);
+      setUnseen(open ? 0 : result.unread);
+    };
+    tick();
+    const t = setInterval(tick, POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [open, merge]);
+
+  // Auto-scroll to newest when open.
+  useEffect(() => {
+    if (open && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
+  }, [msgs, open]);
+
+  function openPanel() {
+    setOpen(true);
+    setUnseen(0);
+    void markChatRead();
+  }
+
+  async function send() {
+    const text = draft.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setDraft("");
+    const res = await sendChatMessage(text);
+    setSending(false);
+    if (res.ok) merge([res.message]);
+    else setDraft(text);
+  }
+
+  return (
+    <>
+      {/* Launcher */}
+      {!open && (
+        <button
+          type="button"
+          onClick={openPanel}
+          aria-label="ແຊັດກັບຮ້ານ"
+          className={`fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-lg shadow-brand/30 transition hover:bg-brand-dark sm:bottom-6 ${
+            productPage ? "bottom-36" : "bottom-20"
+          }`}
+        >
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.9-.9L3 21l1.9-5.6a8.5 8.5 0 0 1-.9-3.9A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z" />
+          </svg>
+          {unseen > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
+              {unseen}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Panel */}
+      {open && (
+        <div className={`fixed right-4 z-40 flex h-[28rem] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:bottom-6 ${
+          productPage ? "bottom-36" : "bottom-20"
+        }`}>
+          <div className="flex items-center justify-between bg-brand px-4 py-3 text-white">
+            <div>
+              <p className="text-sm font-bold leading-tight">ແຊັດກັບຮ້ານ OdienMall</p>
+              <p className="text-[11px] text-white/80">ພວກເຮົາຈະຕອບໄວທີ່ສຸດ</p>
+            </div>
+            <button type="button" onClick={() => setOpen(false)} aria-label="ປິດ" className="rounded-lg p-1 transition hover:bg-white/15">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+
+          <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto bg-gray-50 p-3">
+            {msgs.length === 0 && (
+              <p className="mt-6 text-center text-sm text-gray-400">
+                ສະບາຍດີ 👋 ມີຫຍັງໃຫ້ຊ່ວຍບໍ? ພິມຂໍ້ຄວາມຫາພວກເຮົາໄດ້ເລີຍ
+              </p>
+            )}
+            {msgs.map((m) => (
+              <div key={m.id} className={`flex ${m.sender === "customer" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                    m.sender === "customer"
+                      ? "rounded-br-sm bg-brand text-white"
+                      : "rounded-bl-sm bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
+                  }`}
+                >
+                  {m.body}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send();
+            }}
+            className="flex items-end gap-2 border-t border-gray-100 bg-white p-2"
+          >
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              rows={1}
+              placeholder="ພິມຂໍ້ຄວາມ..."
+              className="max-h-24 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <button
+              type="submit"
+              disabled={sending || !draft.trim()}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-white transition hover:bg-brand-dark disabled:opacity-50"
+              aria-label="ສົ່ງ"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
