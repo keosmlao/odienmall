@@ -29,7 +29,7 @@ export default function OrderWarehouseControl({
       options.warehouses.find((w) => w.canFulfill)?.whCode ??
       "",
   );
-  const [transportCode, setTransportCode] = useState("");
+  const [transportCode, setTransportCode] = useState(options.selectedTransport ?? "");
 
   const issued = ["paid", "shipping", "completed"].includes(status);
   const chosen = options.warehouses.find((w) => w.whCode === choice);

@@ -31,6 +31,10 @@ export interface PendingOrderInput extends CaeOrderInput {
   paymentMethod?: string;
   /** 'odien' or 'thanjai' delivery service. */
   shippingMethod?: string;
+  /** Staff/admin code when created on behalf; null for customer self-checkout. */
+  createdBy?: string | null;
+  /** SML transport branch code chosen at creation (admin assisted orders). */
+  transportCode?: string | null;
 }
 
 /** Hold a not-yet-paid order as a snapshot on its QR row (keyed by temp order_no).
@@ -46,8 +50,8 @@ export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
     `insert into ecom.onepay_payments
        (order_no, uuid, amount, qrc, status, cust_code, cust_name, phone, address, note,
         referral_code, items, subtotal, shipping_fee, voucher_code, discount, points_used,
-        member_discount, payment_method, shipping_method)
-     values ($1, $1, $2, '', 'pending', $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17)
+        member_discount, payment_method, shipping_method, created_by, transport_code)
+     values ($1, $1, $2, '', 'pending', $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      on conflict (order_no) do update set
         cust_code = excluded.cust_code, cust_name = excluded.cust_name,
         phone = excluded.phone, address = excluded.address, note = excluded.note,
@@ -56,11 +60,13 @@ export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
         voucher_code = excluded.voucher_code, discount = excluded.discount,
         points_used = excluded.points_used, member_discount = excluded.member_discount,
         payment_method = excluded.payment_method,
-        shipping_method = excluded.shipping_method, amount = excluded.amount`,
+        shipping_method = excluded.shipping_method, amount = excluded.amount,
+        created_by = excluded.created_by, transport_code = excluded.transport_code`,
     [
       o.orderNo, net, o.customerCode, o.name, o.phone,
       o.address, o.note, o.referralCode, JSON.stringify(o.lines), o.subtotal, o.shippingFee,
       o.voucherCode?.trim() || null, discount, points, memberDiscount, payMethod, shipMethod,
+      o.createdBy ?? null, o.transportCode?.trim() || null,
     ],
   );
 }

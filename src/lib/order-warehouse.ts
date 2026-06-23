@@ -1,5 +1,5 @@
 import "server-only";
-import { pool, query } from "./db";
+import { pool, query, queryOne } from "./db";
 
 // One order ships from ONE warehouse. The admin picks a single warehouse for the
 // whole order; each line is auto-allocated to the best shelf of that warehouse.
@@ -35,6 +35,7 @@ export interface OrderWarehouseOptions {
   items: OrderItemRow[];
   warehouses: WarehouseOption[];
   selectedWhCode: string | null; // current allocation (one warehouse for the order)
+  selectedTransport: string | null; // transport branch chosen at order creation
   ready: boolean;
 }
 
@@ -75,8 +76,15 @@ export async function getOrderWarehouseOptions(orderNo: string): Promise<OrderWa
     qty: it.qty,
     unit: it.unit,
   }));
+  // Transport branch the staff picked when creating the order (pre-fill ອອກບິນ).
+  const tRow = await queryOne<{ transport_code: string | null }>(
+    `select transport_code from ecom.onepay_payments where sml_doc_no = $1 or order_no = $1 limit 1`,
+    [orderNo],
+  );
+  const selectedTransport = tRow?.transport_code || null;
+
   if (orderItems.length === 0) {
-    return { items: [], warehouses: [], selectedWhCode: null, ready: false };
+    return { items: [], warehouses: [], selectedWhCode: null, selectedTransport, ready: false };
   }
 
   // Current allocation = one warehouse only if every line shares the same wh_code.
@@ -139,7 +147,7 @@ export async function getOrderWarehouseOptions(orderNo: string): Promise<OrderWa
     (a, b) => Number(b.canFulfill) - Number(a.canFulfill) || a.whName.localeCompare(b.whName),
   );
 
-  return { items: orderItems, warehouses, selectedWhCode, ready: selectedWhCode != null };
+  return { items: orderItems, warehouses, selectedWhCode, selectedTransport, ready: selectedWhCode != null };
 }
 
 // Allocate the WHOLE order to one warehouse (auto best shelf per item), validating

@@ -8,6 +8,7 @@ export interface Review {
   customerName: string;
   rating: number;
   comment: string | null;
+  photoUrl: string | null;
   createdAt: string;
   mine?: boolean;
 }
@@ -30,9 +31,10 @@ export async function getProductReviews(
     customer_name: string;
     rating: number;
     comment: string | null;
+    photo_url: string | null;
     created_at: Date;
   }>(
-    `select id, customer_code, customer_name, rating, comment, created_at
+    `select id, customer_code, customer_name, rating, comment, photo_url, created_at
        from ecom.reviews where product_code = $1 and not is_hidden
       order by created_at desc
       limit 100`,
@@ -56,6 +58,7 @@ export async function getProductReviews(
       customerName: r.customer_name,
       rating: r.rating,
       comment: r.comment,
+      photoUrl: r.photo_url,
       createdAt: r.created_at.toISOString(),
       mine: viewerCode != null && r.customer_code === viewerCode,
     })),
@@ -69,13 +72,15 @@ export async function createReview(input: {
   customerName: string;
   rating: number;
   comment?: string | null;
+  photoUrl?: string | null;
 }): Promise<void> {
   await query(
-    `insert into ecom.reviews (product_code, customer_code, customer_name, rating, comment)
-       values ($1,$2,$3,$4,$5)
+    `insert into ecom.reviews (product_code, customer_code, customer_name, rating, comment, photo_url)
+       values ($1,$2,$3,$4,$5,$6)
      on conflict (product_code, customer_code)
        do update set rating = excluded.rating,
                      comment = excluded.comment,
+                     photo_url = coalesce(excluded.photo_url, ecom.reviews.photo_url),
                      customer_name = excluded.customer_name,
                      created_at = now()`,
     [
@@ -84,6 +89,7 @@ export async function createReview(input: {
       input.customerName,
       input.rating,
       input.comment?.trim() || null,
+      input.photoUrl?.trim() || null,
     ],
   );
 }

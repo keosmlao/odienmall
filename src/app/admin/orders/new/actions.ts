@@ -100,6 +100,7 @@ export async function adminCreateOrder(input: {
   voucherCode?: string | null;
   items: { code: string; qty: number }[];
   paymentMethod?: string;
+  transportCode?: string | null;
 }): Promise<BuildResult> {
   if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
   if (!input.name?.trim() || !input.phone?.trim()) return { ok: false, error: "ກະລຸນາໃສ່ຊື່ ແລະ ເບີໂທ" };
@@ -111,9 +112,9 @@ export async function adminCreateOrder(input: {
       return { ok: false, error: "ບໍ່ພົບຂໍ້ມູນລູກຄ້າໃນລະບົບ" };
     }
     const customerCode = selected?.source === "erp" ? selected.code : null;
-    const res = await buildManualOrder({ ...input, customerCode });
+    const admin = await getAdminSession();
+    const res = await buildManualOrder({ ...input, customerCode, createdBy: admin?.code ?? "admin" });
     if (!customerRef) {
-      const admin = await getAdminSession();
       await saveAssistedCustomer({
         name: input.name,
         phone: input.phone,

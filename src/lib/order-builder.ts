@@ -157,6 +157,10 @@ export interface ManualOrderInput {
   /** Affiliate referral code to attribute commission (affiliate-created orders). */
   referralCode?: string | null;
   paymentMethod?: string;
+  /** Staff/admin code who created this assisted order. */
+  createdBy?: string | null;
+  /** SML transport branch code chosen by staff. */
+  transportCode?: string | null;
 }
 
 export interface ManualOrderResult {
@@ -196,6 +200,8 @@ export async function buildManualOrder(input: ManualOrderInput): Promise<ManualO
       voucherCode: input.voucherCode ?? null,
       paymentMethod: input.paymentMethod || "transfer",
       shippingMethod,
+      createdBy: input.createdBy ?? null,
+      transportCode: input.transportCode ?? null,
     },
     input.items,
   );

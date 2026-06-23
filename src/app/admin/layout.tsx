@@ -27,7 +27,7 @@ export default async function AdminLayout({
     <div className="adm-surface min-h-screen print:bg-white flex flex-col lg:flex-row">
       <AdminNav adminName={admin?.name} role={admin?.role} chatUnread={chatUnread} returnsPending={returnsPending} qnaOpen={qnaOpen} />
       
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
         {/* Sticky Desktop Topbar */}
         <header className="sticky top-0 z-20 hidden h-16 w-full items-center justify-between border-b border-slate-200/50 bg-white/80 px-6 backdrop-blur-md lg:flex print:hidden">
           {/* Breadcrumbs */}

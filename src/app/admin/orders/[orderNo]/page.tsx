@@ -12,6 +12,7 @@ import { STATUS_LABEL, type OrderStatus } from "@/lib/order-constants";
 import OrderStatusControl from "@/components/OrderStatusControl";
 import OrderWarehouseControl from "@/components/OrderWarehouseControl";
 import DeleteOrderAdminButton from "@/components/DeleteOrderAdminButton";
+import PendingPaymentControl from "@/components/PendingPaymentControl";
 import StatusBadge from "@/components/StatusBadge";
 import { BTN_SECONDARY, Card } from "@/components/admin/ui";
 
@@ -238,6 +239,12 @@ export default async function AdminOrderDetail({
         </div>
 
         <aside className="space-y-5 xl:sticky xl:top-8">
+          {order.status === "pending" && order.paymentMethod === "transfer" && (
+            <Card className="border-emerald-100">
+              <SectionTitle title="ຢືນຢັນການຊຳລະ (ໂອນ)" subtitle="ແນບສະລິບ ແລ້ວຢືນຢັນເມື່ອເງິນເຂົ້າ" />
+              <PendingPaymentControl orderNo={order.orderNo} initialSlip={null} />
+            </Card>
+          )}
           {payment?.status === "submitted" && order.status === "pending" && (
             <Card className="border-blue-200 bg-blue-50/70">
               <div className="flex gap-3">

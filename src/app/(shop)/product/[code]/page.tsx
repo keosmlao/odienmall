@@ -124,7 +124,7 @@ export default async function ProductPage({
   };
 
   return (
-    <div className="pb-16 sm:pb-0">
+    <div className="pb-32 sm:pb-0">
       <JsonLd data={productLd} />
       <JsonLd data={breadcrumbLd} />
       <TrackView
@@ -228,6 +228,16 @@ export default async function ProductPage({
                 ຂາຍແລ້ວ {soldCount.toLocaleString("en-US")}
               </span>
             )}
+            {product.memberPct ? (
+              <span className="rounded-full border border-violet-100 bg-violet-50 px-3 py-1 font-bold text-violet-600">
+                ສະມາຊິກ −{product.memberPct}%
+              </span>
+            ) : null}
+            {product.commissionKip ? (
+              <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 font-bold text-emerald-600">
+                ນາຍໜ້າ +{formatKip(product.commissionKip)} ({product.commissionPct}%)
+              </span>
+            ) : null}
             {product.categoryName && (
               <span className="rounded-full bg-slate-100 border border-slate-200/40 px-3 py-1 text-slate-600">
                 ໝວດໝູ່: {product.categoryName}
@@ -241,12 +251,14 @@ export default async function ProductPage({
           <div className="pt-2">
             <ProductBuyBox product={product} />
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="relative z-10 grid gap-2 sm:grid-cols-3">
             <WishlistButton product={product} variant="full" />
             <CompareButton product={product} variant="full" />
             <ProductShare title={product.name} url={productUrl} />
           </div>
-          <ProductAlertButton productCode={product.code} />
+          <div className="relative z-10">
+            <ProductAlertButton productCode={product.code} />
+          </div>
         </div>
 
         <aside className="hidden h-fit border-l border-slate-100 pl-5 lg:block">

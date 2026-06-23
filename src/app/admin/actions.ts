@@ -16,6 +16,8 @@ import {
   getOrdersMissingSmlDoc,
 } from "@/lib/orders";
 import { allocateOrderToWarehouse } from "@/lib/order-warehouse";
+import { query } from "@/lib/db";
+import { materializePaidOrder } from "@/lib/onepay-store";
 import {
   createSmlSaleOrder,
   confirmSmlSaleOrder,
@@ -136,6 +138,26 @@ export async function deleteOrderAdmin(orderNo: string): Promise<ChangeStatusRes
     const ok = await adminDeleteOrder(orderNo);
     if (!ok) return { ok: false, error: "ບໍ່ພົບຄຳສັ່ງຊື້" };
     await logAudit({ action: "order.delete", entity: orderNo, detail: "admin deleted" });
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+/** Admin: confirm a pending TRANSFER order is paid → mark paid + materialise to SML. */
+export async function adminConfirmPayment(orderNo: string): Promise<ChangeStatusResult> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await query(
+      `update ecom.onepay_payments set status='paid', paid_at=now()
+        where order_no=$1 and sml_doc_no is null`,
+      [orderNo],
+    );
+    // Best-effort: write to SML (ic_trans flag 34) when SML_DIRECT_WRITE is on.
+    await materializePaidOrder(orderNo).catch((e) => console.error("materialize on confirm failed:", e));
+    await logAudit({ action: "order.confirmPaid", entity: orderNo, detail: "admin confirmed transfer" });
+    revalidatePath(`/admin/orders/${orderNo}`);
     revalidatePath("/admin");
     return { ok: true };
   } catch (e) {

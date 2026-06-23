@@ -15,6 +15,7 @@ import StatusBadge from "@/components/StatusBadge";
 import StatCard from "@/components/admin/StatCard";
 import SmlBackfillBanner from "@/components/admin/SmlBackfillBanner";
 import DeleteOrderAdminButton from "@/components/DeleteOrderAdminButton";
+import SendOrderLinkButton from "@/components/SendOrderLinkButton";
 import { Badge, PageHeader, EmptyState, TableShell, THEAD, TH, TBODY, TR, TD } from "@/components/admin/ui";
 import OrderFilters from "./OrderFilters";
 
@@ -142,7 +143,12 @@ export default async function AdminDashboard({
                     {o.smlFlag === 44 ? "ບິນສົດ (44)" : "ໃບສັ່ງຊື້ (34)"}
                   </Badge>
                 </td>
-                <td className={`${TD} min-w-40 font-medium text-gray-700`}>{o.customerName}</td>
+                <td className={`${TD} min-w-40 font-medium text-gray-700`}>
+                  {o.customerName}
+                  {o.createdBy && (
+                    <span className="ml-1.5 rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-600">ພະນັກງານ</span>
+                  )}
+                </td>
                 <td className={`${TD} whitespace-nowrap`}>{o.phone}</td>
                 <td className={`${TD} whitespace-nowrap`}>{o.itemCount}</td>
                 <td className={`${TD} whitespace-nowrap text-right font-semibold text-price`}>
@@ -155,7 +161,10 @@ export default async function AdminDashboard({
                   {new Date(o.createdAt).toLocaleDateString("lo-LA")}
                 </td>
                 <td className={`${TD} whitespace-nowrap text-right`}>
-                  <DeleteOrderAdminButton orderNo={o.orderNo} compact />
+                  <div className="inline-flex items-center gap-1.5">
+                    <SendOrderLinkButton orderNo={o.orderNo} phone={o.phone} />
+                    <DeleteOrderAdminButton orderNo={o.orderNo} compact />
+                  </div>
                 </td>
               </tr>
             ))}

@@ -70,6 +70,12 @@ export default function ProductReviews({
             </div>
             <StarRating value={r.rating} size={13} />
             {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+            {r.photoUrl && (
+              <a href={r.photoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={r.photoUrl} alt="" className="h-20 w-20 rounded-lg border border-gray-200 object-cover transition hover:opacity-90" />
+              </a>
+            )}
           </li>
         ))}
       </ul>

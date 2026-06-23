@@ -4,13 +4,7 @@ import { useState, useTransition } from "react";
 import { formatKip } from "@/lib/format";
 import AddressFields, { EMPTY_ADDRESS, type AddressFormValue } from "@/components/AddressFields";
 import { LAO_PROVINCES } from "@/lib/lao-locations";
-import {
-  SHIPPING_HINT,
-  SHIPPING_LABEL,
-  SHIPPING_METHODS,
-  computeShippingFee,
-  type ShippingMethod,
-} from "@/lib/shipping-constants";
+import { ADMIN_TRANSPORTS } from "@/lib/admin-shipping-constants";
 
 interface Hit {
   code: string;
@@ -74,6 +68,7 @@ export default function OrderBuilder({
     voucherCode?: string | null;
     items: { code: string; qty: number }[];
     paymentMethod?: string;
+    transportCode?: string | null;
   }) => Promise<BuildResult>;
   uploadSlip?: (orderNo: string, formData: FormData) => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
   /** Optional: pull a registered customer's saved addresses from the DB. */
@@ -87,7 +82,7 @@ export default function OrderBuilder({
   const [address, setAddress] = useState<AddressFormValue>(EMPTY_ADDRESS);
   const [savedAddrs, setSavedAddrs] = useState<SavedAddr[]>([]);
   const [addrChoice, setAddrChoice] = useState<string>(NEW_ADDR);
-  const [shipping, setShipping] = useState<ShippingMethod>("odien");
+  const [transport, setTransport] = useState<string>(ADMIN_TRANSPORTS[0].code);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "transfer">("transfer");
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerHits, setCustomerHits] = useState<CustomerHit[]>([]);
@@ -101,7 +96,7 @@ export default function OrderBuilder({
   const [slipError, setSlipError] = useState<string | null>(null);
 
   const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
-  const shippingFee = computeShippingFee(shipping, subtotal);
+  const shippingFee = 0; // assisted orders ship free
   const total = subtotal + shippingFee;
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
 
@@ -196,11 +191,11 @@ export default function OrderBuilder({
         district: address.district,
         village: address.village,
         detail: address.detail,
-        shippingMethod: shipping,
         note: cust.note,
         voucherCode: cust.voucherCode.trim() || null,
         items: lines.map((l) => ({ code: l.code, qty: l.qty })),
         paymentMethod,
+        transportCode: transport,
       });
       if (res.ok) setDone({ orderNo: res.orderNo, total: res.total, link: res.link });
       else setError(res.error);
@@ -214,7 +209,7 @@ export default function OrderBuilder({
     setAddress(EMPTY_ADDRESS);
     setSavedAddrs([]);
     setAddrChoice(NEW_ADDR);
-    setShipping("odien");
+    setTransport(ADMIN_TRANSPORTS[0].code);
     setPaymentMethod("transfer");
     setSelectedCustomer(null);
     setCustomerQuery("");
@@ -443,17 +438,16 @@ export default function OrderBuilder({
             <button type="button" onClick={() => setPaymentMethod("cod")} className={`rounded-lg border px-3 py-2.5 text-sm font-bold transition ${paymentMethod === "cod" ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500"}`}>💵 ເກັບປາຍທາງ</button>
           </div>
 
-          <div className="mt-3 space-y-2">
-            {SHIPPING_METHODS.map((m) => (
-              <label key={m} className={`flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 transition ${shipping === m ? "border-orange-400 bg-orange-50" : "border-gray-200"}`}>
-                <input type="radio" name="ob-ship" checked={shipping === m} onChange={() => setShipping(m)} className="h-4 w-4 accent-orange-500" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-bold text-gray-800">{SHIPPING_LABEL[m]}</span>
-                  <span className="block text-[10px] text-gray-400">{SHIPPING_HINT[m]}</span>
-                </span>
-                <span className="text-xs font-bold text-emerald-600">{computeShippingFee(m, subtotal) === 0 ? "ຟຣີ" : formatKip(computeShippingFee(m, subtotal))}</span>
-              </label>
-            ))}
+          <div className="mt-3">
+            <span className="mb-1.5 block text-xs font-semibold text-gray-500">ບໍລິສັດຂົນສົ່ງ</span>
+            <div className="grid grid-cols-2 gap-2">
+              {ADMIN_TRANSPORTS.map((t) => (
+                <label key={t.code} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 transition ${transport === t.code ? "border-orange-400 bg-orange-50" : "border-gray-200"}`}>
+                  <input type="radio" name="ob-transport" checked={transport === t.code} onChange={() => setTransport(t.code)} className="h-4 w-4 accent-orange-500" />
+                  <span className="text-xs font-bold text-gray-800">{t.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <input value={cust.voucherCode} onChange={(e) => setCust({ ...cust, voucherCode: e.target.value.toUpperCase() })} placeholder="ໂຄ້ດສ່ວນຫຼຸດ (ຖ້າມີ)" className={`${inp} mt-3 uppercase`} />

@@ -603,6 +603,12 @@ alter table ecom.onepay_payments add column if not exists payment_method text no
 alter table ecom.onepay_payments add column if not exists shipping_method text not null default 'odien';
 -- Transfer slip uploaded by staff (proof the customer paid) for assisted orders.
 alter table ecom.onepay_payments add column if not exists slip_url text;
+-- Who created the order: null = customer self-checkout, else staff/admin code.
+alter table ecom.onepay_payments add column if not exists created_by text;
+-- SML transport branch chosen when a staff order is created (used at ອອກບິນ).
+alter table ecom.onepay_payments add column if not exists transport_code text;
+-- Review photo (one image URL per review; uploaded to public/uploads/reviews).
+alter table ecom.reviews add column if not exists photo_url text;
 
 -- ── Web visit analytics ──────────────────────────────────────────────────────
 -- Anonymous visitor id (client-generated, stored in localStorage). visit_events

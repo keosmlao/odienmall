@@ -24,6 +24,10 @@ export interface OrderCustomer {
   voucherCode?: string | null;
   /** Loyalty points to redeem — re-validated server-side against balance + cart. */
   pointsToUse?: number;
+  /** Staff/admin code when an order is created on behalf of a customer. */
+  createdBy?: string | null;
+  /** SML transport branch code chosen at creation (admin assisted orders). */
+  transportCode?: string | null;
 }
 
 export interface PlacedOrder {
@@ -248,6 +252,8 @@ export async function createOrder(
     pointsUsed,
     paymentMethod: customer.paymentMethod === "cod" ? "cod" : "transfer",
     shippingMethod,
+    createdBy: customer.createdBy ?? null,
+    transportCode: customer.transportCode ?? null,
     lines: lines.map((l) => ({ ...l, unitPrice: l.unitPrice ?? 0 })),
     subtotal,
     shippingFee,
@@ -322,6 +328,7 @@ export interface AdminOrderRow {
   itemCount: number;
   smlDocNo: string; // CAE doc — the admin list is sourced from public.ic_trans
   smlFlag: number; // 34 = ໃບສັ່ງຊື້, 44 = ບິນສົດ
+  createdBy?: string | null; // staff/admin code if created on behalf; null = customer
 }
 
 // The admin order list reads straight from public.ic_trans (CAE web orders).
@@ -423,12 +430,14 @@ export async function getAllOrders(opts: {
     pay_status: string | null;
     created_at: Date;
     item_count: number;
+    created_by: string | null;
   }>(
     `select op.order_no, op.cust_name, op.cust_code, op.phone,
             coalesce(op.subtotal,0)::text as subtotal,
             coalesce(op.shipping_fee,0)::text as shipping_fee,
             op.payment_method, op.status as pay_status, op.created_at,
-            coalesce(jsonb_array_length(op.items),0)::int as item_count
+            coalesce(jsonb_array_length(op.items),0)::int as item_count,
+            op.created_by
        from ecom.onepay_payments op
       where ${pConds.join(" and ")}
       order by op.created_at desc
@@ -452,6 +461,7 @@ export async function getAllOrders(opts: {
       itemCount: r.item_count,
       smlDocNo: "",
       smlFlag: 0,
+      createdBy: r.created_by,
     };
   });
 
@@ -500,6 +510,37 @@ export async function getOrderStats(): Promise<{
     total += r.n;
   }
   return { byStatus, total, revenue };
+}
+
+/**
+ * Find recent order numbers for a phone (last 8 digits) — public guest tracking.
+ * Covers materialised CAE orders + pending snapshots; newest first, capped at 10.
+ */
+export async function getOrderNosByPhone(phone: string): Promise<string[]> {
+  const tail = (phone || "").replace(/\D/g, "").slice(-8);
+  if (tail.length < 6) return [];
+  const [cae, pend] = await Promise.all([
+    query<{ order_no: string; created_at: Date }>(
+      `select ic.doc_no as order_no, ic.create_date_time_now as created_at
+         from public.ic_trans ic
+         left join public.ar_customer ar on ar.code = ic.cust_code
+        where ${WEB_ORDER}
+          and right(regexp_replace(coalesce(nullif(ic.point_telephone,''), ar.telephone, ''), '[^0-9]', '', 'g'), 8) = $1
+        order by ic.create_date_time_now desc
+        limit 10`,
+      [tail],
+    ),
+    query<{ order_no: string; created_at: Date }>(
+      `select order_no, created_at from ecom.onepay_payments
+        where sml_doc_no is null
+          and right(regexp_replace(coalesce(phone,''), '[^0-9]', '', 'g'), 8) = $1
+        order by created_at desc
+        limit 10`,
+      [tail],
+    ),
+  ]);
+  const all = [...cae, ...pend].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  return [...new Set(all.map((r) => r.order_no))].slice(0, 10);
 }
 
 /** Legacy backfill hook — orders are now created directly in ic_trans, so there

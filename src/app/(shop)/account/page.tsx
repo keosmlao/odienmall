@@ -77,9 +77,25 @@ function Icon({ d, className }: { d: string; className?: string }) {
   );
 }
 
-export default async function AccountPage() {
+const ORDER_TABS: { key: string; label: string; statuses: string[] }[] = [
+  { key: "all", label: "ທັງໝົດ", statuses: [] },
+  { key: "topay", label: "ລໍຖ້າຈ່າຍ", statuses: ["pending"] },
+  { key: "processing", label: "ກຳລັງດຳເນີນ", statuses: ["cod", "awaiting_confirmation", "paid", "shipping"] },
+  { key: "completed", label: "ສຳເລັດ", statuses: ["completed"] },
+  { key: "cancelled", label: "ຍົກເລີກ", statuses: ["cancelled"] },
+];
+
+export default async function AccountPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login?redirect=/account");
+
+  const sp = await searchParams;
+  const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
+  const tab = ORDER_TABS.some((t) => t.key === rawTab) ? (rawTab as string) : "all";
 
   const [profile, orders, addresses, pointBalance, pointHistory] = await Promise.all([
     getCustomerProfile(session.code),
@@ -88,6 +104,12 @@ export default async function AccountPage() {
     getBalance(session.code),
     getHistory(session.code, 8),
   ]);
+
+  const activeTab = ORDER_TABS.find((t) => t.key === tab) ?? ORDER_TABS[0];
+  const visibleOrders =
+    activeTab.statuses.length === 0 ? orders : orders.filter((o) => activeTab.statuses.includes(o.status));
+  const tabCount = (t: (typeof ORDER_TABS)[number]) =>
+    t.statuses.length === 0 ? orders.length : orders.filter((o) => t.statuses.includes(o.status)).length;
 
   const name = profile?.name ?? session.name ?? "?";
   const points = profile?.pointBalance ?? 0;
@@ -205,15 +227,30 @@ export default async function AccountPage() {
         id="orders"
         className="scroll-mt-24 rounded-sm border border-slate-100 bg-white p-6 shadow-sm"
       >
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">ປະຫວັດການສັ່ງຊື້</h2>
-          {orders.length > 0 && (
-            <span className="rounded-full bg-slate-50 border border-slate-200/50 px-3 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
-              {orders.length} ລາຍການ
-            </span>
-          )}
         </div>
-        {orders.length === 0 ? (
+
+        {/* Lazada-style status tabs */}
+        <div className="mb-5 flex flex-wrap gap-1.5 border-b border-slate-100 pb-3">
+          {ORDER_TABS.map((t) => {
+            const on = t.key === tab;
+            return (
+              <Link
+                key={t.key}
+                href={`/account?tab=${t.key}#orders`}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                  on ? "bg-brand text-white" : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {t.label}
+                <span className={`ml-1 ${on ? "text-white/80" : "text-slate-400"}`}>({tabCount(t)})</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {visibleOrders.length === 0 ? (
           <div className="py-16 text-center">
             <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-50 border border-slate-100 text-slate-500">
               <Icon
@@ -221,7 +258,7 @@ export default async function AccountPage() {
                 className="h-7 w-7"
               />
             </div>
-            <p className="text-sm font-medium text-slate-500">ຍັງບໍ່ມີປະຫວັດການສັ່ງຊື້</p>
+            <p className="text-sm font-medium text-slate-500">{tab === "all" ? "ຍັງບໍ່ມີປະຫວັດການສັ່ງຊື້" : "ບໍ່ມີອໍເດີໃນໝວດນີ້"}</p>
             <Link
               href="/products"
               className="mt-4 inline-block rounded-full bg-slate-900 px-6 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-950 hover:shadow-md"
@@ -231,7 +268,7 @@ export default async function AccountPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {orders.map((o) => {
+            {visibleOrders.map((o) => {
               const canDelete = o.status === "pending" || o.status === "cancelled";
               const awaitingPayment = o.status === "pending";
               const canReorder = o.status === "completed" || o.status === "cancelled";

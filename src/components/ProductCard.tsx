@@ -62,19 +62,19 @@ export default function ProductCard({ product }: { product: Product }) {
         <Link href={`/product/${encodeURIComponent(product.code)}`}>
           <h3
             title={product.name}
-            className="line-clamp-2 min-h-[34px] break-words text-[13px] leading-[17px] text-slate-700 transition-colors group-hover:text-orange-600"
+            className="line-clamp-3 min-h-[51px] w-full break-words text-[13px] leading-[17px] text-slate-700 transition-colors group-hover:text-orange-600"
           >
             {product.name}
           </h3>
         </Link>
 
         {/* Price */}
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-base font-black tracking-tight text-orange-600">
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
+          <span className="whitespace-nowrap text-base font-black tracking-tight text-orange-600">
             {formatKip(hasDeal ? deal! : product.price)}
           </span>
           {hasDeal && (
-            <span className="text-[11px] font-medium text-slate-400 line-through">{formatKip(product.price)}</span>
+            <span className="whitespace-nowrap text-[11px] font-medium text-slate-400 line-through">{formatKip(product.price)}</span>
           )}
         </div>
 
