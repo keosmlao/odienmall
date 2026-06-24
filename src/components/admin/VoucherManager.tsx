@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { formatKip } from "@/lib/format";
 import type { Voucher } from "@/lib/vouchers";
 import { saveVoucher, toggleVoucher, removeVoucher } from "@/app/admin/vouchers/actions";
-import { Card, Badge, EmptyState } from "@/components/admin/ui";
+import { Badge, EmptyState } from "@/components/admin/ui";
 
 const EMPTY = {
   id: 0,

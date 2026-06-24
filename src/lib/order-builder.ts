@@ -57,7 +57,7 @@ export async function searchOrderCustomers(q: string): Promise<OrderCustomerHit[
       `select 'local:' || id::text as code, name,
               nullif(phone,'') as phone, nullif(email,'') as email,
               nullif(address,'') as address
-         from ecom.assisted_customers
+         from odg_ecom.assisted_customers
         where name ilike $1 or phone ilike $1 or coalesce(email,'') ilike $1
         order by updated_at desc
         limit 20`,
@@ -79,7 +79,7 @@ export async function getOrderCustomer(code: string): Promise<OrderCustomerHit |
       `select 'local:' || id::text as code, name,
               nullif(phone,'') as phone, nullif(email,'') as email,
               nullif(address,'') as address
-         from ecom.assisted_customers where id = $1`,
+         from odg_ecom.assisted_customers where id = $1`,
       [id],
     );
     return local ? { ...local, source: "local" } : null;
@@ -108,12 +108,12 @@ export async function saveAssistedCustomer(input: {
   const phone = input.phone.trim();
   if (!name || !phone) return;
   const existing = await queryOne<{ id: string }>(
-    `select id from ecom.assisted_customers where phone = $1 order by id limit 1`,
+    `select id from odg_ecom.assisted_customers where phone = $1 order by id limit 1`,
     [phone],
   );
   if (existing) {
     await query(
-      `update ecom.assisted_customers
+      `update odg_ecom.assisted_customers
           set name = $2, address = coalesce(nullif($3,''), address),
               updated_at = now()
         where id = $1`,
@@ -122,7 +122,7 @@ export async function saveAssistedCustomer(input: {
     return;
   }
   await query(
-    `insert into ecom.assisted_customers (name, phone, address, created_by)
+    `insert into odg_ecom.assisted_customers (name, phone, address, created_by)
      values ($1,$2,nullif($3,''),$4)`,
     [name, phone, input.address?.trim() ?? "", input.createdBy ?? null],
   );

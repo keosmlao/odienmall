@@ -11,18 +11,20 @@ top of an existing production **PostgreSQL 11 ERP** (`db.odienmall.com` / db `od
 tables). Primary UI language is **Lao**.
 
 ## Hard rule: ERP tables (schema `public`) are READ-ONLY
-Never write/alter/drop anything in `public.*`. All ERP queries are SELECTs. App data
-(orders) lives in a SEPARATE **`ecom`** schema — see below. Creating new objects there is
-fine; touching `public.*` is not.
+Never write/alter/drop anything in `public.*` except the gated CAE writer documented below.
+App-owned web data lives in a SEPARATE **`odg_ecom`** schema. Creating new objects there is
+fine; touching ERP `public.*` structures is not.
 
-## Orders / checkout — `ecom` schema (writable, app-owned)
-- `ecom.orders`, `ecom.order_items`, `ecom.reviews`. Created idempotently by
+## Orders / checkout — ERP-backed CAE flow + `odg_ecom` web helpers
+- Order source of truth is `public.ic_trans`; line source of truth is
+  `public.ic_trans_detail`. The old `odg_ecom.orders`, `odg_ecom.order_items`, and
+  `odg_ecom.erp_cash_bill_queue` tables are retired and should not be recreated.
+- Current app-owned tables are created idempotently by
   `scripts/migrate-ecom.mjs` (`node --env-file=.env scripts/migrate-ecom.mjs`).
 - Write path: `src/lib/orders.ts` (`createOrder` re-prices server-side from the ERP —
   never trusts client prices), server action `src/app/checkout/actions.ts`, pages
   `/checkout` and `/order/[orderNo]`. Guest checkout (name/phone/address).
-- **Payment + shipping method** (`ecom.orders.payment_method` default `'cod'`,
-  `shipping_method` default `'odien'`): checkout offers **COD / bank transfer** and
+- **Payment + shipping method**: checkout offers **COD / bank transfer** and
   **ໂອດ້ຽນຂົນສົ່ງ / ຂົນສົ່ງທັນໃຈ** via radios. Client-safe enums + Lao labels in
   `src/lib/payment-constants.ts` and `src/lib/shipping-constants.ts` (`toPaymentMethod` /
   `toShippingMethod` validate server-side in `createOrder` — never trust the client). On a
@@ -40,14 +42,14 @@ fine; touching `public.*` is not.
   cached through `/authen`) or a directly supplied `ONEPAY_JWT`. With live mode enabled,
   the payment modal polls `/checkonepayqr` every 2 seconds for up to 3 minutes as a fallback
   when callback delivery is delayed. Both callback and polling verify the BCEL amount
-  against `ecom.onepay_payments.amount` before marking the order paid.
+  against `odg_ecom.onepay_payments.amount` before marking the order paid.
 - **OnePay test mode** — manager-controlled at `/admin/settings`, stored in singleton
-  `ecom.onepay_config`. When enabled, newly generated QR codes use `test_amount`
+  `odg_ecom.onepay_config`. When enabled, newly generated QR codes use `test_amount`
   (default **1 LAK**) while the real order subtotal/total remains unchanged. Existing unpaid
   QR records are regenerated automatically when their stored amount differs from the current
   runtime amount. The UI labels the override as TEST. Test payments still require a real
   BCEL callback or successful `/checkonepayqr` response; test mode never fakes `paid`.
-- **Delivery fee** (`ecom.orders.shipping_fee`): `computeShippingFee(method, subtotal)` in
+- **Delivery fee**: `computeShippingFee(method, subtotal)` in
   `shipping-constants.ts` (per-method `SHIPPING_FEE`, optional `FREE_SHIPPING_OVER`).
   Current business rule: both offered shipping methods have a fee of **0 LAK**.
   `createOrder` re-computes it server-side. `subtotal` = items only; **grand total =
@@ -63,22 +65,22 @@ fine; touching `public.*` is not.
     `max(ic_trans.doc_no)`), `branch_code` **99**, `wh_code='0000'`/`shelf_code='000000'`
     (no warehouse yet), **no VAT** (`vat_rate=0`), `remark_5='web'`, currency **02** with the
     live `erp_currency.exchange_rate_present` (base columns = LAK×rate, `_2` columns = raw LAK),
-    cost from `ic_inventory.average_cost`, PK from the `*_roworder_seq`. Stores the CAE doc on
-    **`ecom.orders.sml_doc_no`**. Idempotent (skips if `sml_doc_no` already set).
+    cost from `ic_inventory.average_cost`, PK from the `*_roworder_seq`. The CAE doc no is
+    the order number used by admin/customer order screens.
   - **On admin ອອກບິນ** (`saveOrderWarehouse` → `confirmSmlSaleOrder`, atomic): UPDATEs the
     same rows **flag 34 → 44** (ບິນສົດ), stamps the chosen **real `wh_code`/`shelf_code`** onto
-    each line (from `ecom.order_item_allocations`, replacing `0000`/`000000`), and INSERTs
+    each line (from `odg_ecom.order_item_allocations`, replacing `0000`/`000000`), and INSERTs
     `cb_trans` + `cb_trans_detail` (money received, BCEL **transfer** — `tranfer_amount`,
-    `SML_CB_TRANSFER_ACCOUNT`/`_BANK`, no cash). The ecom order advances to `confirmed` only on
+    `SML_CB_TRANSFER_ACCOUNT`/`_BANK`, no cash). The CAE document advances only on
     a successful commit. NOTE: cancelling a confirmed order does not auto-reverse the SML
     bill — handle credit notes ERP-side.
 - **Warehouse allocation before ອອກບິນ** — after an order is `paid`, admin order detail reads
   current sellable stock via the `sml_ic_function_stock_balance_warehouse_location` SRF joined
   to `ic_warehouse`/`ic_shelf`; staff pick ONE warehouse (best shelf auto-chosen per line).
-  Selections live in writable `ecom.order_item_allocations`; `confirmSmlSaleOrder` reads them to
+  Selections live in writable `odg_ecom.order_item_allocations`; `confirmSmlSaleOrder` reads them to
   set each `ic_trans_detail` line's warehouse/shelf at flag-44 time.
 - **GATING / safety**: both writers throw unless **`SML_DIRECT_WRITE=1`**; default (gate off) =
-  the app only sets `ecom.orders.status`, no `public.*` write. ⚠️ NOT production-verified —
+  no `public.*` mutation is allowed. ⚠️ NOT production-verified —
   `ic_trans` fires triggers, but the CAE flow is structured to AVOID the dangerous ones —
   it never alters production triggers:
   - `vatpassthai` (force VAT 7%) fires only `WHEN vat_type=0 AND branch_code='05' AND
@@ -94,10 +96,9 @@ fine; touching `public.*` is not.
   always **ROLLS BACK** (nothing persists). Config: `SML_CAE_BRANCH` (99), `SML_CAE_DOC_FORMAT`
   (CAE), `SML_CAE_CURRENCY` (02), reusing `SML_WALKIN_CUST`/`SML_CASHIER_CODE`/
   `SML_CB_TRANSFER_ACCOUNT`/`SML_CB_TRANSFER_BANK`.
-- **Legacy (superseded, still on disk, unused):** the `ecom.erp_cash_bill_queue` hand-off
-  (`src/lib/erp-export.ts`) and the flag-44-insert `src/lib/sml-cash-sale.ts`
-  (`createSmlCashSale`, validated by `scripts/sml-test-insert.mjs`). Replaced by the flag
-  34→44 flow above — kept only for reference.
+- **Legacy removed:** the `odg_ecom.erp_cash_bill_queue` hand-off and the old
+  `scripts/sml-test-insert.mjs` path were removed. Use `scripts/sml-cae-test.mjs`
+  for rollback-only CAE testing.
 
 ## Admin order management (`/admin`)
 - Login = **`odg_employee`** (ERP, READ-ONLY): username `employee_code`, password verified
@@ -121,15 +122,15 @@ fine; touching `public.*` is not.
   filter + CSV export**), `/admin/orders/[orderNo]` (detail + status control + **print**),
   `/admin/orders/[orderNo]/print` (letterhead invoice; admin chrome `print:hidden`).
 - Data: `getAllOrders` (status + search + date-range filters), `getOrderStats`,
-  `updateOrderStatus`, `getSalesReport` in `src/lib/orders.ts` (writes `ecom.orders.status`
-  only). CSV at `/admin/orders/export/route.ts` (UTF-8 BOM for Excel; same filters via query
+  `updateOrderStatus`, `getSalesReport` in `src/lib/orders.ts` (reads CAE orders from
+  `public.ic_trans`). CSV at `/admin/orders/export/route.ts` (UTF-8 BOM for Excel; same filters via query
   string; `isAdmin`-gated). Sales report at `/admin/report` (14-day revenue, top products,
   status breakdown; revenue excludes cancelled). Status enum + Lao labels live in
   `src/lib/order-constants.ts` (NO db/server-only imports — safe for client components;
   `orders.ts` re-exports them for server use).
 
 ## Audit log (`/admin/audit`, manager-only) — `ecom` schema
-- Records who changed what in the admin. Table `ecom.audit_log` (`actor_code`, `actor_name`,
+- Records who changed what in the admin. Table `odg_ecom.audit_log` (`actor_code`, `actor_name`,
   `action` like `order.status` / `product.bulk.hide`, `entity`, `detail`, `created_at`).
 - `src/lib/audit.ts` (server-only): `logAudit({action, entity, detail})` — BEST-EFFORT
   (wrapped in try/catch; pulls the actor from `getAdminSession` if not passed; NEVER throws,
@@ -140,9 +141,9 @@ fine; touching `public.*` is not.
 - Page `/admin/audit` + `AuditFilters`. AdminNav "ບັນທຶກ" link (manager-only).
 
 ## Admin customers (`/admin/customers`, any admin)
-- View of storefront shoppers who placed ≥1 order (registered only — `ecom.orders` with a
-  non-null `customer_code`; guests excluded). Profile from READ-ONLY `ar_customer`, spend
-  totals from `ecom.orders`.
+- View of storefront shoppers who placed ≥1 CAE order (registered only —
+  `public.ic_trans.cust_code`; guests excluded). Profile from READ-ONLY `ar_customer`, spend
+  totals from `public.ic_trans`.
 - `src/lib/customers-admin.ts` (server-only): `getAdminCustomers` (paginated; search by
   code/name/phone; per-customer order count, total spent excl. cancelled, last-order date —
   grouped by `customer_code`, left-joined to `ar_customer`). Detail page reuses
@@ -152,10 +153,10 @@ fine; touching `public.*` is not.
 
 ## Affiliate program (ນາຍໜ້າ) — `ecom` schema
 - **Who**: logged-in customers self-apply (`/affiliate`, status `pending`), admin approves
-  to `active`. Tables: `ecom.affiliates` (1:1 with `ar_customer` via `customer_code`,
-  unique referral `code`), `ecom.commission_rates`, `ecom.commissions`, `ecom.payouts`,
-  `ecom.affiliate_clicks`; plus `ecom.orders.affiliate_id` (added by migration). All in the
-  app-owned `ecom` schema — `public.*` stays READ-ONLY (read only for category/product
+  to `active`. Tables: `odg_ecom.affiliates` (1:1 with `ar_customer` via `customer_code`,
+  unique referral `code`), `odg_ecom.commission_rates`, `odg_ecom.commissions`, `odg_ecom.payouts`,
+  `odg_ecom.affiliate_clicks`. All in the
+  app-owned `odg_ecom` schema — `public.*` stays READ-ONLY except the gated CAE flow (read only for category/product
   names + per-line `item_category`).
 - **Attribution**: `/r/[code]` route handler (`src/app/r/[code]/route.ts`) sets the
   `om_ref` cookie (30-day, httpOnly, last-click) for an *active* affiliate, logs a click,
@@ -165,11 +166,11 @@ fine; touching `public.*` is not.
   self-referral). Never trusted from the client.
 - **Commission**: earned on `completed` (delivered) orders, voided if still unpaid when an
   order leaves `completed`. In the ic_trans flow completion is TMS-driven (no app event), so
-  `syncAffiliateCommissions()` reconciles it — reading `ecom.onepay_payments` (referral_code
-  + items + subtotal, NOT the dead `ecom.orders`) and writing `ecom.commissions`. It runs via
+  `syncAffiliateCommissions()` reconciles it — reading `odg_ecom.onepay_payments` (referral_code
+  + items + subtotal, NOT the dead `odg_ecom.orders`) and writing `odg_ecom.commissions`. It runs via
   `GET /api/cron` (gated by `CRON_TOKEN`) OR the manager **"ຄິດໄລ່ຄອມມິສຊັນ"** button on
   `/admin/affiliates` (`syncCommissionsNow`; badge shows `countPendingCommissionSync`). Rate
-  per line = product → category → brand → default (`ecom.commission_rates`, seeded 5%). ⚠️ With
+  per line = product → category → brand → default (`odg_ecom.commission_rates`, seeded 5%). ⚠️ With
   no scheduler + no manual run, commissions silently never record — see the System status page.
 - **Code**: all data access in `src/lib/affiliates.ts` (server-only); status/label enums in
   `src/lib/affiliate-constants.ts` (NO server/db imports — client-safe, mirrors
@@ -187,18 +188,18 @@ both commissions (business decision: keep separate, pay both).
   ⇒ everyone is a manager).
 - **Attribution → SML**: `sale_code` is an `odg_employee` code stamped on an order from (1) the
   `/s/[code]` sales link → `om_sale` cookie (30-day, httpOnly, validated `resolveSalespersonCode`,
-  logs a click in `ecom.sales_link_clicks`), or (2) an admin who saves the order (default = the
+  logs a click in `odg_ecom.sales_link_clicks`), or (2) an admin who saves the order (default = the
   logged-in admin; manager may pick another). `createOrder` validates it (falls back to
-  `createdBy`), stores it on `ecom.onepay_payments.sale_code`, and `createCaeOrder` writes it
+  `createdBy`), stores it on `odg_ecom.onepay_payments.sale_code`, and `createCaeOrder` writes it
   through to **`public.ic_trans.sale_code` + `ic_trans_detail.sale_code`** (varchar(25), no FK).
   Re-assignable on the order detail (`SaleCodeControl`, manager-only → `setOrderSaleCode` →
   `setSmlSaleCode`, gated by `SML_DIRECT_WRITE`).
 - **Visibility**: salesperson shown + filterable on the order list / CSV (`?sale=`), order
   detail, print, the `getSalesReport().bySalesperson` ranking + dashboard leaderboard.
-- **Targets** (`ecom.sales_targets`, PK `(sale_code, month)`): per-month goal, managed one
+- **Targets** (`odg_ecom.sales_targets`, PK `(sale_code, month)`): per-month goal, managed one
   person at a time at `/admin/sales-targets` (month switcher); progress = month revenue / target.
-- **Commission** (`ecom.sales_commission_rates`: `__default__` + per-person overrides;
-  `ecom.sales_commission_payouts`): earned = COMPLETED revenue × effective rate (computed live,
+- **Commission** (`odg_ecom.sales_commission_rates`: `__default__` + per-person overrides;
+  `odg_ecom.sales_commission_payouts`): earned = COMPLETED revenue × effective rate (computed live,
   NO cron dependency). `/admin/sales-commission` (manager-only): set default + add overrides one
   at a time, payout ledger (earned − paid = outstanding), CSV export. Salesperson self-view +
   link builder + targets/commission/clicks at `/admin/sales-link`.
@@ -211,18 +212,18 @@ Two singleton settings, both edited at `/admin/settings` (page redirects staff;
 both getters error-safe — OFF default if the table is missing, so the storefront never
 500s).
 - **Dev-notice modal** — warning modal on the home page on EVERY visit while under
-  development. Table `ecom.dev_notice` (singleton `id = 1`: `enabled`, `title`, `message`,
+  development. Table `odg_ecom.dev_notice` (singleton `id = 1`: `enabled`, `title`, `message`,
   …). Home page (`(shop)/page.tsx`) renders `components/DevNoticeModal.tsx` (client;
   dismissible per visit, no "don't show again") only when `enabled`. Form `DevNoticeForm.tsx`,
   `saveDevNotice` revalidates `/`.
 - **Announcement bar** — thin persistent notice across the WHOLE storefront (promo /
-  shipping notice). Table `ecom.announcement` (singleton `id = 1`: `enabled`, `message`,
+  shipping notice). Table `odg_ecom.announcement` (singleton `id = 1`: `enabled`, `message`,
   `link`, …). Shop layout (`(shop)/layout.tsx`, now `async`) fetches `getAnnouncement` and
   renders `components/AnnouncementBar.tsx` (client; optional internal `link`, dismiss-per-view)
   above the header when `enabled`. Form `AnnouncementForm.tsx`, `saveAnnouncement` validates
   the link is internal (`/…`) and `revalidatePath("/", "layout")`.
 - **Bank-transfer details** — shown on a `transfer` order's confirmation page. Table
-  `ecom.bank_transfer` (singleton `id = 1`: `bank_name`, `account_name`, `account_no`,
+  `odg_ecom.bank_transfer` (singleton `id = 1`: `bank_name`, `account_name`, `account_no`,
   `note`, `qr_url`). `getBankTransfer`/`setBankTransfer`/`setBankQr` + `bankConfigured`
   (displays when a QR OR bank+account is set). Form `BankTransferForm.tsx` (text +
   **QR image upload** → `public/uploads/bank/`, gitignored — `uploadBankQr`/`removeBankQr`
@@ -237,9 +238,9 @@ has no product images, so the overlay gallery is the real image source.
 ## Admin product management (`/admin/products`) — `ecom` schema
 - **Purpose**: app-owned overlay layered over the READ-ONLY ERP catalog — staff add
   images, hide items, and mark them featured WITHOUT ever touching `public.ic_inventory`.
-- **Tables** (created by `scripts/migrate-ecom.mjs`): `ecom.product_overlays`
+- **Tables** (created by `scripts/migrate-odg_ecom.mjs`): `odg_ecom.product_overlays`
   (`product_code` PK, `image_url` fallback, `is_hidden`, `is_featured`, `description`
-  override, `updated_by`) and `ecom.product_images` (gallery: `product_code`, `url`,
+  override, `updated_by`) and `odg_ecom.product_images` (gallery: `product_code`, `url`,
   `sort_order`; primary = lowest `(sort_order,id)`). Both keyed by ERP `ic_inventory.code`.
 - **Uploads**: multi-file upload server action writes to `public/uploads/products/<code>/`
   (gitignored) and inserts gallery rows; also add-by-URL, delete, set-primary. NOTE: files
@@ -261,7 +262,7 @@ has no product images, so the overlay gallery is the real image source.
   storefront), `/admin/products/[code]` (read-only ERP info + gallery manager +
   **description override** + flags). Server actions `src/app/admin/products/actions.ts`
   (every one re-checks `isAdmin()`; `bulkUpdateProducts` for the bulk bar; writes hit ONLY
-  `ecom.*` + `public/uploads`). AdminNav has a "ສິນຄ້າ" link.
+  `odg_ecom.*` + `public/uploads`). AdminNav has a "ສິນຄ້າ" link.
 
 ## Login / customer accounts (built)
 - Auth against `ar_customer` by code / telephone / sms_phonenumber / email.
@@ -272,12 +273,12 @@ has no product images, so the overlay gallery is the real image source.
   30d). `src/lib/auth.ts` wires cookies (`getSession`) + the `ar_customer` query. NO DB
   writes for sessions.
 - Pages/actions: `/login` (+ `login`/`logout` actions), `/account` (profile + order
-  history from `ecom.orders`). Checkout prefills from session and stamps
+  history from `public.ic_trans`). Checkout prefills from session and stamps
   `customer_code` server-side (never trusted from client).
 - Pure modules (`password.ts`, `session.ts`) are unit-tested; verifier covers all
   common hash formats.
-- CONFIRMED WORKING with a real account: a logged-in customer placed an order
-  (`ecom.orders` row with non-null `customer_code`), so the ERP's password format is
+- CONFIRMED WORKING with a real account: a logged-in customer placed an order,
+  so the ERP's password format is
   handled by the format-agnostic verifier.
 - Order status timeline: `components/OrderTimeline.tsx` (pending→confirmed→shipped→
   completed + cancelled) on the customer order page; status driven by admin updates.
@@ -302,10 +303,10 @@ has no product images, so the overlay gallery is the real image source.
 - v1 scope: catalog + browser cart only. No checkout, no login.
 
 ## Reviews & ratings
-`ecom.reviews` (one per customer per product, upsert; `is_hidden` flag added by migration).
+`odg_ecom.reviews` (one per customer per product, upsert; `is_hidden` flag added by migration).
 `src/lib/reviews.ts` (`getProductReviews`, `createReview`). Login-gated submit via
 `src/app/product/[code]/review-actions.ts`. `getProductByCode`/`getProducts` expose
-`rating`+`reviewCount` (lateral on `ecom.reviews`). UI: `StarRating` (display),
+`rating`+`reviewCount` (lateral on `odg_ecom.reviews`). UI: `StarRating` (display),
 `ReviewForm` (client), `ProductReviews` (detail section); stars also on `ProductCard`.
 **Hidden reviews drop out everywhere on the storefront** — both the rating/`reviewCount`
 lateral in `catalog.ts` (`and not rv.is_hidden`) and the `getProductReviews` list exclude

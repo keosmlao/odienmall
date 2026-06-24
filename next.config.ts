@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Product uploads allow up to 8 images × 5MB each. Keep the Server Action
+      // body limit aligned with that UI so uploads fail with our own validation
+      // instead of Next's generic "server error" before the action runs.
+      bodySizeLimit: "50mb",
+    },
+  },
   // Allow the dev server to be opened from other devices on the LAN (phones,
   // tablets, other PCs). Next blocks a bare "*", so we whitelist the private
   // network ranges + .local mDNS hosts — effectively "allow all" for dev.

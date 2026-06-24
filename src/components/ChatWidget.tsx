@@ -11,11 +11,20 @@ import {
 interface Msg {
   id: number;
   sender: "customer" | "admin";
+  isBot?: boolean;
   body: string;
   createdAt: string;
 }
 
 const POLL_MS = 4000;
+
+// Quick-start prompts shown on an empty conversation.
+const SUGGESTIONS = [
+  "ມີໂປຣໂມຊັນຫຍັງແດ່?",
+  "ຕິດຕາມອໍເດີຂອງຂ້ອຍ",
+  "ວິທີຊຳລະເງິນ ແລະ ຈັດສົ່ງ",
+  "ນະໂຍບາຍຄືນສິນຄ້າ",
+];
 
 export default function ChatWidget() {
   const pathname = usePathname();
@@ -26,6 +35,7 @@ export default function ChatWidget() {
   const [sending, setSending] = useState(false);
   const [unseen, setUnseen] = useState(0);
   const lastId = useRef(0);
+  const tmpId = useRef(0);
   const scroller = useRef<HTMLDivElement>(null);
 
   const merge = useCallback((incoming: Msg[]) => {
@@ -69,15 +79,31 @@ export default function ChatWidget() {
     void markChatRead();
   }
 
-  async function send() {
-    const text = draft.trim();
+  async function sendText(raw: string) {
+    const text = raw.trim();
     if (!text || sending) return;
     setSending(true);
     setDraft("");
+    // Optimistically show the customer's message right away (negative temp id).
+    const tempIdVal = (tmpId.current -= 1);
+    const temp: Msg = { id: tempIdVal, sender: "customer", body: text, createdAt: "" };
+    setMsgs((prev) => [...prev, temp]);
     const res = await sendChatMessage(text);
+    // Drop the optimistic bubble (the real one comes back / via poll).
+    setMsgs((prev) => prev.filter((m) => m.id !== tempIdVal));
     setSending(false);
-    if (res.ok) merge([res.message]);
-    else setDraft(text);
+    if (res.ok) {
+      merge([res.message]);
+      // The bot may have replied during the action — pull it immediately.
+      const r = await fetchChatMessages(lastId.current, open);
+      if (r.messages.length) merge(r.messages);
+    } else {
+      setDraft(text);
+    }
+  }
+
+  function send() {
+    void sendText(draft);
   }
 
   return (
@@ -111,7 +137,7 @@ export default function ChatWidget() {
           <div className="flex items-center justify-between bg-brand px-4 py-3 text-white">
             <div>
               <p className="text-sm font-bold leading-tight">ແຊັດກັບຮ້ານ OdienMall</p>
-              <p className="text-[11px] text-white/80">ພວກເຮົາຈະຕອບໄວທີ່ສຸດ</p>
+              <p className="text-[11px] text-white/80">🤖 ຜູ້ຊ່ວຍ AI ຕອບໄວ · ໂອນຫາພະນັກງານໄດ້</p>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="ປິດ" className="rounded-lg p-1 transition hover:bg-white/15">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -120,23 +146,58 @@ export default function ChatWidget() {
 
           <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto bg-gray-50 p-3">
             {msgs.length === 0 && (
-              <p className="mt-6 text-center text-sm text-gray-400">
-                ສະບາຍດີ 👋 ມີຫຍັງໃຫ້ຊ່ວຍບໍ? ພິມຂໍ້ຄວາມຫາພວກເຮົາໄດ້ເລີຍ
-              </p>
-            )}
-            {msgs.map((m) => (
-              <div key={m.id} className={`flex ${m.sender === "customer" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                    m.sender === "customer"
-                      ? "rounded-br-sm bg-brand text-white"
-                      : "rounded-bl-sm bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
-                  }`}
-                >
-                  {m.body}
+              <div className="mt-4">
+                <p className="text-center text-sm text-gray-400">
+                  ສະບາຍດີ 👋 ມີຫຍັງໃຫ້ຊ່ວຍບໍ?
+                </p>
+                <div className="mt-4 flex flex-col gap-2">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => sendText(s)}
+                      disabled={sending}
+                      className="rounded-xl border border-brand/30 bg-white px-3 py-2 text-left text-xs font-semibold text-brand-dark transition hover:bg-brand-light disabled:opacity-50"
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+            {msgs.map((m) => {
+              const mine = m.sender === "customer";
+              return (
+                <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
+                  {!mine && (
+                    <span className="mb-0.5 ml-1 text-[10px] font-bold text-gray-400">
+                      {m.isBot ? "🤖 ຜູ້ຊ່ວຍ AI" : "👤 ພະນັກງານ"}
+                    </span>
+                  )}
+                  <div
+                    className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                      mine
+                        ? "rounded-br-sm bg-brand text-white"
+                        : m.isBot
+                          ? "rounded-bl-sm bg-violet-50 text-gray-700 ring-1 ring-violet-100"
+                          : "rounded-bl-sm bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
+                    }`}
+                  >
+                    {m.body}
+                  </div>
+                </div>
+              );
+            })}
+            {sending && (
+              <div className="flex items-center gap-1.5 pl-1 text-gray-400">
+                <span className="text-[10px] font-bold">🤖 ກຳລັງພິມ</span>
+                <span className="flex gap-0.5">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-300 [animation-delay:-0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-300 [animation-delay:-0.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-300" />
+                </span>
+              </div>
+            )}
           </div>
 
           <form

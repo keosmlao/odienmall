@@ -32,7 +32,7 @@ const SELECT = `
          button_text as "buttonText", link, image_url as "imageUrl",
          background_from as "backgroundFrom",
          background_to as "backgroundTo", sort_order as "sortOrder"
-    from ecom.home_banners`;
+    from odg_ecom.home_banners`;
 
 export async function getHomeBanners(): Promise<HomeBanner[]> {
   try {
@@ -55,7 +55,7 @@ export async function getAdminBanners(): Promise<HomeBanner[]> {
 
 export async function getBannerImage(id: number): Promise<string | null> {
   const row = await queryOne<{ imageUrl: string | null }>(
-    `select image_url as "imageUrl" from ecom.home_banners where id=$1`,
+    `select image_url as "imageUrl" from odg_ecom.home_banners where id=$1`,
     [id],
   );
   return row?.imageUrl ?? null;
@@ -66,7 +66,7 @@ export async function createBanner(
   by?: string,
 ): Promise<number> {
   const row = await queryOne<{ id: number }>(
-    `insert into ecom.home_banners
+    `insert into odg_ecom.home_banners
        (enabled,eyebrow,title,description,button_text,link,
         background_from,background_to,sort_order,updated_by)
      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
@@ -94,7 +94,7 @@ export async function updateBanner(
   by?: string,
 ): Promise<void> {
   await query(
-    `update ecom.home_banners
+    `update odg_ecom.home_banners
         set enabled=$2,eyebrow=$3,title=$4,description=$5,
             button_text=$6,link=$7,background_from=$8,background_to=$9,
             sort_order=$10,updated_by=$11,updated_at=now()
@@ -121,7 +121,7 @@ export async function setBannerImage(
   by?: string,
 ): Promise<void> {
   await query(
-    `update ecom.home_banners
+    `update odg_ecom.home_banners
         set image_url=$2,updated_by=$3,updated_at=now()
       where id=$1`,
     [id, imageUrl, by ?? null],
@@ -129,5 +129,5 @@ export async function setBannerImage(
 }
 
 export async function deleteBannerById(id: number): Promise<void> {
-  await query(`delete from ecom.home_banners where id=$1`, [id]);
+  await query(`delete from odg_ecom.home_banners where id=$1`, [id]);
 }

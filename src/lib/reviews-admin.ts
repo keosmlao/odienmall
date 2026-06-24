@@ -2,7 +2,7 @@ import "server-only";
 import { query, queryOne } from "./db";
 
 // ---------------------------------------------------------------------------
-// Admin review moderation. Reviews are app-owned (ecom.reviews); staff can hide
+// Admin review moderation. Reviews are app-owned (odg_ecom.reviews); staff can hide
 // (reversible) or delete them. Hidden reviews drop out of the storefront rating
 // aggregate and the product review list (see catalog.ts / reviews.ts).
 // The product NAME is resolved from the READ-ONLY ERP for display only.
@@ -58,7 +58,7 @@ export async function getAdminReviews(opts: {
   const where = conds.length ? `where ${conds.join(" and ")}` : "";
 
   const totalRow = await queryOne<{ n: number }>(
-    `select count(*)::int as n from ecom.reviews r ${where}`,
+    `select count(*)::int as n from odg_ecom.reviews r ${where}`,
     params,
   );
   const total = totalRow?.n ?? 0;
@@ -74,7 +74,7 @@ export async function getAdminReviews(opts: {
             nullif(r.comment,'') as comment,
             r.is_hidden as "isHidden",
             r.created_at as "createdAt"
-       from ecom.reviews r
+       from odg_ecom.reviews r
        left join public.ic_inventory i on i.code = r.product_code
        ${where}
       order by r.created_at desc
@@ -97,7 +97,7 @@ export async function getAdminReviewStats(): Promise<AdminReviewStats> {
     `select count(*)::int as total,
             count(*) filter (where is_hidden)::int as hidden,
             coalesce(round(avg(rating) filter (where not is_hidden), 2), 0)::text as avg
-       from ecom.reviews`,
+       from odg_ecom.reviews`,
   );
   return { total: row?.total ?? 0, hidden: row?.hidden ?? 0, avg: Number(row?.avg ?? 0) };
 }
@@ -105,7 +105,7 @@ export async function getAdminReviewStats(): Promise<AdminReviewStats> {
 /** Hide or show a review. Returns the affected product_code (for revalidation). */
 export async function setReviewHidden(id: string, hidden: boolean): Promise<string | null> {
   const row = await queryOne<{ product_code: string }>(
-    `update ecom.reviews set is_hidden = $2 where id = $1 returning product_code`,
+    `update odg_ecom.reviews set is_hidden = $2 where id = $1 returning product_code`,
     [id, hidden],
   );
   return row?.product_code ?? null;
@@ -114,7 +114,7 @@ export async function setReviewHidden(id: string, hidden: boolean): Promise<stri
 /** Permanently delete a review. Returns the affected product_code, or null. */
 export async function deleteReview(id: string): Promise<string | null> {
   const row = await queryOne<{ product_code: string }>(
-    `delete from ecom.reviews where id = $1 returning product_code`,
+    `delete from odg_ecom.reviews where id = $1 returning product_code`,
     [id],
   );
   return row?.product_code ?? null;

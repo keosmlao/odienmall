@@ -90,7 +90,7 @@ export async function validateVoucher(
   const c = (code ?? "").trim().toUpperCase();
   if (!c) return { ok: false, error: "ກະລຸນາໃສ່ໂຄ້ດ" };
   const row = await queryOne<Row>(
-    `select ${COLS} from ecom.vouchers where upper(code) = $1`,
+    `select ${COLS} from odg_ecom.vouchers where upper(code) = $1`,
     [c],
   );
   if (!row) return { ok: false, error: "ໂຄ້ດບໍ່ຖືກຕ້ອງ" };
@@ -108,7 +108,7 @@ export async function validateVoucher(
   }
   if (v.perCustomerLimit > 0 && customerCode) {
     const used = await queryOne<{ n: string }>(
-      `select count(*)::text as n from ecom.voucher_redemptions
+      `select count(*)::text as n from odg_ecom.voucher_redemptions
         where voucher_id = $1 and customer_code = $2`,
       [v.id, customerCode],
     );
@@ -138,20 +138,20 @@ export async function redeemVoucher(input: {
   try {
     await client.query("begin");
     const v = (
-      await client.query<{ id: string }>(`select id from ecom.vouchers where upper(code) = $1`, [code])
+      await client.query<{ id: string }>(`select id from odg_ecom.vouchers where upper(code) = $1`, [code])
     ).rows[0];
     if (!v) {
       await client.query("rollback");
       return;
     }
     const ins = await client.query(
-      `insert into ecom.voucher_redemptions (voucher_id, code, order_no, customer_code, discount)
+      `insert into odg_ecom.voucher_redemptions (voucher_id, code, order_no, customer_code, discount)
        values ($1, $2, $3, $4, $5)
        on conflict (order_no) do nothing`,
       [v.id, code, input.orderNo, input.customerCode, input.discount],
     );
     if (ins.rowCount && ins.rowCount > 0) {
-      await client.query(`update ecom.vouchers set used_count = used_count + 1 where id = $1`, [v.id]);
+      await client.query(`update odg_ecom.vouchers set used_count = used_count + 1 where id = $1`, [v.id]);
     }
     await client.query("commit");
   } catch (e) {
@@ -165,7 +165,7 @@ export async function redeemVoucher(input: {
 // ── Admin CRUD ──────────────────────────────────────────────────────────────
 
 export async function listVouchers(): Promise<Voucher[]> {
-  const rows = await query<Row>(`select ${COLS} from ecom.vouchers order by created_at desc`);
+  const rows = await query<Row>(`select ${COLS} from odg_ecom.vouchers order by created_at desc`);
   return rows.map(toVoucher);
 }
 
@@ -174,7 +174,7 @@ export async function listPublicVouchers(limit = 6): Promise<Voucher[]> {
   try {
     const rows = await query<Row>(
       `select ${COLS}
-         from ecom.vouchers
+         from odg_ecom.vouchers
         where active
           and (starts_at is null or starts_at <= now())
           and (expires_at is null or expires_at >= now())
@@ -190,7 +190,7 @@ export async function listPublicVouchers(limit = 6): Promise<Voucher[]> {
 }
 
 export async function getVoucher(id: number): Promise<Voucher | null> {
-  const r = await queryOne<Row>(`select ${COLS} from ecom.vouchers where id = $1`, [id]);
+  const r = await queryOne<Row>(`select ${COLS} from odg_ecom.vouchers where id = $1`, [id]);
   return r ? toVoucher(r) : null;
 }
 
@@ -214,7 +214,7 @@ export async function createVoucher(input: VoucherInput, createdBy?: string): Pr
   if (!(input.value > 0)) throw new Error("ມູນຄ່າຕ້ອງ > 0");
   if (input.kind === "percent" && input.value > 100) throw new Error("ເປີເຊັນຕ້ອງ ≤ 100");
   const r = await queryOne<Row>(
-    `insert into ecom.vouchers
+    `insert into odg_ecom.vouchers
        (code, kind, value, min_subtotal, max_discount, starts_at, expires_at,
         usage_limit, per_customer_limit, active, note, created_by)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -231,7 +231,7 @@ export async function createVoucher(input: VoucherInput, createdBy?: string): Pr
 export async function updateVoucher(id: number, input: VoucherInput): Promise<void> {
   const code = input.code.trim().toUpperCase();
   await query(
-    `update ecom.vouchers set
+    `update odg_ecom.vouchers set
         code=$2, kind=$3, value=$4, min_subtotal=$5, max_discount=$6,
         starts_at=$7, expires_at=$8, usage_limit=$9, per_customer_limit=$10,
         active=$11, note=$12
@@ -245,9 +245,9 @@ export async function updateVoucher(id: number, input: VoucherInput): Promise<vo
 }
 
 export async function setVoucherActive(id: number, active: boolean): Promise<void> {
-  await query(`update ecom.vouchers set active = $2 where id = $1`, [id, active]);
+  await query(`update odg_ecom.vouchers set active = $2 where id = $1`, [id, active]);
 }
 
 export async function deleteVoucher(id: number): Promise<void> {
-  await query(`delete from ecom.vouchers where id = $1`, [id]);
+  await query(`delete from odg_ecom.vouchers where id = $1`, [id]);
 }

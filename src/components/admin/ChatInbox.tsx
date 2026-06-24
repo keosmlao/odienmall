@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminListThreads, adminGetMessages, adminReply } from "@/app/admin/chat/actions";
-import { formatKip } from "@/lib/format";
 
 interface Msg {
   id: number;
@@ -328,4 +327,3 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
     </div>
   );
 }
-

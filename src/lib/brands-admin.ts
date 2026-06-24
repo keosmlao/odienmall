@@ -23,7 +23,7 @@ export async function getAdminBrandList(search = ""): Promise<AdminBrand[]> {
             count(i.code) filter (where i.is_eordershow=1)::int as "productCount"
        from public.ic_brand b
        left join public.ic_inventory i on i.item_brand=b.code
-       left join ecom.brand_overlays bo on bo.brand_code=b.code
+       left join odg_ecom.brand_overlays bo on bo.brand_code=b.code
       where b.onweb=1 ${filter}
       group by b.code,b.name_1,b.url_logo,bo.logo_url
       order by count(i.code) filter (where i.is_eordershow=1) desc,b.name_1`,
@@ -34,7 +34,7 @@ export async function getAdminBrandList(search = ""): Promise<AdminBrand[]> {
 export async function getBrandOverlay(code: string): Promise<string | null> {
   const row = await queryOne<{ logoUrl: string | null }>(
     `select nullif(logo_url,'') as "logoUrl"
-       from ecom.brand_overlays where brand_code=$1`,
+       from odg_ecom.brand_overlays where brand_code=$1`,
     [code],
   );
   return row?.logoUrl ?? null;
@@ -46,7 +46,7 @@ export async function setBrandOverlay(
   by?: string,
 ): Promise<void> {
   await query(
-    `insert into ecom.brand_overlays(brand_code,logo_url,updated_by,updated_at)
+    `insert into odg_ecom.brand_overlays(brand_code,logo_url,updated_by,updated_at)
      values($1,$2,$3,now())
      on conflict(brand_code) do update
        set logo_url=excluded.logo_url,updated_by=excluded.updated_by,updated_at=now()`,

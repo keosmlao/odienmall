@@ -31,7 +31,7 @@ export interface PushSub {
 export async function savePushSubscription(customerKey: string, sub: PushSub): Promise<void> {
   if (!sub?.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) return;
   await query(
-    `insert into ecom.push_subscriptions (customer_key, endpoint, p256dh, auth)
+    `insert into odg_ecom.push_subscriptions (customer_key, endpoint, p256dh, auth)
      values ($1, $2, $3, $4)
      on conflict (endpoint) do update set customer_key = excluded.customer_key,
         p256dh = excluded.p256dh, auth = excluded.auth`,
@@ -40,7 +40,7 @@ export async function savePushSubscription(customerKey: string, sub: PushSub): P
 }
 
 export async function removePushSubscription(endpoint: string): Promise<void> {
-  await query(`delete from ecom.push_subscriptions where endpoint = $1`, [endpoint]);
+  await query(`delete from odg_ecom.push_subscriptions where endpoint = $1`, [endpoint]);
 }
 
 /** Send a push to every subscription for a customer. No-op unless configured. */
@@ -51,7 +51,7 @@ export async function sendPushToCustomer(
   if (!pushConfigured()) return;
   init();
   const subs = await query<{ endpoint: string; p256dh: string; auth: string }>(
-    `select endpoint, p256dh, auth from ecom.push_subscriptions where customer_key = $1`,
+    `select endpoint, p256dh, auth from odg_ecom.push_subscriptions where customer_key = $1`,
     [customerKey],
   );
   const data = JSON.stringify(payload);

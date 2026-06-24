@@ -11,7 +11,7 @@ async function ownsOrder(orderNo: string, custCode: string): Promise<boolean> {
        where (doc_no = $1 or doc_ref = $1) and cust_code = $2
          and remark_5 in ('web','odienmall')
      union
-     select 1 as x from ecom.onepay_payments where order_no = $1 and cust_code = $2
+     select 1 as x from odg_ecom.onepay_payments where order_no = $1 and cust_code = $2
      limit 1`,
     [orderNo, custCode],
   );

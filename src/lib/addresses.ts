@@ -2,7 +2,7 @@ import "server-only";
 import { query, queryOne } from "./db";
 import { composeAddress } from "./lao-locations";
 
-// Customer address book (ecom.customer_addresses). A logged-in customer can save
+// Customer address book (odg_ecom.customer_addresses). A logged-in customer can save
 // many delivery addresses; one is snapshotted onto each order at checkout.
 
 export interface AddressRecord {
@@ -58,7 +58,7 @@ export async function getCustomerAddresses(customerCode: string): Promise<Addres
   if (!customerCode) return [];
   const rows = await query<Row>(
     `select id, recipient, phone, province, district, village, detail, is_default
-       from ecom.customer_addresses
+       from odg_ecom.customer_addresses
       where customer_code = $1
       order by is_default desc, id desc`,
     [customerCode],
@@ -74,7 +74,7 @@ export async function getCustomerAddress(
   if (!customerCode || !Number.isFinite(id)) return null;
   const row = await queryOne<Row>(
     `select id, recipient, phone, province, district, village, detail, is_default
-       from ecom.customer_addresses
+       from odg_ecom.customer_addresses
       where id = $1 and customer_code = $2`,
     [id, customerCode],
   );
@@ -92,19 +92,19 @@ export async function createCustomerAddress(
   if (!province || !district) throw new Error("ກະລຸນາເລືອກ ແຂວງ ແລະ ເມືອງ");
 
   const existing = await queryOne<{ n: number }>(
-    `select count(*)::int as n from ecom.customer_addresses where customer_code = $1`,
+    `select count(*)::int as n from odg_ecom.customer_addresses where customer_code = $1`,
     [customerCode],
   );
   const isDefault = input.makeDefault || (existing?.n ?? 0) === 0;
 
   if (isDefault) {
     await query(
-      `update ecom.customer_addresses set is_default = false where customer_code = $1`,
+      `update odg_ecom.customer_addresses set is_default = false where customer_code = $1`,
       [customerCode],
     );
   }
   const row = await queryOne<Row>(
-    `insert into ecom.customer_addresses
+    `insert into odg_ecom.customer_addresses
        (customer_code, recipient, phone, province, district, village, detail, is_default)
      values ($1,$2,$3,$4,$5,$6,$7,$8)
      returning id, recipient, phone, province, district, village, detail, is_default`,
@@ -126,7 +126,7 @@ export async function createCustomerAddress(
 export async function deleteCustomerAddress(id: number, customerCode: string): Promise<void> {
   if (!customerCode || !Number.isFinite(id)) return;
   const removed = await queryOne<{ is_default: boolean }>(
-    `delete from ecom.customer_addresses
+    `delete from odg_ecom.customer_addresses
       where id = $1 and customer_code = $2
       returning is_default`,
     [id, customerCode],
@@ -134,9 +134,9 @@ export async function deleteCustomerAddress(id: number, customerCode: string): P
   // If the default was removed, promote the newest remaining address.
   if (removed?.is_default) {
     await query(
-      `update ecom.customer_addresses set is_default = true
+      `update odg_ecom.customer_addresses set is_default = true
         where id = (
-          select id from ecom.customer_addresses
+          select id from odg_ecom.customer_addresses
            where customer_code = $1 order by id desc limit 1
         )`,
       [customerCode],
@@ -148,11 +148,11 @@ export async function deleteCustomerAddress(id: number, customerCode: string): P
 export async function setDefaultAddress(id: number, customerCode: string): Promise<void> {
   if (!customerCode || !Number.isFinite(id)) return;
   await query(
-    `update ecom.customer_addresses set is_default = false where customer_code = $1`,
+    `update odg_ecom.customer_addresses set is_default = false where customer_code = $1`,
     [customerCode],
   );
   await query(
-    `update ecom.customer_addresses set is_default = true where id = $1 and customer_code = $2`,
+    `update odg_ecom.customer_addresses set is_default = true where id = $1 and customer_code = $2`,
     [id, customerCode],
   );
 }

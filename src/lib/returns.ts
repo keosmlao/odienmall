@@ -58,7 +58,7 @@ const COLS = `id, order_no, customer_code, reason, detail, status, admin_note, c
 /** Latest return request for an order (a customer can have one open at a time). */
 export async function getReturnForOrder(orderNo: string): Promise<ReturnRequest | null> {
   const r = await queryOne<Row>(
-    `select ${COLS} from ecom.return_requests where order_no = $1 order by id desc limit 1`,
+    `select ${COLS} from odg_ecom.return_requests where order_no = $1 order by id desc limit 1`,
     [orderNo],
   );
   return r ? toReq(r) : null;
@@ -78,7 +78,7 @@ export async function createReturnRequest(input: {
     return { ok: false, error: "ມີຄຳຮ້ອງຄືນສິນຄ້າຄ້າງຢູ່ແລ້ວ" };
   }
   await query(
-    `insert into ecom.return_requests (order_no, customer_code, reason, detail) values ($1,$2,$3,$4)`,
+    `insert into odg_ecom.return_requests (order_no, customer_code, reason, detail) values ($1,$2,$3,$4)`,
     [input.orderNo, input.customerCode, reason, input.detail?.trim() || null],
   );
   return { ok: true };
@@ -86,7 +86,7 @@ export async function createReturnRequest(input: {
 
 export async function listReturnsByCustomer(customerCode: string): Promise<ReturnRequest[]> {
   const rows = await query<Row>(
-    `select ${COLS} from ecom.return_requests where customer_code = $1 order by id desc limit 50`,
+    `select ${COLS} from odg_ecom.return_requests where customer_code = $1 order by id desc limit 50`,
     [customerCode],
   );
   return rows.map(toReq);
@@ -95,7 +95,7 @@ export async function listReturnsByCustomer(customerCode: string): Promise<Retur
 export async function listReturns(status?: string): Promise<ReturnRequest[]> {
   const ok = status && (RETURN_STATUSES as readonly string[]).includes(status);
   const rows = await query<Row>(
-    `select ${COLS} from ecom.return_requests
+    `select ${COLS} from odg_ecom.return_requests
       ${ok ? "where status = $1" : ""}
       order by id desc limit 200`,
     ok ? [status] : [],
@@ -105,7 +105,7 @@ export async function listReturns(status?: string): Promise<ReturnRequest[]> {
 
 export async function countPendingReturns(): Promise<number> {
   const r = await queryOne<{ n: string }>(
-    `select count(*)::text as n from ecom.return_requests where status = 'pending'`,
+    `select count(*)::text as n from odg_ecom.return_requests where status = 'pending'`,
   );
   return Number(r?.n ?? 0);
 }
@@ -118,7 +118,7 @@ export async function setReturnStatus(
   adminNote?: string,
 ): Promise<boolean> {
   const rows = await query<{ order_no: string; customer_code: string | null }>(
-    `update ecom.return_requests
+    `update odg_ecom.return_requests
         set status = $2, admin_note = coalesce($3, admin_note),
             resolved_at = case when $2 = 'pending' then null else now() end,
             resolved_by = $4

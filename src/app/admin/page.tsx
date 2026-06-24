@@ -35,7 +35,7 @@ export default async function AdminDashboard({
   const q = firstParam(sp.q)?.trim() || "";
   const from = firstParam(sp.from) || "";
   const to = firstParam(sp.to) || "";
-  
+
   // Staff see only their own sales; managers see everything (and may filter).
   const scope = await getSalesScope();
   const sale = scope.all ? firstParam(sp.sale) || "" : scope.saleCode || "";

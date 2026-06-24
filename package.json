@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test scripts/check-critical.mjs",
+    "check": "npm run lint && npm run test && npx tsc --noEmit --pretty false"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

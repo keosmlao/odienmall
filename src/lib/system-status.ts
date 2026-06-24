@@ -82,6 +82,37 @@ export async function getSystemStatus(): Promise<StatusItem[]> {
   });
 
   // 7. Database connectivity.
+  const uploadDir = process.env.UPLOADS_DIR?.trim() || "";
+  const uploadBase = (process.env.UPLOADS_PUBLIC_BASE?.trim() || "/uploads").replace(/\/$/, "");
+  const likelyServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+  items.push({
+    label: "Upload storage",
+    level: "ok",
+    value: "DB bytea (odg_ecom.upload_blobs)",
+    hint: uploadDir || likelyServerless || uploadBase ? "upload ໃໝ່ເກັບໃນ DB; URL /uploads ເກົ່າຍັງອ່ານໄດ້" : undefined,
+  });
+
+  const openAiOk = !!process.env.OPENAI_API_KEY?.trim();
+  const anthropicOk = !!process.env.ANTHROPIC_API_KEY?.trim();
+  items.push({
+    label: "AI chatbot",
+    level: openAiOk || anthropicOk ? "ok" : "info",
+    value: openAiOk ? "OpenAI / ChatGPT" : anthropicOk ? "Anthropic fallback" : "human-only",
+    hint: openAiOk
+      ? "chatbot ຕອບຈາກ DB context ຜ່ານ OPENAI_API_KEY"
+      : anthropicOk
+        ? "ຖ້າ Anthropic credit ໝົດ ໃຫ້ຕັ້ງ OPENAI_API_KEY"
+        : "ຕັ້ງ OPENAI_API_KEY ເພື່ອໃຫ້ bot ຕອບອັດຕະໂນມັດ",
+  });
+
+  items.push({
+    label: "NODE_ENV",
+    level: process.env.NODE_ENV === "production" ? "ok" : "info",
+    value: process.env.NODE_ENV || "development",
+    hint: process.env.NODE_ENV === "production" ? undefined : "ຕອນ deploy ຄວນເປັນ production",
+  });
+
+  // 8. Database connectivity.
   try {
     await query(`select 1`);
     items.push({ label: "ຖານຂໍ້ມູນ (PostgreSQL)", level: "ok", value: "ເຊື່ອມຕໍ່ໄດ້" });
@@ -89,7 +120,7 @@ export async function getSystemStatus(): Promise<StatusItem[]> {
     items.push({ label: "ຖານຂໍ້ມູນ (PostgreSQL)", level: "warn", value: "ເຊື່ອມຕໍ່ບໍ່ໄດ້", hint: "ກວດ DATABASE_URL" });
   }
 
-  // 8. Pending affiliate-commission sync (ties to CRON_TOKEN above).
+  // 9. Pending affiliate-commission sync (ties to CRON_TOKEN above).
   try {
     const pending = await countPendingCommissionSync();
     items.push({

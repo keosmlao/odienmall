@@ -14,6 +14,11 @@ import {
 
 type SpecRow = { id: number; label: string; value: string };
 
+const MAX_IMAGES = 8;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_UPLOAD_BODY = 45 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
 // Monotonic key source for spec rows (uniqueness only — not persisted).
 let rowIdSeq = 0;
 const nextRowId = () => rowIdSeq++;
@@ -138,9 +143,33 @@ export default function ProductEditForm({
   function onUpload() {
     const input = fileRef.current;
     if (!input?.files?.length) return;
+    const files = Array.from(input.files);
+    if (images.length + files.length > MAX_IMAGES) {
+      setMsg({ ok: false, text: `ສູງສຸດ ${MAX_IMAGES} ຮູບຕໍ່ສິນຄ້າ` });
+      input.value = "";
+      return;
+    }
+    for (const file of files) {
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        setMsg({ ok: false, text: "ຮອງຮັບສະເພາະ JPG, PNG, WEBP, GIF" });
+        input.value = "";
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        setMsg({ ok: false, text: "ໄຟລ໌ໃຫຍ່ເກີນ 5MB/ຮູບ" });
+        input.value = "";
+        return;
+      }
+    }
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > MAX_UPLOAD_BODY) {
+      setMsg({ ok: false, text: "ຂະໜາດລວມໃຫຍ່ເກີນ — ກະລຸນາອັບໂຫຼດເທື່ອລະໜ້ອຍ" });
+      input.value = "";
+      return;
+    }
     const fd = new FormData();
     fd.set("code", code);
-    Array.from(input.files).forEach((f) => fd.append("files", f));
+    files.forEach((f) => fd.append("files", f));
     run(
       async () => {
         const res = await uploadProductImages(fd);

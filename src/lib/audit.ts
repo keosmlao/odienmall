@@ -3,7 +3,7 @@ import { query } from "./db";
 import { getAdminSession } from "./auth";
 
 // ---------------------------------------------------------------------------
-// Admin audit log (ecom.audit_log, app-owned). Records who changed what.
+// Admin audit log (odg_ecom.audit_log, app-owned). Records who changed what.
 // BEST-EFFORT: a logging failure must never break the action it accompanies, so
 // every write is wrapped in try/catch. Call from admin server actions AFTER the
 // real mutation succeeds.
@@ -38,7 +38,7 @@ export async function logAudit(input: {
       actorName = actorName ?? sess?.name ?? null;
     }
     await query(
-      `insert into ecom.audit_log (actor_code, actor_name, action, entity, detail)
+      `insert into odg_ecom.audit_log (actor_code, actor_name, action, entity, detail)
        values ($1, $2, $3, $4, $5)`,
       [actorCode ?? null, actorName ?? null, input.action, input.entity ?? null, input.detail ?? null],
     );
@@ -80,7 +80,7 @@ export async function getAuditLog(opts: {
   const where = conds.length ? `where ${conds.join(" and ")}` : "";
 
   const totalRow = await query<{ n: number }>(
-    `select count(*)::int as n from ecom.audit_log ${where}`,
+    `select count(*)::int as n from odg_ecom.audit_log ${where}`,
     params,
   );
   const total = totalRow[0]?.n ?? 0;
@@ -96,7 +96,7 @@ export async function getAuditLog(opts: {
     created_at: Date;
   }>(
     `select id, actor_code, actor_name, action, entity, detail, created_at
-       from ecom.audit_log
+       from odg_ecom.audit_log
        ${where}
       order by created_at desc, id desc
       limit $${params.length - 1} offset $${params.length}`,
@@ -124,7 +124,7 @@ export async function getAuditLog(opts: {
 export async function getAuditActions(): Promise<string[]> {
   const rows = await query<{ prefix: string }>(
     `select distinct split_part(action, '.', 1) as prefix
-       from ecom.audit_log order by 1`,
+       from odg_ecom.audit_log order by 1`,
   );
   return rows.map((r) => r.prefix).filter(Boolean);
 }

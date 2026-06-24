@@ -41,24 +41,31 @@ export default function SalesLinkBuilder({
 
   // Debounced search query observer
   useEffect(() => {
+    let alive = true;
     const term = searchQuery.trim();
-    if (!term) {
-      setHits([]);
-      return;
-    }
-    setSearching(true);
     const delayDebounceFn = setTimeout(async () => {
+      if (!term) {
+        if (alive) {
+          setHits([]);
+          setSearching(false);
+        }
+        return;
+      }
+      if (alive) setSearching(true);
       try {
         const results = await adminSearchProducts(term);
-        setHits(results as ProductHit[]);
+        if (alive) setHits(results as ProductHit[]);
       } catch (err) {
         console.error(err);
       } finally {
-        setSearching(false);
+        if (alive) setSearching(false);
       }
-    }, 400);
+    }, term ? 400 : 0);
 
-    return () => clearTimeout(delayDebounceFn);
+    return () => {
+      alive = false;
+      clearTimeout(delayDebounceFn);
+    };
   }, [searchQuery]);
 
   async function copy() {

@@ -82,7 +82,7 @@ export interface OrderRecord {
 import { ORDER_STATUSES, STATUS_LABEL, type OrderStatus } from "./order-constants";
 import { toShippingMethod, computeShippingFee } from "./shipping-constants";
 import { storePendingOrder, getPendingOrder } from "./onepay-store";
-import { setSmlSaleCode } from "./sml-sale-order";
+import { setSmlSaleCode, smlDirectWriteEnabled } from "./sml-sale-order";
 import { validateVoucher } from "./vouchers";
 import { previewRedeem, POINT_VALUE } from "./loyalty";
 import { getMemberDiscountPct } from "./member-tier";
@@ -99,7 +99,7 @@ export class OrderError extends Error {}
 const WEB_ORDER = `ic.doc_format_code = 'CAE' and ic.remark_5 in ('web','odienmall') and ic.trans_flag in (34, 44)`;
 
 // Payment method of an order (from its QR-holder snapshot): 'cod' or 'transfer'.
-const PAY_METHOD_SQL = `(select op.payment_method from ecom.onepay_payments op where op.sml_doc_no = ic.doc_no limit 1)`;
+const PAY_METHOD_SQL = `(select op.payment_method from odg_ecom.onepay_payments op where op.sml_doc_no = ic.doc_no limit 1)`;
 
 // Flag 34 = COD order awaiting delivery, or a paid transfer awaiting confirmation;
 // flag 44 = issued bill. Delivery states come from odg_tms_detail.
@@ -456,7 +456,7 @@ export async function getAllOrders(opts: {
                   d.price_2 as unit_price,
                   d.qty,
                   d.sum_amount_2 as line_total,
-                  (select pi.url from ecom.product_images pi
+                  (select pi.url from odg_ecom.product_images pi
                      where pi.product_code = d.item_code
                      order by pi.sort_order, pi.id limit 1) as image_url,
                   row_number() over (partition by d.doc_no order by d.roworder) as rn
@@ -549,7 +549,7 @@ export async function getAllOrders(opts: {
             op.created_by,
             nullif(op.sale_code,'') as sale_code,
             coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), nullif(op.sale_code,'')) as sale_name
-       from ecom.onepay_payments op
+       from odg_ecom.onepay_payments op
        left join public.odg_employee emp on emp.employee_code = op.sale_code
       where ${pConds.join(" and ")}
       order by op.created_at desc
@@ -638,7 +638,7 @@ export async function getOrderStats(saleCode?: string): Promise<{
                   when op.payment_method = 'cod' then 'cod'
                   else 'pending' end) as status,
             count(*)::int as n
-       from ecom.onepay_payments op
+       from odg_ecom.onepay_payments op
       where op.sml_doc_no is null ${opScope}
       group by 1`,
     params,
@@ -669,7 +669,7 @@ export async function getOrderNosByPhone(phone: string): Promise<string[]> {
       [tail],
     ),
     query<{ order_no: string; created_at: Date }>(
-      `select order_no, created_at from ecom.onepay_payments
+      `select order_no, created_at from odg_ecom.onepay_payments
         where sml_doc_no is null
           and right(regexp_replace(coalesce(phone,''), '[^0-9]', '', 'g'), 8) = $1
         order by created_at desc
@@ -700,10 +700,10 @@ export async function setOrderSaleCode(
   const resolved = await resolveSalespersonCode(saleCode);
   if (/^CAE/i.test(orderNo)) {
     // Materialised CAE doc — update the snapshot keyed by sml_doc_no, then ic_trans.
-    await query(`update ecom.onepay_payments set sale_code = $2 where sml_doc_no = $1`, [orderNo, resolved]);
+    await query(`update odg_ecom.onepay_payments set sale_code = $2 where sml_doc_no = $1`, [orderNo, resolved]);
     await setSmlSaleCode(orderNo, resolved);
   } else {
-    await query(`update ecom.onepay_payments set sale_code = $2 where order_no = $1`, [orderNo, resolved]);
+    await query(`update odg_ecom.onepay_payments set sale_code = $2 where order_no = $1`, [orderNo, resolved]);
     const pend = await getPendingOrder(orderNo);
     if (pend?.smlDocNo) await setSmlSaleCode(pend.smlDocNo, resolved);
   }
@@ -726,7 +726,7 @@ export async function syncDeliveryNotifications(): Promise<number> {
   }>(
     `select p.order_no, p.sml_doc_no, ic.cust_code,
             (${STATUS_EXPR}) as status, p.notified_status
-       from ecom.onepay_payments p
+       from odg_ecom.onepay_payments p
        join public.ic_trans ic on ic.doc_no = p.sml_doc_no
       where p.sml_doc_no is not null and ${WEB_ORDER}`,
   );
@@ -747,7 +747,7 @@ export async function syncDeliveryNotifications(): Promise<number> {
         sent++;
       }
     }
-    await query(`update ecom.onepay_payments set notified_status = $2 where order_no = $1`, [
+    await query(`update odg_ecom.onepay_payments set notified_status = $2 where order_no = $1`, [
       r.order_no,
       r.status,
     ]).catch(() => {});
@@ -900,6 +900,9 @@ export async function updateOrderStatus(
 
   if (status === "cancelled") {
     if (cur === "completed") throw new OrderError("ອໍເດີສົ່ງສຳເລັດແລ້ວ ຍົກເລີກບໍ່ໄດ້");
+    if (!smlDirectWriteEnabled()) {
+      throw new OrderError("SML_DIRECT_WRITE ຍັງປິດ — ບໍ່ສາມາດປ່ຽນສະຖານະໃນ public.ic_trans");
+    }
     const rows = await query<{ doc_no: string }>(
       `update public.ic_trans as ic set is_cancel = 1, cancel_datetime = now()
         where doc_no = $1 and ${WEB_ORDER} returning doc_no`,
@@ -947,7 +950,7 @@ export async function getOrderTms(orderNo: string): Promise<OrderTms | null> {
   let docNo = orderNo;
   if (!/^CAE/i.test(orderNo)) {
     const snap = await queryOne<{ sml_doc_no: string | null }>(
-      `select sml_doc_no from ecom.onepay_payments where order_no = $1`,
+      `select sml_doc_no from odg_ecom.onepay_payments where order_no = $1`,
       [orderNo],
     );
     if (!snap?.sml_doc_no) return null;
@@ -1027,6 +1030,9 @@ export async function cancelMyOrder(
   if (status !== "cod") {
     return { ok: false, error: "ຍົກເລີກເອງໄດ້ສະເພາະອໍເດີ COD ທີ່ຍັງບໍ່ໄດ້ຈັດສົ່ງ — ກະລຸນາຕິດຕໍ່ຮ້ານ" };
   }
+  if (!smlDirectWriteEnabled()) {
+    return { ok: false, error: "SML_DIRECT_WRITE ຍັງປິດ — ບໍ່ສາມາດຍົກເລີກໃນ public.ic_trans" };
+  }
   const rows = await query<{ doc_no: string }>(
     `update public.ic_trans as ic set is_cancel = 1, cancel_datetime = now()
       where doc_no = $1 and ${WEB_ORDER} returning doc_no`,
@@ -1056,28 +1062,26 @@ export async function adminDeleteOrder(orderNo: string): Promise<boolean> {
       // No CAE order — this is a pending snapshot (un-materialised order). Delete
       // its app-side rows only (nothing in public.* to remove).
       const delPend = await client.query(
-        `delete from ecom.onepay_payments where order_no=$1 and sml_doc_no is null`,
+        `delete from odg_ecom.onepay_payments where order_no=$1 and sml_doc_no is null`,
         [orderNo],
       );
-      await client.query(`delete from ecom.erp_cash_bill_queue where order_no=$1`, [orderNo]);
       await client.query("commit");
       return (delPend.rowCount ?? 0) > 0;
+    }
+
+    if (!smlDirectWriteEnabled()) {
+      throw new OrderError("SML_DIRECT_WRITE ຍັງປິດ — ບໍ່ສາມາດລຶບຂໍ້ມູນ public.*");
     }
 
     // App-owned rows. Legacy orders may be referenced by either their temporary
     // OnePay order number or the materialised CAE SML number.
     await client.query(
-      `delete from ecom.onepay_payments
+      `delete from odg_ecom.onepay_payments
         where order_no=$1 or sml_doc_no=$1`,
       [orderNo],
     );
     await client.query(
-      `delete from ecom.erp_cash_bill_queue
-        where order_no=$1 or sml_doc_no=$1`,
-      [orderNo],
-    );
-    await client.query(
-      `delete from ecom.order_item_allocations a
+      `delete from odg_ecom.order_item_allocations a
         using public.ic_trans_detail d
         where d.doc_no=$1 and a.order_item_id=d.roworder`,
       [orderNo],

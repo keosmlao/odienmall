@@ -35,7 +35,7 @@ export async function getProductReviews(
     created_at: Date;
   }>(
     `select id, customer_code, customer_name, rating, comment, photo_url, created_at
-       from ecom.reviews where product_code = $1 and not is_hidden
+       from odg_ecom.reviews where product_code = $1 and not is_hidden
       order by created_at desc
       limit 100`,
     [productCode],
@@ -75,12 +75,12 @@ export async function createReview(input: {
   photoUrl?: string | null;
 }): Promise<void> {
   await query(
-    `insert into ecom.reviews (product_code, customer_code, customer_name, rating, comment, photo_url)
+    `insert into odg_ecom.reviews (product_code, customer_code, customer_name, rating, comment, photo_url)
        values ($1,$2,$3,$4,$5,$6)
      on conflict (product_code, customer_code)
        do update set rating = excluded.rating,
                      comment = excluded.comment,
-                     photo_url = coalesce(excluded.photo_url, ecom.reviews.photo_url),
+                     photo_url = coalesce(excluded.photo_url, odg_ecom.reviews.photo_url),
                      customer_name = excluded.customer_name,
                      created_at = now()`,
     [
@@ -105,7 +105,7 @@ export async function getReviewedCodes(
   const codes = productCodes.filter(Boolean);
   if (!customerCode || codes.length === 0) return new Set();
   const rows = await query<{ product_code: string }>(
-    `select product_code from ecom.reviews
+    `select product_code from odg_ecom.reviews
       where customer_code = $1 and product_code = any($2)`,
     [customerCode, codes],
   );

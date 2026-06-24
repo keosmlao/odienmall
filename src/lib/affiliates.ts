@@ -112,7 +112,7 @@ export async function resolveActiveAffiliate(
   const c = (code ?? "").trim();
   if (!c) return null;
   const row = await queryOne<{ id: string; customer_code: string }>(
-    `select id, customer_code from ecom.affiliates where code = $1 and status = 'active'`,
+    `select id, customer_code from odg_ecom.affiliates where code = $1 and status = 'active'`,
     [c],
   );
   return row ? { id: Number(row.id), customerCode: row.customer_code } : null;
@@ -123,14 +123,14 @@ export async function recordClick(code: string, path: string): Promise<void> {
   const aff = await resolveActiveAffiliate(code);
   if (!aff) return;
   await query(
-    `insert into ecom.affiliate_clicks (affiliate_id, path) values ($1, $2)`,
+    `insert into odg_ecom.affiliate_clicks (affiliate_id, path) values ($1, $2)`,
     [aff.id, path.slice(0, 500)],
   );
 }
 
 export async function getAffiliateByCustomer(customerCode: string): Promise<Affiliate | null> {
   const row = await queryOne<AffiliateRow>(
-    `select ${AFFILIATE_COLS} from ecom.affiliates where customer_code = $1`,
+    `select ${AFFILIATE_COLS} from odg_ecom.affiliates where customer_code = $1`,
     [customerCode],
   );
   return row ? mapAffiliate(row) : null;
@@ -138,7 +138,7 @@ export async function getAffiliateByCustomer(customerCode: string): Promise<Affi
 
 export async function getAffiliateByCode(code: string): Promise<Affiliate | null> {
   const row = await queryOne<AffiliateRow>(
-    `select ${AFFILIATE_COLS} from ecom.affiliates where code = $1`,
+    `select ${AFFILIATE_COLS} from odg_ecom.affiliates where code = $1`,
     [code],
   );
   return row ? mapAffiliate(row) : null;
@@ -158,7 +158,7 @@ export async function applyAsAffiliate(input: {
   const existing = await getAffiliateByCustomer(input.customerCode);
   if (existing) {
     const updated = await queryOne<AffiliateRow>(
-      `update ecom.affiliates
+      `update odg_ecom.affiliates
           set name = $2,
               phone = coalesce($3, phone),
               email = $4,
@@ -180,7 +180,7 @@ export async function applyAsAffiliate(input: {
   for (let i = 0; i < 5; i++) {
     try {
       const rows = await query<AffiliateRow>(
-        `insert into ecom.affiliates
+        `insert into odg_ecom.affiliates
            (code, customer_code, name, phone, status, email, email_verified_at,
             bank_code, bank_name, account_name, account_no)
          values ($1, $2, $3, $4, 'pending', $5, now(), $6, $7, $8, $9)
@@ -262,7 +262,7 @@ export async function requestAffiliateEmailVerification(input: {
     accountNo: input.accountNo,
   });
   const emailOwner = await queryOne<{ customer_code: string }>(
-    `select customer_code from ecom.affiliates
+    `select customer_code from odg_ecom.affiliates
       where lower(email) = lower($1)
         and email_verified_at is not null
         and customer_code <> $2`,
@@ -272,7 +272,7 @@ export async function requestAffiliateEmailVerification(input: {
     throw new AffiliateError("Email ນີ້ຖືກໃຊ້ກັບບັນຊີ Affiliate ອື່ນແລ້ວ");
   }
   const previous = await queryOne<{ sent_at: Date }>(
-    `select sent_at from ecom.affiliate_email_verifications where customer_code = $1`,
+    `select sent_at from odg_ecom.affiliate_email_verifications where customer_code = $1`,
     [input.customerCode],
   );
   if (previous && Date.now() - previous.sent_at.getTime() < OTP_RESEND_MS) {
@@ -282,7 +282,7 @@ export async function requestAffiliateEmailVerification(input: {
   const code = String(randomInt(100000, 1_000_000));
   await sendAffiliateOtp(normalized.email, code);
   await query(
-    `insert into ecom.affiliate_email_verifications
+    `insert into odg_ecom.affiliate_email_verifications
        (customer_code, email, code_hash, bank_code, bank_name,
         account_name, account_no, attempts, sent_at, expires_at)
      values ($1,$2,$3,$4,$5,$6,$7,0,now(),$8)
@@ -322,7 +322,7 @@ export async function verifyAffiliateEmailAndApply(input: {
   }>(
     `select email, code_hash, bank_code, bank_name, account_name, account_no,
             attempts, expires_at
-       from ecom.affiliate_email_verifications
+       from odg_ecom.affiliate_email_verifications
       where customer_code = $1`,
     [input.customerCode],
   );
@@ -338,7 +338,7 @@ export async function verifyAffiliateEmailAndApply(input: {
   const actual = Buffer.from(otpHash(input.customerCode, row.email, input.code.trim()), "hex");
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
     await query(
-      `update ecom.affiliate_email_verifications
+      `update odg_ecom.affiliate_email_verifications
           set attempts = attempts + 1 where customer_code = $1`,
       [input.customerCode],
     );
@@ -356,7 +356,7 @@ export async function verifyAffiliateEmailAndApply(input: {
     accountNo: row.account_no,
   });
   await query(
-    `delete from ecom.affiliate_email_verifications where customer_code = $1`,
+    `delete from odg_ecom.affiliate_email_verifications where customer_code = $1`,
     [input.customerCode],
   );
   return affiliate;
@@ -391,18 +391,18 @@ export async function getAffiliateDashboard(customerCode: string): Promise<Affil
 
   const [clickRow, orderRow, totals, recent] = await Promise.all([
     queryOne<{ n: number }>(
-      `select count(*)::int as n from ecom.affiliate_clicks where affiliate_id = $1`,
+      `select count(*)::int as n from odg_ecom.affiliate_clicks where affiliate_id = $1`,
       [id],
     ),
     queryOne<{ n: number }>(
       `select count(*)::int as n
-         from ecom.onepay_payments p
+         from odg_ecom.onepay_payments p
         where p.referral_code = $1`,
       [affiliate.code],
     ),
     query<{ status: string; sum: string }>(
       `select status, coalesce(sum(amount),0)::text as sum
-         from ecom.commissions where affiliate_id = $1 group by status`,
+         from odg_ecom.commissions where affiliate_id = $1 group by status`,
       [id],
     ),
     query<{
@@ -416,9 +416,9 @@ export async function getAffiliateDashboard(customerCode: string): Promise<Affil
       `select p.order_no, coalesce(p.subtotal,0)::text as subtotal,
               (${SNAPSHOT_STATUS_SQL}) as status, p.created_at,
               c.amount as commission_amount, c.status as commission_status
-         from ecom.onepay_payments p
+         from odg_ecom.onepay_payments p
          left join public.ic_trans ic on ic.doc_no = p.sml_doc_no
-         left join ecom.commissions c on c.order_no = p.order_no
+         left join odg_ecom.commissions c on c.order_no = p.order_no
         where p.referral_code = $1
         order by p.created_at desc
         limit 20`,
@@ -476,7 +476,7 @@ export async function getCommissionRates(): Promise<RateRow[]> {
                                       from public.ic_inventory i where i.code = r.ref_key)
               else null
             end as ref_name
-       from ecom.commission_rates r
+       from odg_ecom.commission_rates r
       order by case r.scope when 'default' then 0 when 'category' then 1 else 2 end, r.ref_key`,
   );
   return rows.map((r) => ({
@@ -497,7 +497,7 @@ interface RateMap {
 
 async function resolveRateMap(): Promise<RateMap> {
   const rows = await query<{ scope: string; ref_key: string | null; rate_pct: string }>(
-    `select scope, ref_key, rate_pct from ecom.commission_rates`,
+    `select scope, ref_key, rate_pct from odg_ecom.commission_rates`,
   );
   const map: RateMap = { default: 0, category: new Map(), brand: new Map(), product: new Map() };
   for (const r of rows) {
@@ -560,13 +560,13 @@ export async function setRate(input: {
   }
   if (input.scope === "default") {
     const upd = await query<{ id: string }>(
-      `update ecom.commission_rates set rate_pct = $1, updated_at = now()
+      `update odg_ecom.commission_rates set rate_pct = $1, updated_at = now()
         where scope = 'default' returning id`,
       [rate],
     );
     if (upd.length === 0) {
       await query(
-        `insert into ecom.commission_rates (scope, ref_key, rate_pct) values ('default', null, $1)`,
+        `insert into odg_ecom.commission_rates (scope, ref_key, rate_pct) values ('default', null, $1)`,
         [rate],
       );
     }
@@ -575,13 +575,13 @@ export async function setRate(input: {
   const refKey = (input.refKey ?? "").trim();
   if (!refKey) throw new AffiliateError("ກະລຸນາໃສ່ລະຫັດໝວດ ຫຼື ສິນຄ້າ");
   const updated = await query<{ id: string }>(
-    `update ecom.commission_rates set rate_pct = $1, updated_at = now()
+    `update odg_ecom.commission_rates set rate_pct = $1, updated_at = now()
       where scope = $2 and ref_key = $3 returning id`,
     [rate, input.scope, refKey],
   );
   if (updated.length === 0) {
     await query(
-      `insert into ecom.commission_rates (scope, ref_key, rate_pct) values ($1, $2, $3)`,
+      `insert into odg_ecom.commission_rates (scope, ref_key, rate_pct) values ($1, $2, $3)`,
       [input.scope, refKey, rate],
     );
   }
@@ -589,7 +589,7 @@ export async function setRate(input: {
 
 export async function deleteRate(id: number): Promise<boolean> {
   const rows = await query<{ id: string }>(
-    `delete from ecom.commission_rates where id = $1 and scope <> 'default' returning id`,
+    `delete from odg_ecom.commission_rates where id = $1 and scope <> 'default' returning id`,
     [id],
   );
   return rows.length > 0;
@@ -609,15 +609,15 @@ export async function recordCommission(orderNo: string): Promise<boolean> {
     items: unknown;
   }>(
     `select a.id as affiliate_id, coalesce(p.subtotal,0)::text as subtotal, p.items
-       from ecom.onepay_payments p
-       join ecom.affiliates a on a.code = p.referral_code
+       from odg_ecom.onepay_payments p
+       join odg_ecom.affiliates a on a.code = p.referral_code
       where p.order_no = $1 and p.referral_code is not null`,
     [orderNo],
   );
   if (!order || !Array.isArray(order.items)) return false;
 
   const exists = await queryOne<{ id: string }>(
-    `select id from ecom.commissions where order_no = $1`,
+    `select id from odg_ecom.commissions where order_no = $1`,
     [orderNo],
   );
   if (exists) return false;
@@ -650,7 +650,7 @@ export async function recordCommission(orderNo: string): Promise<boolean> {
   amount = Math.round(amount * 100) / 100;
 
   const inserted = await query<{ id: string }>(
-    `insert into ecom.commissions
+    `insert into odg_ecom.commissions
        (order_id, order_no, affiliate_id, base_amount, amount, status)
      values (null, $1, $2, $3, $4, 'earned')
      on conflict (order_no) where order_no is not null do nothing
@@ -663,7 +663,7 @@ export async function recordCommission(orderNo: string): Promise<boolean> {
 /** Remove an unpaid commission if a previously completed order is reversed. */
 export async function voidUnpaidCommission(orderNo: string): Promise<boolean> {
   const rows = await query<{ id: string }>(
-    `delete from ecom.commissions
+    `delete from odg_ecom.commissions
       where order_no = $1 and status = 'earned'
       returning id`,
     [orderNo],
@@ -689,8 +689,8 @@ export async function syncAffiliateCommissions(): Promise<{
                  where t.bill_no = p.sml_doc_no and t.sent_end is not null
               )
             ) as completed
-       from ecom.onepay_payments p
-       join ecom.affiliates a on a.code = p.referral_code
+       from odg_ecom.onepay_payments p
+       join odg_ecom.affiliates a on a.code = p.referral_code
        left join public.ic_trans ic on ic.doc_no = p.sml_doc_no
       where p.referral_code is not null
         and p.referral_code <> ''
@@ -717,10 +717,10 @@ export async function syncAffiliateCommissions(): Promise<{
 export async function countPendingCommissionSync(): Promise<number> {
   const r = await queryOne<{ n: number }>(
     `select count(*)::int as n
-       from ecom.onepay_payments p
-       join ecom.affiliates a on a.code = p.referral_code
+       from odg_ecom.onepay_payments p
+       join odg_ecom.affiliates a on a.code = p.referral_code
        join public.ic_trans ic on ic.doc_no = p.sml_doc_no
-       left join ecom.commissions c on c.order_no = p.order_no
+       left join odg_ecom.commissions c on c.order_no = p.order_no
       where p.referral_code is not null and p.referral_code <> '' and p.sml_doc_no is not null
         and coalesce(ic.is_cancel,0) = 0
         and exists (select 1 from public.odg_tms_detail t where t.bill_no = p.sml_doc_no and t.sent_end is not null)
@@ -746,15 +746,15 @@ export async function listAffiliates(statusFilter?: string): Promise<AffiliateLi
   >(
     `select a.id, a.code, a.customer_code, a.name, a.phone, a.status, a.created_at, a.approved_at,
             a.email, a.email_verified_at, a.bank_code, a.bank_name, a.account_name, a.account_no,
-            (select count(*) from ecom.affiliate_clicks ac
+            (select count(*) from odg_ecom.affiliate_clicks ac
               where ac.affiliate_id = a.id)::int as clicks,
-            (select count(*) from ecom.onepay_payments p
+            (select count(*) from odg_ecom.onepay_payments p
               where p.referral_code = a.code)::int as referred,
-            coalesce((select sum(amount) from ecom.commissions c
+            coalesce((select sum(amount) from odg_ecom.commissions c
                        where c.affiliate_id = a.id and c.status = 'earned'),0)::text as earned,
-            coalesce((select sum(amount) from ecom.commissions c
+            coalesce((select sum(amount) from odg_ecom.commissions c
                        where c.affiliate_id = a.id and c.status = 'paid'),0)::text as paid
-       from ecom.affiliates a
+       from odg_ecom.affiliates a
       ${useStatus ? "where a.status = $1" : ""}
       order by (a.status = 'pending') desc, a.created_at desc`,
     useStatus ? [statusFilter] : [],
@@ -784,7 +784,7 @@ export async function setAffiliateStatus(
           and coalesce(account_name,'') <> ''
           and coalesce(account_no,'') <> ''
         ) as ok
-         from ecom.affiliates where code = $1`,
+         from odg_ecom.affiliates where code = $1`,
       [code],
     );
     if (!ready?.ok) {
@@ -792,7 +792,7 @@ export async function setAffiliateStatus(
     }
   }
   const rows = await query<{ id: string }>(
-    `update ecom.affiliates
+    `update odg_ecom.affiliates
         set status = $2,
             approved_at = case when $2 = 'active' then coalesce(approved_at, now()) else approved_at end
       where code = $1 returning id`,
@@ -835,16 +835,16 @@ export async function getAffiliateDetail(code: string): Promise<AffiliateDetail 
 
   const [clickRow, refRow, totals, commissions, payouts] = await Promise.all([
     queryOne<{ n: number }>(
-      `select count(*)::int as n from ecom.affiliate_clicks where affiliate_id = $1`,
+      `select count(*)::int as n from odg_ecom.affiliate_clicks where affiliate_id = $1`,
       [id],
     ),
     queryOne<{ n: number }>(
-      `select count(*)::int as n from ecom.onepay_payments where referral_code = $1`,
+      `select count(*)::int as n from odg_ecom.onepay_payments where referral_code = $1`,
       [affiliate.code],
     ),
     query<{ status: string; sum: string }>(
       `select status, coalesce(sum(amount),0)::text as sum
-         from ecom.commissions where affiliate_id = $1 group by status`,
+         from odg_ecom.commissions where affiliate_id = $1 group by status`,
       [id],
     ),
     query<{
@@ -856,16 +856,15 @@ export async function getAffiliateDetail(code: string): Promise<AffiliateDetail 
       created_at: Date;
       paid_at: Date | null;
     }>(
-      `select c.id, coalesce(c.order_no, o.order_no) as order_no,
+      `select c.id, c.order_no as order_no,
               c.base_amount, c.amount, c.status, c.created_at, c.paid_at
-         from ecom.commissions c
-         left join ecom.orders o on o.id = c.order_id
+         from odg_ecom.commissions c
         where c.affiliate_id = $1
         order by c.created_at desc`,
       [id],
     ),
     query<{ id: string; amount: string; note: string | null; created_at: Date }>(
-      `select id, amount, note, created_at from ecom.payouts
+      `select id, amount, note, created_at from odg_ecom.payouts
         where affiliate_id = $1 order by created_at desc`,
       [id],
     ),
@@ -919,10 +918,10 @@ export async function payAffiliate(code: string, note?: string): Promise<number>
   try {
     await client.query("begin");
     // Serialize payouts for this affiliate, then lock the exact earned rows.
-    await client.query(`select id from ecom.affiliates where id = $1 for update`, [affiliate.id]);
+    await client.query(`select id from odg_ecom.affiliates where id = $1 for update`, [affiliate.id]);
     const earnedRes = await client.query<{ id: string; amount: string }>(
       `select id, amount::text as amount
-         from ecom.commissions
+         from odg_ecom.commissions
         where affiliate_id = $1 and status = 'earned'
         order by id
         for update`,
@@ -934,13 +933,13 @@ export async function payAffiliate(code: string, note?: string): Promise<number>
       return 0;
     }
     const payoutRes = await client.query<{ id: string }>(
-      `insert into ecom.payouts (affiliate_id, amount, note) values ($1, $2, $3) returning id`,
+      `insert into odg_ecom.payouts (affiliate_id, amount, note) values ($1, $2, $3) returning id`,
       [affiliate.id, amount, note?.trim() || null],
     );
     const payoutId = payoutRes.rows[0].id;
     const commissionIds = earnedRes.rows.map((row) => row.id);
     await client.query(
-      `update ecom.commissions
+      `update odg_ecom.commissions
           set status = 'paid', paid_at = now(), payout_id = $2
         where id = any($1::bigint[]) and status = 'earned'`,
       [commissionIds, payoutId],

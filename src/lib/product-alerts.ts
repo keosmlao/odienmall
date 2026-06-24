@@ -29,7 +29,7 @@ async function productState(productCode: string): Promise<ProductState | null> {
 export async function isSubscribed(customerCode: string, productCode: string): Promise<boolean> {
   if (!customerCode) return false;
   const r = await queryOne<{ id: string }>(
-    `select id from ecom.product_alerts where customer_code = $1 and product_code = $2`,
+    `select id from odg_ecom.product_alerts where customer_code = $1 and product_code = $2`,
     [customerCode, productCode],
   );
   return !!r;
@@ -40,7 +40,7 @@ export async function subscribeAlert(customerCode: string, productCode: string):
   if (!customerCode || !productCode) return;
   const st = await productState(productCode);
   await query(
-    `insert into ecom.product_alerts (customer_code, product_code, base_price, base_in_stock)
+    `insert into odg_ecom.product_alerts (customer_code, product_code, base_price, base_in_stock)
      values ($1, $2, $3, $4)
      on conflict (customer_code, product_code) do update
        set base_price = excluded.base_price, base_in_stock = excluded.base_in_stock, notified_at = null`,
@@ -49,7 +49,7 @@ export async function subscribeAlert(customerCode: string, productCode: string):
 }
 
 export async function unsubscribeAlert(customerCode: string, productCode: string): Promise<void> {
-  await query(`delete from ecom.product_alerts where customer_code = $1 and product_code = $2`, [
+  await query(`delete from odg_ecom.product_alerts where customer_code = $1 and product_code = $2`, [
     customerCode,
     productCode,
   ]);
@@ -69,7 +69,7 @@ export async function checkAlerts(): Promise<number> {
     base_in_stock: boolean | null;
   }>(
     `select id, customer_code, product_code, base_price, base_in_stock
-       from ecom.product_alerts`,
+       from odg_ecom.product_alerts`,
   );
   let sent = 0;
   for (const a of rows) {
@@ -97,7 +97,7 @@ export async function checkAlerts(): Promise<number> {
       });
     }
     await query(
-      `update ecom.product_alerts set base_price = $2, base_in_stock = $3, notified_at = now() where id = $1`,
+      `update odg_ecom.product_alerts set base_price = $2, base_in_stock = $3, notified_at = now() where id = $1`,
       [a.id, st.price, st.inStock],
     );
     sent++;

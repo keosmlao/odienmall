@@ -8,8 +8,8 @@
 //   node --env-file=.env scripts/sml-verify-schema.mjs
 //
 // This does NOT insert anything and does NOT fire triggers — safe on production.
-// It validates STRUCTURE only; the definitive value/trigger test is
-// sml-test-insert.mjs (run that on a TEST/copy DB).
+// It validates STRUCTURE only; run scripts/sml-cae-test.mjs on a TEST/copy DB
+// for the full rollback-only CAE value/trigger test.
 // ===========================================================================
 import pg from "pg";
 

@@ -172,7 +172,7 @@ export async function adminConfirmPayment(orderNo: string): Promise<ChangeStatus
   if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
   try {
     await query(
-      `update ecom.onepay_payments set status='paid', paid_at=now()
+      `update odg_ecom.onepay_payments set status='paid', paid_at=now()
         where order_no=$1 and sml_doc_no is null`,
       [orderNo],
     );

@@ -45,7 +45,7 @@ const COLS = `id, product_code, customer_code, customer_name, question, answer, 
 /** Public list for a product: answered + non-hidden (newest first). */
 export async function getProductQuestions(productCode: string): Promise<ProductQuestion[]> {
   const rows = await query<Row>(
-    `select ${COLS} from ecom.product_questions
+    `select ${COLS} from odg_ecom.product_questions
       where product_code = $1 and answer is not null and not is_hidden
       order by id desc limit 50`,
     [productCode],
@@ -63,7 +63,7 @@ export async function askQuestion(input: {
   if (!q) return { ok: false, error: "ກະລຸນາພິມຄຳຖາມ" };
   if (q.length > 1000) return { ok: false, error: "ຄຳຖາມຍາວເກີນໄປ" };
   await query(
-    `insert into ecom.product_questions (product_code, customer_code, customer_name, question)
+    `insert into odg_ecom.product_questions (product_code, customer_code, customer_name, question)
      values ($1, $2, $3, $4)`,
     [input.productCode, input.customerCode, input.customerName?.trim() || "ລູກຄ້າ", q],
   );
@@ -74,7 +74,7 @@ export async function askQuestion(input: {
 
 export async function listQuestions(onlyOpen = false): Promise<ProductQuestion[]> {
   const rows = await query<Row>(
-    `select ${COLS} from ecom.product_questions
+    `select ${COLS} from odg_ecom.product_questions
       ${onlyOpen ? "where answer is null" : ""}
       order by (answer is null) desc, id desc limit 200`,
   );
@@ -83,7 +83,7 @@ export async function listQuestions(onlyOpen = false): Promise<ProductQuestion[]
 
 export async function countOpenQuestions(): Promise<number> {
   const r = await queryOne<{ n: string }>(
-    `select count(*)::text as n from ecom.product_questions where answer is null and not is_hidden`,
+    `select count(*)::text as n from odg_ecom.product_questions where answer is null and not is_hidden`,
   );
   return Number(r?.n ?? 0);
 }
@@ -93,7 +93,7 @@ export async function answerQuestion(id: number, answer: string, by?: string): P
   const text = answer?.trim();
   if (!text) return false;
   const rows = await query<{ product_code: string; customer_code: string | null }>(
-    `update ecom.product_questions
+    `update odg_ecom.product_questions
         set answer = $2, answered_by = $3, answered_at = now()
       where id = $1 returning product_code, customer_code`,
     [id, text, by ?? null],
@@ -112,5 +112,5 @@ export async function answerQuestion(id: number, answer: string, by?: string): P
 }
 
 export async function setQuestionHidden(id: number, hidden: boolean): Promise<void> {
-  await query(`update ecom.product_questions set is_hidden = $2 where id = $1`, [id, hidden]);
+  await query(`update odg_ecom.product_questions set is_hidden = $2 where id = $1`, [id, hidden]);
 }

@@ -17,14 +17,14 @@ export async function recordVisit(
   if (!vid) return;
   const p = path ? path.slice(0, 300) : null;
   await query(
-    `insert into ecom.visit_pings (visitor_id, path, last_seen)
+    `insert into odg_ecom.visit_pings (visitor_id, path, last_seen)
        values ($1,$2,now())
      on conflict (visitor_id) do update set path=excluded.path, last_seen=now()`,
     [vid, p],
   );
   if (view) {
     await query(
-      `insert into ecom.visit_events (visitor_id, path) values ($1,$2)`,
+      `insert into odg_ecom.visit_events (visitor_id, path) values ($1,$2)`,
       [vid, p],
     );
   }
@@ -33,7 +33,7 @@ export async function recordVisit(
 /** Number of distinct visitors seen in the last few minutes. */
 export async function getOnlineCount(): Promise<number> {
   const row = await queryOne<{ n: number }>(
-    `select count(*)::int as n from ecom.visit_pings
+    `select count(*)::int as n from odg_ecom.visit_pings
       where last_seen > now() - interval '${ONLINE_WINDOW}'`,
   );
   return row?.n ?? 0;
@@ -60,18 +60,18 @@ export async function getVisitStats(): Promise<VisitStats> {
     getOnlineCount(),
     queryOne<{ visitors: number; views: number }>(
       `select count(distinct visitor_id)::int as visitors, count(*)::int as views
-         from ecom.visit_events where created_at::date = current_date`,
+         from odg_ecom.visit_events where created_at::date = current_date`,
     ),
     queryOne<{ visitors: number }>(
       `select count(distinct visitor_id)::int as visitors
-         from ecom.visit_events where created_at >= date_trunc('month', current_date)`,
+         from odg_ecom.visit_events where created_at >= date_trunc('month', current_date)`,
     ),
-    queryOne<{ views: number }>(`select count(*)::int as views from ecom.visit_events`),
+    queryOne<{ views: number }>(`select count(*)::int as views from odg_ecom.visit_events`),
     query<{ label: string; visitors: number; views: number }>(
       `select to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as label,
               count(distinct visitor_id)::int as visitors,
               count(*)::int as views
-         from ecom.visit_events
+         from odg_ecom.visit_events
         where created_at >= current_date - interval '13 days'
         group by 1 order by 1`,
     ),
@@ -79,7 +79,7 @@ export async function getVisitStats(): Promise<VisitStats> {
       `select to_char(date_trunc('month', created_at), 'YYYY-MM') as label,
               count(distinct visitor_id)::int as visitors,
               count(*)::int as views
-         from ecom.visit_events
+         from odg_ecom.visit_events
         where created_at >= date_trunc('month', current_date) - interval '11 months'
         group by 1 order by 1`,
     ),

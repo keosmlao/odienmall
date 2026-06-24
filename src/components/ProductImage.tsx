@@ -18,7 +18,7 @@ export default function ProductImage({
   code: string;
   name: string;
   brand?: string | null;
-  /** App-owned overlay image (ecom.product_overlays); takes precedence. */
+  /** App-owned overlay image (odg_ecom.product_overlays); takes precedence. */
   imageUrl?: string | null;
   className?: string;
   rounded?: string;

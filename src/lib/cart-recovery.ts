@@ -23,7 +23,7 @@ export async function saveCart(customerCode: string, items: SavedCartItem[]): Pr
     return;
   }
   await query(
-    `insert into ecom.saved_cart (customer_code, items, item_count, updated_at, notified_at)
+    `insert into odg_ecom.saved_cart (customer_code, items, item_count, updated_at, notified_at)
      values ($1, $2::jsonb, $3, now(), null)
      on conflict (customer_code) do update
        set items = excluded.items, item_count = excluded.item_count,
@@ -34,7 +34,7 @@ export async function saveCart(customerCode: string, items: SavedCartItem[]): Pr
 
 export async function clearSavedCart(customerCode: string): Promise<void> {
   if (!customerCode) return;
-  await query(`delete from ecom.saved_cart where customer_code = $1`, [customerCode]).catch(() => {});
+  await query(`delete from odg_ecom.saved_cart where customer_code = $1`, [customerCode]).catch(() => {});
 }
 
 /**
@@ -43,7 +43,7 @@ export async function clearSavedCart(customerCode: string): Promise<void> {
  */
 export async function checkAbandonedCarts(idleMinutes = 60): Promise<number> {
   const rows = await query<{ customer_code: string; item_count: number; items: SavedCartItem[] }>(
-    `select customer_code, item_count, items from ecom.saved_cart
+    `select customer_code, item_count, items from odg_ecom.saved_cart
       where notified_at is null
         and updated_at < now() - ($1 || ' minutes')::interval
         and item_count > 0`,
@@ -58,7 +58,7 @@ export async function checkAbandonedCarts(idleMinutes = 60): Promise<number> {
       body: `ມີ ${r.item_count} ຊິ້ນ${first ? ` (${first}...)` : ""} ລໍຖ້າຢູ່ — ກັບມາສັ່ງຊື້ໃຫ້ສຳເລັດ`,
       link: "/cart",
     }).catch(() => {});
-    await query(`update ecom.saved_cart set notified_at = now() where customer_code = $1`, [r.customer_code]).catch(() => {});
+    await query(`update odg_ecom.saved_cart set notified_at = now() where customer_code = $1`, [r.customer_code]).catch(() => {});
     sent++;
   }
   return sent;

@@ -2,7 +2,7 @@ import "server-only";
 import { query, queryOne } from "./db";
 
 // Salesperson share-link (/s/<code>) engagement + conversion. Clicks live in the
-// app-owned ecom.sales_link_clicks; orders/revenue come from the salesperson's
+// app-owned odg_ecom.sales_link_clicks; orders/revenue come from the salesperson's
 // attributed CAE bills (public.ic_trans.sale_code) plus not-yet-materialised
 // pending snapshots. READ-ONLY on the ERP.
 const WEB_ORDER = `ic.doc_format_code = 'CAE' and ic.remark_5 in ('web','odienmall') and ic.trans_flag in (34, 44)`;
@@ -10,7 +10,7 @@ const WEB_ORDER = `ic.doc_format_code = 'CAE' and ic.remark_5 in ('web','odienma
 /** Log a click on a salesperson's link (best-effort; never throws). */
 export async function recordSalesClick(saleCode: string, path: string): Promise<void> {
   try {
-    await query(`insert into ecom.sales_link_clicks (sale_code, path) values ($1, $2)`, [saleCode, path]);
+    await query(`insert into odg_ecom.sales_link_clicks (sale_code, path) values ($1, $2)`, [saleCode, path]);
   } catch {
     // analytics only — must not block the redirect
   }
@@ -37,7 +37,7 @@ export async function getSalesTarget(saleCode: string, month?: string): Promise<
   if (!code) return 0;
   const m = (month || "").trim() || currentMonth();
   const r = await queryOne<{ monthly_target: string }>(
-    `select monthly_target from ecom.sales_targets where sale_code = $1 and month = $2`,
+    `select monthly_target from odg_ecom.sales_targets where sale_code = $1 and month = $2`,
     [code, m],
   );
   return Number(r?.monthly_target ?? 0);
@@ -50,7 +50,7 @@ export async function setSalesTarget(saleCode: string, month: string, amount: nu
   if (!code) return;
   const target = Math.max(0, Math.round(amount || 0));
   await query(
-    `insert into ecom.sales_targets (sale_code, month, monthly_target, updated_by, updated_at)
+    `insert into odg_ecom.sales_targets (sale_code, month, monthly_target, updated_by, updated_at)
      values ($1, $2, $3, $4, now())
      on conflict (sale_code, month) do update set
         monthly_target = excluded.monthly_target, updated_by = excluded.updated_by, updated_at = now()`,
@@ -72,7 +72,7 @@ const DEFAULT_RATE_KEY = "__default__";
 /** The global default commission rate (%). */
 export async function getCommissionDefault(): Promise<number> {
   const r = await queryOne<{ pct: string }>(
-    `select pct from ecom.sales_commission_rates where sale_code = $1`,
+    `select pct from odg_ecom.sales_commission_rates where sale_code = $1`,
     [DEFAULT_RATE_KEY],
   );
   return Number(r?.pct ?? 0);
@@ -82,7 +82,7 @@ export async function getCommissionDefault(): Promise<number> {
 export async function getCommissionRate(saleCode: string): Promise<number> {
   const code = (saleCode || "").trim();
   const rows = await query<{ sale_code: string; pct: string }>(
-    `select sale_code, pct from ecom.sales_commission_rates where sale_code = any($1)`,
+    `select sale_code, pct from odg_ecom.sales_commission_rates where sale_code = any($1)`,
     [[code, DEFAULT_RATE_KEY]],
   );
   const override = rows.find((x) => x.sale_code === code);
@@ -95,7 +95,7 @@ export async function setCommissionRate(saleCode: string | null, pct: number, by
   const code = (saleCode || "").trim() || DEFAULT_RATE_KEY;
   const rate = Math.max(0, Math.min(100, Number(pct) || 0));
   await query(
-    `insert into ecom.sales_commission_rates (sale_code, pct, updated_by, updated_at)
+    `insert into odg_ecom.sales_commission_rates (sale_code, pct, updated_by, updated_at)
      values ($1, $2, $3, now())
      on conflict (sale_code) do update set pct = excluded.pct, updated_by = excluded.updated_by, updated_at = now()`,
     [code, rate, by ?? null],
@@ -106,7 +106,7 @@ export async function setCommissionRate(saleCode: string | null, pct: number, by
 export async function deleteCommissionRate(saleCode: string): Promise<void> {
   const code = (saleCode || "").trim();
   if (!code || code === DEFAULT_RATE_KEY) return;
-  await query(`delete from ecom.sales_commission_rates where sale_code = $1`, [code]);
+  await query(`delete from odg_ecom.sales_commission_rates where sale_code = $1`, [code]);
 }
 
 export interface SalesCommissionRow {
@@ -131,7 +131,7 @@ export async function getCommissionOverrides(): Promise<SalesCommissionRow[]> {
     query<{ sale_code: string; pct: string; sale_name: string }>(
       `select r.sale_code, r.pct,
               coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), r.sale_code) as sale_name
-         from ecom.sales_commission_rates r
+         from odg_ecom.sales_commission_rates r
          left join public.odg_employee emp on emp.employee_code = r.sale_code
         where r.sale_code <> $1`,
       [DEFAULT_RATE_KEY],
@@ -176,7 +176,7 @@ export interface CommissionEarner {
  */
 export async function getCommissionEarners(): Promise<CommissionEarner[]> {
   const [rates, rev, paid] = await Promise.all([
-    query<{ sale_code: string; pct: string }>(`select sale_code, pct from ecom.sales_commission_rates`),
+    query<{ sale_code: string; pct: string }>(`select sale_code, pct from odg_ecom.sales_commission_rates`),
     query<{ sale_code: string; sale_name: string; rev: string }>(
       `select ic.sale_code,
               coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), ic.sale_code) as sale_name,
@@ -187,7 +187,7 @@ export async function getCommissionEarners(): Promise<CommissionEarner[]> {
         group by ic.sale_code, sale_name`,
     ),
     query<{ sale_code: string; paid: string }>(
-      `select sale_code, coalesce(sum(amount),0)::text as paid from ecom.sales_commission_payouts group by sale_code`,
+      `select sale_code, coalesce(sum(amount),0)::text as paid from odg_ecom.sales_commission_payouts group by sale_code`,
     ),
   ]);
   const def = Number(rates.find((r) => r.sale_code === DEFAULT_RATE_KEY)?.pct ?? 0);
@@ -218,7 +218,7 @@ export async function recordCommissionPayout(saleCode: string, amount: number, b
   const amt = Math.round(amount || 0);
   if (!code || amt <= 0) return;
   await query(
-    `insert into ecom.sales_commission_payouts (sale_code, amount, note, paid_by) values ($1, $2, $3, $4)`,
+    `insert into odg_ecom.sales_commission_payouts (sale_code, amount, note, paid_by) values ($1, $2, $3, $4)`,
     [code, amt, note ?? null, by ?? null],
   );
 }
@@ -228,7 +228,7 @@ export async function getCommissionPayouts(saleCode: string): Promise<{ id: numb
   const code = (saleCode || "").trim();
   if (!code) return [];
   const rows = await query<{ id: number; amount: string; note: string | null; paid_by: string | null; created_at: Date }>(
-    `select id, amount, note, paid_by, created_at from ecom.sales_commission_payouts where sale_code = $1 order by created_at desc`,
+    `select id, amount, note, paid_by, created_at from odg_ecom.sales_commission_payouts where sale_code = $1 order by created_at desc`,
     [code],
   );
   return rows.map((r) => ({
@@ -262,7 +262,7 @@ export async function deleteSalesTarget(saleCode: string, month: string): Promis
   const code = (saleCode || "").trim();
   const m = (month || "").trim() || currentMonth();
   if (!code) return;
-  await query(`delete from ecom.sales_targets where sale_code = $1 and month = $2`, [code, m]);
+  await query(`delete from odg_ecom.sales_targets where sale_code = $1 and month = $2`, [code, m]);
 }
 
 /**
@@ -277,7 +277,7 @@ export async function getSalesTargets(month?: string): Promise<SalesTargetRow[]>
     query<{ sale_code: string; monthly_target: string; sale_name: string }>(
       `select t.sale_code, t.monthly_target,
               coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), t.sale_code) as sale_name
-         from ecom.sales_targets t
+         from odg_ecom.sales_targets t
          left join public.odg_employee emp on emp.employee_code = t.sale_code
         where t.month = $1 and t.monthly_target > 0`,
       [m],
@@ -292,7 +292,7 @@ export async function getSalesTargets(month?: string): Promise<SalesTargetRow[]>
     ),
     query<{ sale_code: string; rev: string }>(
       `select op.sale_code, coalesce(sum(op.amount),0)::text as rev
-         from ecom.onepay_payments op
+         from odg_ecom.onepay_payments op
         where op.sml_doc_no is null and coalesce(op.sale_code,'') <> ''
           and date_trunc('month', op.created_at) = date_trunc('month', $1::date)
         group by op.sale_code`,
@@ -320,7 +320,7 @@ export async function getSalespersonStats(saleCode: string): Promise<Salesperson
 
   const [clicks, ic, pend, target] = await Promise.all([
     queryOne<{ n: number }>(
-      `select count(*)::int as n from ecom.sales_link_clicks
+      `select count(*)::int as n from odg_ecom.sales_link_clicks
         where sale_code = $1 and created_at >= now() - interval '30 days'`,
       [code],
     ),
@@ -340,7 +340,7 @@ export async function getSalespersonStats(saleCode: string): Promise<Salesperson
               coalesce(sum(op.amount),0)::text as rev_all,
               count(*) filter (where date_trunc('month', op.created_at) = date_trunc('month', now()))::int as orders_m,
               coalesce(sum(op.amount) filter (where date_trunc('month', op.created_at) = date_trunc('month', now())),0)::text as rev_m
-         from ecom.onepay_payments op
+         from odg_ecom.onepay_payments op
         where op.sml_doc_no is null and op.sale_code = $1`,
       [code],
     ),

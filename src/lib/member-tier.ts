@@ -5,7 +5,7 @@ import { getSession } from "./auth";
 
 // Membership-tier discount. Tier definitions + discount % come from the READ-ONLY
 // ERP public.ar_group_sub (main_group '101' = members; discount stored as text
-// like "3%"). The customer→tier assignment is app-owned (ecom.customer_tier).
+// like "3%"). The customer→tier assignment is app-owned (odg_ecom.customer_tier).
 
 export interface MemberTier {
   code: string; // ar_group_sub.code
@@ -38,7 +38,7 @@ export async function getCustomerTier(customerCode: string): Promise<MemberTier 
   if (!customerCode) return null;
   const r = await queryOne<{ code: string; name_1: string; discount: string | null }>(
     `select g.code, g.name_1, g.discount
-       from ecom.customer_tier t
+       from odg_ecom.customer_tier t
        join public.ar_group_sub g on g.code = t.group_sub_code
       where t.customer_code = $1`,
     [customerCode],
@@ -85,11 +85,11 @@ export async function applyMemberPrice<T extends { price: number | null; memberP
 export async function setCustomerTier(customerCode: string, groupSubCode: string | null, by?: string): Promise<void> {
   if (!customerCode) return;
   if (!groupSubCode) {
-    await query(`delete from ecom.customer_tier where customer_code = $1`, [customerCode]);
+    await query(`delete from odg_ecom.customer_tier where customer_code = $1`, [customerCode]);
     return;
   }
   await query(
-    `insert into ecom.customer_tier (customer_code, group_sub_code, updated_by, updated_at)
+    `insert into odg_ecom.customer_tier (customer_code, group_sub_code, updated_by, updated_at)
      values ($1, $2, $3, now())
      on conflict (customer_code) do update set group_sub_code = excluded.group_sub_code,
         updated_by = excluded.updated_by, updated_at = now()`,

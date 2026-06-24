@@ -51,10 +51,10 @@ export interface Product {
   soldCount?: number | null; // units sold (Lazada-style social proof; display layer)
   flashPrice?: number | null; // active flash-sale deal price (overrides retail; null = not on flash)
   unit: string | null; // unit_code (Lao unit name)
-  rating: number | null; // average review rating (ecom.reviews)
+  rating: number | null; // average review rating (odg_ecom.reviews)
   reviewCount: number;
-  imageUrl: string | null; // app-owned overlay image (ecom.product_overlays); null → placeholder/env image
-  isFeatured: boolean; // app-owned overlay flag (ecom.product_overlays)
+  imageUrl: string | null; // app-owned overlay image (odg_ecom.product_overlays); null → placeholder/env image
+  isFeatured: boolean; // app-owned overlay flag (odg_ecom.product_overlays)
 }
 
 export type SortKey = "newest" | "price_asc" | "price_desc" | "name" | "rating";

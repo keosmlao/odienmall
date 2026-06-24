@@ -7,6 +7,8 @@ import { query, queryOne } from "./db";
 export interface ChatMessage {
   id: number;
   sender: "customer" | "admin";
+  /** True when authored by the AI assistant (a special kind of admin message). */
+  isBot: boolean;
   body: string;
   createdAt: string;
 }
@@ -35,14 +37,14 @@ export async function getOrCreateThread(
   opts: { name?: string; phone?: string; customerCode?: string | null } = {},
 ): Promise<number> {
   const existing = await queryOne<{ id: string }>(
-    `select id from ecom.chat_threads where cust_key = $1`,
+    `select id from odg_ecom.chat_threads where cust_key = $1`,
     [custKey],
   );
   if (existing) {
     // keep the display name / customer link fresh when known
     if (opts.name || opts.customerCode || opts.phone) {
       await query(
-        `update ecom.chat_threads
+        `update odg_ecom.chat_threads
             set name = coalesce(nullif($2,''), name),
                 customer_code = coalesce($3, customer_code),
                 phone = coalesce(nullif($4,''), phone)
@@ -53,7 +55,7 @@ export async function getOrCreateThread(
     return Number(existing.id);
   }
   const row = await queryOne<{ id: string }>(
-    `insert into ecom.chat_threads (cust_key, customer_code, name, phone)
+    `insert into odg_ecom.chat_threads (cust_key, customer_code, name, phone)
      values ($1, $2, coalesce(nullif($3,''),'ລູກຄ້າ'), nullif($4,''))
      returning id`,
     [custKey, opts.customerCode ?? null, opts.name ?? "", opts.phone ?? ""],
@@ -64,7 +66,7 @@ export async function getOrCreateThread(
 /** Thread id for a chat key without creating one (null if none yet). */
 export async function getThreadIdByKey(custKey: string): Promise<number | null> {
   const r = await queryOne<{ id: string }>(
-    `select id from ecom.chat_threads where cust_key = $1`,
+    `select id from odg_ecom.chat_threads where cust_key = $1`,
     [custKey],
   );
   return r ? Number(r.id) : null;
@@ -75,28 +77,29 @@ export async function postMessage(
   threadId: number,
   sender: "customer" | "admin",
   body: string,
+  isBot = false,
 ): Promise<ChatMessage | null> {
   const text = clean(body);
   if (!text) return null;
   const row = await queryOne<{ id: string; created_at: Date }>(
-    `insert into ecom.chat_messages (thread_id, sender, body, read_by_admin, read_by_customer)
-     values ($1, $2, $3, $4, $5)
+    `insert into odg_ecom.chat_messages (thread_id, sender, body, is_bot, read_by_admin, read_by_customer)
+     values ($1, $2, $3, $4, $5, $6)
      returning id, created_at`,
-    [threadId, sender, text, sender === "admin", sender === "customer"],
+    [threadId, sender, text, isBot, sender === "admin", sender === "customer"],
   );
   if (!row) return null;
   await query(
-    `update ecom.chat_threads set last_message_at = now(), last_sender = $2 where id = $1`,
+    `update odg_ecom.chat_threads set last_message_at = now(), last_sender = $2 where id = $1`,
     [threadId, sender],
   );
-  return { id: Number(row.id), sender, body: text, createdAt: row.created_at.toISOString() };
+  return { id: Number(row.id), sender, isBot, body: text, createdAt: row.created_at.toISOString() };
 }
 
 /** Messages in a thread, optionally only those newer than `afterId` (polling). */
 export async function getThreadMessages(threadId: number, afterId = 0): Promise<ChatMessage[]> {
-  const rows = await query<{ id: string; sender: string; body: string; created_at: Date }>(
-    `select id, sender, body, created_at
-       from ecom.chat_messages
+  const rows = await query<{ id: string; sender: string; is_bot: boolean; body: string; created_at: Date }>(
+    `select id, sender, is_bot, body, created_at
+       from odg_ecom.chat_messages
       where thread_id = $1 and id > $2
       order by id asc
       limit 200`,
@@ -105,9 +108,20 @@ export async function getThreadMessages(threadId: number, afterId = 0): Promise<
   return rows.map((r) => ({
     id: Number(r.id),
     sender: r.sender as "customer" | "admin",
+    isBot: r.is_bot,
     body: r.body,
     createdAt: r.created_at.toISOString(),
   }));
+}
+
+/** Count AI-assistant replies in a thread within the last `hours` (rate limit). */
+export async function countBotReplies(threadId: number, hours: number): Promise<number> {
+  const r = await query<{ n: number }>(
+    `select count(*)::int as n from odg_ecom.chat_messages
+      where thread_id = $1 and is_bot = true and created_at >= now() - ($2 || ' hours')::interval`,
+    [threadId, String(hours)],
+  );
+  return r[0]?.n ?? 0;
 }
 
 /** Mark a thread's messages from the other party as read. */
@@ -115,16 +129,30 @@ export async function markRead(threadId: number, reader: "customer" | "admin"): 
   const col = reader === "admin" ? "read_by_admin" : "read_by_customer";
   const other = reader === "admin" ? "customer" : "admin";
   await query(
-    `update ecom.chat_messages set ${col} = true
+    `update odg_ecom.chat_messages set ${col} = true
       where thread_id = $1 and sender = $2 and ${col} = false`,
     [threadId, other],
   );
 }
 
+/** Mark a thread as taken over by a human admin (silences the AI assistant). */
+export async function setHumanTaken(threadId: number): Promise<void> {
+  await query(`update odg_ecom.chat_threads set human_taken = true where id = $1`, [threadId]);
+}
+
+/** The logged-in customer_code linked to a thread (null for guests). */
+export async function getThreadCustomerCode(threadId: number): Promise<string | null> {
+  const r = await query<{ customer_code: string | null }>(
+    `select customer_code from odg_ecom.chat_threads where id = $1`,
+    [threadId],
+  );
+  return r[0]?.customer_code ?? null;
+}
+
 /** Customer: unread admin replies for a single thread. */
 export async function getCustomerUnread(threadId: number): Promise<number> {
   const r = await queryOne<{ n: string }>(
-    `select count(*)::text as n from ecom.chat_messages
+    `select count(*)::text as n from odg_ecom.chat_messages
       where thread_id = $1
         and sender = 'admin'
         and read_by_customer = false`,
@@ -155,10 +183,10 @@ export async function listThreads(search?: string): Promise<ChatThreadRow[]> {
   }>(
     `select t.id, t.cust_key, t.customer_code, t.name, t.phone,
             t.last_message_at, t.last_sender,
-            (select body from ecom.chat_messages m where m.thread_id = t.id order by m.id desc limit 1) as last_body,
-            (select count(*) from ecom.chat_messages m
+            (select body from odg_ecom.chat_messages m where m.thread_id = t.id order by m.id desc limit 1) as last_body,
+            (select count(*) from odg_ecom.chat_messages m
                where m.thread_id = t.id and m.sender = 'customer' and m.read_by_admin = false)::text as unread
-       from ecom.chat_threads t
+       from odg_ecom.chat_threads t
        ${where}
       order by t.last_message_at desc
       limit 200`,
@@ -180,7 +208,7 @@ export async function listThreads(search?: string): Promise<ChatThreadRow[]> {
 /** Admin: total unread customer messages across all threads (nav badge). */
 export async function getTotalUnread(): Promise<number> {
   const r = await queryOne<{ n: string }>(
-    `select count(*)::text as n from ecom.chat_messages
+    `select count(*)::text as n from odg_ecom.chat_messages
       where sender = 'customer' and read_by_admin = false`,
   );
   return Number(r?.n ?? 0);

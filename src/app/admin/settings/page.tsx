@@ -6,6 +6,8 @@ import {
   getBankTransfer,
   getOnepayRuntimeConfig,
   getCodEnabled,
+  listWebGroupOptions,
+  getChatBotEnabled,
 } from "@/lib/settings";
 import { PageHeader, Card, CardTitle } from "@/components/admin/ui";
 import DevNoticeForm from "./DevNoticeForm";
@@ -13,6 +15,8 @@ import AnnouncementForm from "./AnnouncementForm";
 import BankTransferForm from "./BankTransferForm";
 import OnepayTestForm from "./OnepayTestForm";
 import CodToggleForm from "./CodToggleForm";
+import WebGroupsForm from "./WebGroupsForm";
+import ChatBotToggleForm from "./ChatBotToggleForm";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +24,14 @@ export default async function AdminSettings() {
   if (!(await isAdmin())) redirect("/admin/login");
   if (!(await isManager())) redirect("/admin");
 
-  const [notice, announcement, bank, onepay, codEnabled] = await Promise.all([
+  const [notice, announcement, bank, onepay, codEnabled, webGroups, chatBot] = await Promise.all([
     getDevNotice(),
     getAnnouncement(),
     getBankTransfer(),
     getOnepayRuntimeConfig(),
     getCodEnabled(),
+    listWebGroupOptions(),
+    getChatBotEnabled(),
   ]);
 
   return (
@@ -59,6 +65,20 @@ export default async function AdminSettings() {
           ການຊຳລະ — ເກັບເງິນປາຍທາງ (COD)
         </CardTitle>
         <CodToggleForm initial={codEnabled} />
+      </Card>
+
+      <Card className="mb-6">
+        <CardTitle hint="ເລືອກກຸ່ມສິນຄ້າ ERP ທີ່ຈະເປີດຂາຍໃນ web (storefront + ລາຍການສິນຄ້າ admin).">
+          ກຸ່ມສິນຄ້າທີ່ຂາຍໃນ web
+        </CardTitle>
+        <WebGroupsForm options={webGroups} />
+      </Card>
+
+      <Card className="mb-6">
+        <CardTitle hint="ຜູ້ຊ່ວຍ AI ຕອບລູກຄ້າໃນແຊັດຈາກຂໍ້ມູນ DB (ຕັ້ງ OPENAI_API_KEY; Anthropic ເປັນ fallback).">
+          ແຊັດ — ຜູ້ຊ່ວຍ AI
+        </CardTitle>
+        <ChatBotToggleForm initial={chatBot} />
       </Card>
 
       <Card>

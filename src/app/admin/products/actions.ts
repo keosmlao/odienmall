@@ -33,7 +33,7 @@ const EXT: Record<string, string> = {
 // Product codes are alphanumeric+dash, but sanitise before using in a path.
 const safeCode = (code: string) => code.replace(/[^A-Za-z0-9_-]/g, "_");
 
-// All writes hit ONLY ecom.* and public/uploads — the ERP stays read-only.
+// All writes hit ONLY odg_ecom.* and public/uploads — the ERP stays read-only.
 function revalidate(code: string) {
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${code}`);

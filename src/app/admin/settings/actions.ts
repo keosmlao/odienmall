@@ -13,10 +13,40 @@ import {
   setOnepayRuntimeConfig,
   setCodEnabled,
   setHomePromotion,
+  setWebGroups,
+  setChatBotEnabled,
 } from "@/lib/settings";
 import { logAudit } from "@/lib/audit";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+/** Turn the AI chat assistant on/off. Manager-only. */
+export async function saveChatBot(enabled: boolean): Promise<Result> {
+  if (!(await isManager())) return { ok: false, error: DENIED };
+  try {
+    await setChatBotEnabled(enabled, (await getAdminSession())?.code);
+    await logAudit({ action: "settings.chatbot", detail: enabled ? "on" : "off" });
+    revalidatePath("/admin/settings");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+}
+
+/** Set which ERP product groups are sold on the web. Manager-only. */
+export async function saveWebGroups(codes: string[]): Promise<Result> {
+  if (!(await isManager())) return { ok: false, error: DENIED };
+  try {
+    await setWebGroups(Array.isArray(codes) ? codes : [], (await getAdminSession())?.code);
+    await logAudit({ action: "settings.webGroups", detail: (codes || []).join(",") || "( none)" });
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/products");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+}
 
 const DENIED = "ບໍ່ໄດ້ຮັບອະນຸຍາດ";
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "ເກີດຂໍ້ຜິດພາດ");
@@ -63,7 +93,7 @@ export async function saveCodEnabled(enabled: boolean): Promise<Result> {
   }
 }
 
-/** Save the dev-notice toggle + text (manager only; writes ONLY ecom.dev_notice). */
+/** Save the dev-notice toggle + text (manager only; writes ONLY odg_ecom.dev_notice). */
 export async function saveDevNotice(input: {
   enabled: boolean;
   title: string;
@@ -88,7 +118,7 @@ export async function saveDevNotice(input: {
   }
 }
 
-/** Save the announcement bar (manager only; writes ONLY ecom.announcement). */
+/** Save the announcement bar (manager only; writes ONLY odg_ecom.announcement). */
 export async function saveAnnouncement(input: {
   enabled: boolean;
   message: string;
@@ -147,7 +177,7 @@ export async function saveHomePromotion(input: {
   }
 }
 
-/** Save the bank-transfer details (manager only; writes ONLY ecom.bank_transfer). */
+/** Save the bank-transfer details (manager only; writes ONLY odg_ecom.bank_transfer). */
 export async function saveBankTransfer(input: {
   bankName: string;
   accountName: string;

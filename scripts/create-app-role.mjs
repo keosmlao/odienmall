@@ -1,5 +1,5 @@
 // Create a least-privilege PostgreSQL role for the app: READ-ONLY on the ERP
-// (schema public.*) and read/write ONLY on the app-owned ecom.* schema. This
+// (schema public.*) and read/write ONLY on the app-owned odg_ecom.* schema. This
 // enforces the "public.* is READ-ONLY" rule at the DATABASE level instead of by
 // code discipline — so an app bug can never write/alter/drop ERP tables.
 //
@@ -51,14 +51,14 @@ try {
   // Belt-and-braces: strip any write that might have been inherited.
   await c.query(`revoke insert, update, delete, truncate on all tables in schema public from ${R}`);
 
-  // 3. ecom.* — app-owned, full read/write (incl. creating new objects via migrate).
+  // 3. odg_ecom.* — app-owned, full read/write (incl. creating new objects via migrate).
   await c.query(`grant usage, create on schema ecom to ${R}`);
   await c.query(`grant select, insert, update, delete on all tables in schema ecom to ${R}`);
   await c.query(`grant usage, select, update on all sequences in schema ecom to ${R}`);
   await c.query(`alter default privileges in schema ecom grant select, insert, update, delete on tables to ${R}`);
   await c.query(`alter default privileges in schema ecom grant usage, select, update on sequences to ${R}`);
 
-  console.log(`✓ ${ROLE}: READ-ONLY on public.* · read/write on ecom.*`);
+  console.log(`✓ ${ROLE}: READ-ONLY on public.* · read/write on odg_ecom.*`);
   console.log("\nNow set the app's DATABASE_URL to connect as this role, e.g.:");
   console.log(`  postgresql://${ROLE}:<password>@<host>:5432/${db}`);
 } finally {

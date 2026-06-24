@@ -69,17 +69,18 @@ async function priceProducts<T extends Product>(items: T[]): Promise<T[]> {
 }
 
 // Storefront products are web-enabled ERP items restricted to the consumer
-// product groups group_main 11–14 (a varchar). This excludes stray items in
-// internal groups (e.g. 96/99) that must not surface in the shop. Out-of-stock
+// product groups a manager has opened for the web (odg_ecom.web_groups; defaults
+// 11–14). This excludes stray items in internal groups (e.g. 96/99). Out-of-stock
 // items (balance_qty <= 0) are hidden everywhere too — they must not appear in
 // listings, counts, the menu, the sitemap, or as reachable product pages.
 // Centralised here so the rule lives in exactly one place; assumes the `i` alias
-// on public.ic_inventory.
-const PRODUCT_GROUPS = "('11','12','13','14')";
-// App-owned overlay can hide an item from the shop (ecom.product_overlays). The
+// on public.ic_inventory. Using a subquery keeps WEB_ITEM a static string while
+// the enabled set stays editable from /admin/settings.
+const PRODUCT_GROUPS = "(select group_main from odg_ecom.web_groups)";
+// App-owned overlay can hide an item from the shop (odg_ecom.product_overlays). The
 // subquery is correlated on the `i` alias, so this hides the item everywhere
 // WEB_ITEM is used (listings, counts, facets, menu) with no extra join needed.
-const NOT_HIDDEN = `not exists (select 1 from ecom.product_overlays ov where ov.product_code = i.code and ov.is_hidden)`;
+const NOT_HIDDEN = `not exists (select 1 from odg_ecom.product_overlays ov where ov.product_code = i.code and ov.is_hidden)`;
 const WEB_ITEM = `i.is_eordershow = 1 and i.group_main in ${PRODUCT_GROUPS} and coalesce(i.balance_qty, 0) > 0 and ${NOT_HIDDEN}`;
 
 // SQL predicate: the product has a real POS price in ic_inventory_barcode.
@@ -138,16 +139,16 @@ const PRODUCT_SELECT = `
   from public.ic_inventory i
   left join public.ic_category c on c.code = i.item_category
   left join public.ic_brand b on b.code = i.item_brand
-  left join ecom.product_overlays ov on ov.product_code = i.code
+  left join odg_ecom.product_overlays ov on ov.product_code = i.code
   left join lateral (
-    select pi.url from ecom.product_images pi
+    select pi.url from odg_ecom.product_images pi
      where pi.product_code = i.code
      order by pi.sort_order, pi.id limit 1
   ) img on true
   ${PRICE_LATERAL}
   left join lateral (
     select avg(rv.rating)::numeric(3,2) as rating, count(*)::int as review_count
-    from ecom.reviews rv where rv.product_code = i.code and not rv.is_hidden
+    from odg_ecom.reviews rv where rv.product_code = i.code and not rv.is_hidden
   ) rt on true`;
 
 const ORDER_BY: Record<SortKey, string> = {
@@ -201,7 +202,7 @@ export async function getWebBrands(limit?: number): Promise<Brand[]> {
             count(i.code)::int as "productCount"
        from public.ic_brand b
        join public.ic_inventory i on i.item_brand = b.code and ${WEB_ITEM}
-       left join ecom.brand_overlays bo on bo.brand_code=b.code
+       left join odg_ecom.brand_overlays bo on bo.brand_code=b.code
       where b.onweb = 1
       group by b.code, b.name_1, b.url_logo, bo.logo_url
       having count(i.code) > 0
@@ -220,7 +221,7 @@ export async function getCategoryBrands(categoryCode: string): Promise<Brand[]> 
             count(*)::int as "productCount"
        from public.ic_inventory i
        left join public.ic_brand b on b.code = i.item_brand
-       left join ecom.brand_overlays bo on bo.brand_code=i.item_brand
+       left join odg_ecom.brand_overlays bo on bo.brand_code=i.item_brand
       where ${WEB_ITEM} and i.item_category = $1
         and coalesce(nullif(i.item_brand,''), '') <> ''
       group by i.item_brand, b.name_1, b.url_logo, bo.logo_url
@@ -268,7 +269,7 @@ export async function getBrand(code: string): Promise<Brand | null> {
             count(i.code) filter (where ${WEB_ITEM})::int as "productCount"
        from public.ic_brand b
        left join public.ic_inventory i on i.item_brand = b.code
-       left join ecom.brand_overlays bo on bo.brand_code=b.code
+       left join odg_ecom.brand_overlays bo on bo.brand_code=b.code
       where b.code = $1
       group by b.code, b.name_1, b.url_logo, bo.logo_url`,
     [code],
@@ -370,7 +371,7 @@ export async function getGroupBrands(opts: {
             count(*)::int as "productCount"
        from public.ic_inventory i
        left join public.ic_brand b on b.code = i.item_brand
-       left join ecom.brand_overlays bo on bo.brand_code=i.item_brand
+       left join odg_ecom.brand_overlays bo on bo.brand_code=i.item_brand
       where ${conds.join(" and ")}
       group by i.item_brand, b.name_1, b.url_logo, bo.logo_url
       order by count(*) desc, name
@@ -482,10 +483,10 @@ export async function getProductByCode(code: string): Promise<Product | null> {
   return product;
 }
 
-/** Ordered gallery image URLs for a product (ecom.product_images), or []. */
+/** Ordered gallery image URLs for a product (odg_ecom.product_images), or []. */
 export async function getProductImageList(code: string): Promise<string[]> {
   const rows = await query<{ url: string }>(
-    `select url from ecom.product_images
+    `select url from odg_ecom.product_images
       where product_code = $1 order by sort_order, id`,
     [code],
   );

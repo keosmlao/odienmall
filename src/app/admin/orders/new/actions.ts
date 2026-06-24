@@ -29,7 +29,7 @@ export interface SavedAddr {
   label: string;
 }
 
-/** A registered customer's saved delivery addresses (ecom.customer_addresses). */
+/** A registered customer's saved delivery addresses (odg_ecom.customer_addresses). */
 export async function adminCustomerAddresses(code: string): Promise<SavedAddr[]> {
   if (!(await isAdmin())) return [];
   const c = (code || "").trim();
@@ -61,7 +61,7 @@ export async function adminUploadSlip(orderNo: string, formData: FormData): Prom
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     const fname = `${orderNo.replace(/[^a-zA-Z0-9_-]/g, "")}-${randomUUID().slice(0, 8)}.${ext}`;
     const url = await saveUpload("slips", fname, Buffer.from(await file.arrayBuffer()));
-    await query(`update ecom.onepay_payments set slip_url = $2 where order_no = $1`, [orderNo, url]);
+    await query(`update odg_ecom.onepay_payments set slip_url = $2 where order_no = $1`, [orderNo, url]);
     await logAudit({ action: "order.slip.upload", entity: orderNo, detail: url });
     return { ok: true, url };
   } catch (e) {

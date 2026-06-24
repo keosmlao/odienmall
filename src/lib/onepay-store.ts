@@ -16,7 +16,7 @@ import { redeemVoucher } from "./vouchers";
 import { redeemPoints, earnPoints, POINT_VALUE } from "./loyalty";
 import { notify } from "./notifications";
 
-// Persistence + orchestration for per-order OnePay QR codes (ecom.onepay_payments).
+// Persistence + orchestration for per-order OnePay QR codes (odg_ecom.onepay_payments).
 // This table also holds the PENDING-ORDER snapshot until the customer pays — the
 // order is written to SML (public.ic_trans, CAE flag 34) only on payment.
 
@@ -47,7 +47,7 @@ export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
   const payMethod = o.paymentMethod === "cod" ? "cod" : "transfer";
   const shipMethod = o.shippingMethod === "thanjai" ? "thanjai" : "odien";
   await query(
-    `insert into ecom.onepay_payments
+    `insert into odg_ecom.onepay_payments
        (order_no, uuid, amount, qrc, status, cust_code, cust_name, phone, address, note,
         referral_code, items, subtotal, shipping_fee, voucher_code, discount, points_used,
         member_discount, payment_method, shipping_method, created_by, transport_code, sale_code)
@@ -122,7 +122,7 @@ export async function getPendingOrder(orderNo: string): Promise<
     `select cust_code, cust_name, phone, address, note, referral_code, items,
             subtotal, shipping_fee, voucher_code, discount, points_used, member_discount,
             payment_method, shipping_method, sale_code, sml_doc_no, status
-       from ecom.onepay_payments where order_no = $1`,
+       from odg_ecom.onepay_payments where order_no = $1`,
     [orderNo],
   );
   if (!r || r.items == null) return null;
@@ -175,7 +175,7 @@ async function materializeOrder(orderNo: string, paid: boolean): Promise<string 
     discount: totalDiscount, // voucher + member + points → SML total_discount
     saleCode: snap.saleCode, // ພະນັກງານຂາຍ → ic_trans.sale_code
   });
-  await query(`update ecom.onepay_payments set sml_doc_no = $2 where order_no = $1`, [orderNo, docNo]);
+  await query(`update odg_ecom.onepay_payments set sml_doc_no = $2 where order_no = $1`, [orderNo, docNo]);
 
   // Voucher redemption + points spend happen regardless of pay timing (idempotent).
   if (snap.voucherCode && snap.discount > 0) {
@@ -269,7 +269,7 @@ function isExpired(p: OnepayPayment): boolean {
 /** Stored OnePay record for an order, or null. */
 export async function getOrderPayment(orderNo: string): Promise<OnepayPayment | null> {
   const row = await queryOne<Row>(
-    `select ${SELECT} from ecom.onepay_payments where order_no = $1`,
+    `select ${SELECT} from odg_ecom.onepay_payments where order_no = $1`,
     [orderNo],
   );
   return row ? toPayment(row) : null;
@@ -279,7 +279,7 @@ export async function getOrderPayment(orderNo: string): Promise<OnepayPayment | 
 export async function getOrderPaymentByUuid(uuid: string): Promise<OnepayPayment | null> {
   if (!uuid) return null;
   const row = await queryOne<Row>(
-    `select ${SELECT} from ecom.onepay_payments where uuid = $1`,
+    `select ${SELECT} from odg_ecom.onepay_payments where uuid = $1`,
     [uuid],
   );
   return row ? toPayment(row) : null;
@@ -336,7 +336,7 @@ export async function confirmPaymentByCallback(input: {
     const payerName = extra.payerName ?? input.info?.payerName ?? null;
 
     await query(
-      `update ecom.onepay_payments
+      `update odg_ecom.onepay_payments
           set status = 'paid',
               ticket = coalesce($2, ticket),
               fcc_ref = coalesce($3, fcc_ref),
@@ -365,7 +365,7 @@ export async function confirmPaymentByCallback(input: {
 export async function verifyOnepayCallback(uuid: string): Promise<PaymentStatus> {
   const payment = await queryOne<{ orderNo: string; amount: string }>(
     `select order_no as "orderNo", amount::text as amount
-       from ecom.onepay_payments where uuid = $1`,
+       from odg_ecom.onepay_payments where uuid = $1`,
     [uuid],
   );
   if (!payment) throw new Error("OnePay callback: UUID not found");
@@ -382,7 +382,7 @@ export async function verifyOnepayCallback(uuid: string): Promise<PaymentStatus>
   }
 
   await query(
-    `update ecom.onepay_payments
+    `update odg_ecom.onepay_payments
         set status='paid', ticket=coalesce($2,ticket),
             fcc_ref=coalesce($3,fcc_ref), payer_name=coalesce($4,payer_name),
             paid_at=coalesce(paid_at,now()), checked_at=now()
@@ -431,7 +431,7 @@ async function generateInto(
     const row =
       mode === "insert"
         ? await queryOne<Row>(
-            `insert into ecom.onepay_payments
+            `insert into odg_ecom.onepay_payments
                (order_no, uuid, invoice_id, amount, qrc, status, expires_at)
              values ($1,$2,$3,$4,$5,'generated',$6)
              on conflict (order_no) do nothing
@@ -439,7 +439,7 @@ async function generateInto(
             [orderNo, uuid, orderNo, qrAmount, qrc, expireAt.toISOString()],
           )
         : await queryOne<Row>(
-            `update ecom.onepay_payments
+            `update odg_ecom.onepay_payments
                 set uuid = $2, amount = $3, qrc = $4, status = 'generated',
                     expires_at = $5, ticket = null, fcc_ref = null,
                     payer_name = null, paid_at = null, checked_at = null,
@@ -515,7 +515,7 @@ export async function refreshPaymentStatus(orderNo: string): Promise<OnepayPayme
       }
     }
     await query(
-      `update ecom.onepay_payments
+      `update odg_ecom.onepay_payments
           set status = $2,
               ticket = coalesce($3, ticket),
               fcc_ref = coalesce($4, fcc_ref),

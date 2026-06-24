@@ -1,3 +1,4 @@
+/* eslint-disable */
 function OnePay(mcid) {
     this.mcid = mcid;
     this.tid = null;

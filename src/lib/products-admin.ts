@@ -5,7 +5,7 @@ import { query, queryOne } from "./db";
 // Admin product management.
 //
 // The ERP product master (public.ic_inventory) is READ-ONLY — we never write to
-// it. Staff manage an app-owned overlay (ecom.product_overlays) layered on top:
+// it. Staff manage an app-owned overlay (odg_ecom.product_overlays) layered on top:
 // an image, a hide flag, and a featured flag. The read path in catalog.ts joins
 // this overlay so the storefront reflects the edits.
 //
@@ -16,7 +16,7 @@ import { query, queryOne } from "./db";
 
 // Web-eligible products (consumer groups, web-enabled). No stock/hidden filter —
 // admin sees everything manageable.
-const ADMIN_WEB = `i.is_eordershow = 1 and i.group_main in ('11','12','13','14')`;
+const ADMIN_WEB = `i.is_eordershow = 1 and i.group_main in (select group_main from odg_ecom.web_groups)`;
 
 /** A web item is "low stock" when it still has stock but ≤ this many units. */
 export const LOW_STOCK_MAX = 5;
@@ -52,7 +52,7 @@ const ROW_SELECT = `
     (i.is_new_item = 1)  as "isNew",
     (i.item_promote = 1) as "isPromo",
     coalesce(
-      (select pi.url from ecom.product_images pi where pi.product_code = i.code
+      (select pi.url from odg_ecom.product_images pi where pi.product_code = i.code
         order by pi.sort_order, pi.id limit 1),
       nullif(ov.image_url,'')
     )                                as "imageUrl",
@@ -64,7 +64,7 @@ const ROW_SELECT = `
   from public.ic_inventory i
   left join public.ic_brand    b on b.code = i.item_brand
   left join public.ic_category c on c.code = i.item_category
-  left join ecom.product_overlays ov on ov.product_code = i.code`;
+  left join odg_ecom.product_overlays ov on ov.product_code = i.code`;
 
 export interface AdminProductPage {
   items: AdminProductRow[];
@@ -163,12 +163,12 @@ export async function getAdminProductStats(): Promise<AdminProductStats> {
     `select
         count(*)::int as total,
         count(*) filter (where nullif(ov.image_url,'') is not null
-          or exists (select 1 from ecom.product_images pi where pi.product_code = i.code))::int as "withImage",
+          or exists (select 1 from odg_ecom.product_images pi where pi.product_code = i.code))::int as "withImage",
         count(*) filter (where coalesce(ov.is_hidden,false))::int   as hidden,
         count(*) filter (where coalesce(ov.is_featured,false))::int as featured,
         count(*) filter (where coalesce(i.balance_qty,0) between 1 and ${LOW_STOCK_MAX})::int as "lowStock"
        from public.ic_inventory i
-       left join ecom.product_overlays ov on ov.product_code = i.code
+       left join odg_ecom.product_overlays ov on ov.product_code = i.code
       where ${ADMIN_WEB}`,
   );
   return row ?? { total: 0, withImage: 0, hidden: 0, featured: 0, lowStock: 0 };
@@ -236,7 +236,7 @@ async function upsert(
   by?: string,
 ): Promise<void> {
   await query(
-    `insert into ecom.product_overlays (product_code, ${column}, updated_by, updated_at)
+    `insert into odg_ecom.product_overlays (product_code, ${column}, updated_by, updated_at)
        values ($1, $2, $3, now())
      on conflict (product_code) do update
        set ${column} = excluded.${column},
@@ -246,7 +246,7 @@ async function upsert(
   );
 }
 
-// --- image gallery (ecom.product_images) ------------------------------------
+// --- image gallery (odg_ecom.product_images) ------------------------------------
 
 export interface ProductImageRow {
   id: number;
@@ -258,7 +258,7 @@ export interface ProductImageRow {
 export async function getProductImages(code: string): Promise<ProductImageRow[]> {
   return query<ProductImageRow>(
     `select id, url, sort_order as "sortOrder"
-       from ecom.product_images
+       from odg_ecom.product_images
       where product_code = $1
       order by sort_order, id`,
     [code],
@@ -268,9 +268,9 @@ export async function getProductImages(code: string): Promise<ProductImageRow[]>
 /** Append an image URL to the gallery (after the current last). */
 export async function addProductImage(code: string, url: string): Promise<void> {
   await query(
-    `insert into ecom.product_images (product_code, url, sort_order)
+    `insert into odg_ecom.product_images (product_code, url, sort_order)
        values ($1, $2, coalesce(
-         (select max(sort_order) + 1 from ecom.product_images where product_code = $1), 0))`,
+         (select max(sort_order) + 1 from odg_ecom.product_images where product_code = $1), 0))`,
     [code, url],
   );
 }
@@ -278,7 +278,7 @@ export async function addProductImage(code: string, url: string): Promise<void> 
 /** Delete one gallery image (scoped to its product); returns its URL if found. */
 export async function deleteProductImage(id: number, code: string): Promise<string | null> {
   const row = await queryOne<{ url: string }>(
-    `delete from ecom.product_images where id = $1 and product_code = $2 returning url`,
+    `delete from odg_ecom.product_images where id = $1 and product_code = $2 returning url`,
     [id, code],
   );
   return row?.url ?? null;
@@ -287,9 +287,9 @@ export async function deleteProductImage(id: number, code: string): Promise<stri
 /** Make an image the primary one (sorts before all the product's others). */
 export async function setPrimaryImage(id: number, code: string): Promise<void> {
   await query(
-    `update ecom.product_images
+    `update odg_ecom.product_images
         set sort_order = coalesce(
-          (select min(sort_order) - 1 from ecom.product_images where product_code = $2), 0)
+          (select min(sort_order) - 1 from odg_ecom.product_images where product_code = $2), 0)
       where id = $1 and product_code = $2`,
     [id, code],
   );
@@ -322,7 +322,7 @@ export async function bulkSetFlag(
 ): Promise<number> {
   if (codes.length === 0) return 0;
   await query(
-    `insert into ecom.product_overlays (product_code, ${column}, updated_by, updated_at)
+    `insert into odg_ecom.product_overlays (product_code, ${column}, updated_by, updated_at)
        select c, $2, $3, now() from unnest($1::text[]) as c
      on conflict (product_code) do update
        set ${column} = excluded.${column},
@@ -340,7 +340,7 @@ export async function setProductDescription(
   by?: string,
 ): Promise<void> {
   await query(
-    `insert into ecom.product_overlays (product_code, description, updated_by, updated_at)
+    `insert into odg_ecom.product_overlays (product_code, description, updated_by, updated_at)
        values ($1, $2, $3, now())
      on conflict (product_code) do update
        set description = excluded.description,

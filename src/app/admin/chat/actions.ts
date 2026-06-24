@@ -6,6 +6,7 @@ import {
   getThreadMessages,
   postMessage,
   markRead,
+  setHumanTaken,
   type ChatMessage,
   type ChatThreadRow,
 } from "@/lib/chat";
@@ -35,6 +36,8 @@ export async function adminReply(threadId: number, body: string): Promise<AdminR
   try {
     const message = await postMessage(threadId, "admin", text);
     if (!message) return { ok: false, error: "ສົ່ງບໍ່ສຳເລັດ" };
+    // A human admin has taken over → silence the AI assistant on this thread.
+    await setHumanTaken(threadId).catch(() => {});
     return { ok: true, message };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };

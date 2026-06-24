@@ -64,25 +64,6 @@ async function nextCaeDocNo(client: Client): Promise<string> {
   return `${prefix}${String(next).padStart(6, "0")}`;
 }
 
-interface OrderHead {
-  id: string;
-  order_no: string;
-  customer_code: string | null;
-  subtotal: string;
-  shipping_fee: string;
-  sml_doc_no: string | null;
-  created_at: Date;
-}
-interface OrderItem {
-  product_code: string;
-  product_name: string;
-  unit: string | null;
-  qty: number;
-  line_total: string;
-  wh_code: string | null;
-  shelf_code: string | null;
-}
-
 export interface CaeOrderInput {
   customerCode: string | null;
   name: string;
@@ -108,7 +89,7 @@ export interface CaeOrderInput {
 
 /**
  * Create a web order DIRECTLY as the SML ໃບສັ່ງຊື້ (ic_trans flag 34, CAE) — the
- * order IS the SML record (no ecom.orders). Returns the CAE doc_no (= order no).
+ * order IS the SML record (no odg_ecom.orders). Returns the CAE doc_no (= order no).
  * Web-only fields live in ic_trans columns (no schema change):
  *   point_telephone=phone, remark_3=name, remark_4=address, remark_2=note,
  *   remark=referral code, remark_5='odienmall'. Throws unless SML_DIRECT_WRITE=1.
@@ -217,100 +198,11 @@ export async function setSmlSaleCode(docNo: string, saleCode: string | null): Pr
  * block checkout. Returns the CAE doc_no, or null when disabled/skipped.
  */
 export async function createSmlSaleOrder(orderNo: string): Promise<string | null> {
-  if (!smlDirectWriteEnabled()) return null;
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const oh = (
-      await client.query(
-        `select id, order_no, customer_code, subtotal,
-                coalesce(shipping_fee,0) as shipping_fee, sml_doc_no, created_at
-           from ecom.orders where order_no = $1 for update`,
-        [orderNo],
-      )
-    ).rows[0] as OrderHead | undefined;
-    if (!oh) throw new Error(`order ${orderNo} not found`);
-    if (oh.sml_doc_no) {
-      await client.query("commit");
-      return oh.sml_doc_no; // already created
-    }
-
-    const items = (
-      await client.query(
-        `select oi.product_code, oi.product_name, oi.unit, oi.qty, oi.line_total
-           from ecom.order_items oi where oi.order_id = $1 order by oi.id`,
-        [oh.id],
-      )
-    ).rows as unknown as OrderItem[];
-    if (items.length === 0) throw new Error(`order ${orderNo} has no items`);
-
-    const rate = await exchangeRate(client);
-    const cust = oh.customer_code || WALKIN;
-    const totalLak = Number(oh.subtotal) + Number(oh.shipping_fee);
-    const cur = (lak: number) => Math.round(lak * rate * 1e6) / 1e6; // currency amount
-    const docNo = await nextCaeDocNo(client);
-
-    // header — flag 34, branch 99, currency 02. Matches CAE template: vat_type 2,
-    // vat_rate 10 BUT total_value == total_amount (no VAT added to the price — the
-    // _exclude_vat / _2 amounts equal the full amount), i.e. customer pays no VAT.
-    await client.query(
-      `insert into public.ic_trans (
-         roworder, trans_type, trans_flag, inquiry_type, doc_date, doc_no,
-         vat_type, vat_rate, cust_code, branch_code, currency_code, exchange_rate,
-         total_value, total_amount, total_value_2, total_amount_2,
-         doc_time, creator_code, doc_format_code, remark_5,
-         create_datetime, create_date_time_now
-       ) values (
-         nextval('public.ic_trans_roworder_seq'), 2, 34, 1, $1, $2,
-         2, 10, $3, $4, $5, $6,
-         $7, $7, $8, $8,
-         to_char(now(),'HH24:MI'), $9, $10, 'web',
-         now(), now()
-       )`,
-      [oh.created_at, docNo, cust, BRANCH, CURRENCY, rate, cur(totalLak), totalLak, cust, DOC_FORMAT],
-    );
-
-    // lines — wh 0000 (no warehouse yet), no VAT, dual LAK/currency amounts
-    for (const it of items) {
-      const cost = (
-        await client.query(`select coalesce(average_cost,0) as a from public.ic_inventory where code = $1`, [it.product_code])
-      ).rows[0] as { a: string } | undefined;
-      const avg = Number(cost?.a ?? 0);
-      const lineLak = Number(it.line_total);
-      await client.query(
-        `insert into public.ic_trans_detail (
-           roworder, trans_type, trans_flag, inquiry_type, doc_date, doc_no, cust_code,
-           item_code, item_name, unit_code, qty, price, sum_amount,
-           branch_code, wh_code, shelf_code, vat_type, calc_flag, stand_value, divide_value,
-           average_cost, average_cost_1, sum_of_cost, sum_of_cost_1,
-           price_exclude_vat, sum_amount_exclude_vat, price_2, sum_amount_2,
-           create_date_time_now
-         ) values (
-           nextval('public.ic_trans_detail_roworder_seq'), 2, 34, 1, $1, $2, $3,
-           $4, $5, $6, $7, $8, $9,
-           $10, '0000', '000000', 1, -1, 1, 1,
-           $11, $11, $12, $12,
-           $13, $14, $15, $16,
-           now()
-         )`,
-        [
-          oh.created_at, docNo, cust,
-          it.product_code, it.product_name, it.unit ?? "", it.qty, cur(lineLak), cur(lineLak),
-          BRANCH, avg, avg * it.qty,
-          lineLak, lineLak, lineLak, lineLak,
-        ],
-      );
-    }
-
-    await client.query(`update ecom.orders set sml_doc_no = $2 where order_no = $1`, [orderNo, docNo]);
-    await client.query("commit");
-    return docNo;
-  } catch (e) {
-    await client.query("rollback").catch(() => {});
-    throw e;
-  } finally {
-    client.release();
-  }
+  void orderNo;
+  // Legacy backfill path used odg_ecom.orders/order_items. Orders now live
+  // directly in public.ic_trans/public.ic_trans_detail, so there is no app-side
+  // order snapshot to backfill from.
+  return null;
 }
 
 /**
@@ -361,7 +253,7 @@ export async function confirmSmlSaleOrder(
       await client.query(
         `select d.roworder, a.wh_code, a.shelf_code
            from public.ic_trans_detail d
-           join ecom.order_item_allocations a on a.order_item_id = d.roworder
+           join odg_ecom.order_item_allocations a on a.order_item_id = d.roworder
           where d.doc_no = $1`,
         [docNo],
       )
@@ -395,7 +287,7 @@ export async function confirmSmlSaleOrder(
           set trans_flag=44,
               wh_code=a.wh_code,
               shelf_code=a.shelf_code
-         from ecom.order_item_allocations a
+         from odg_ecom.order_item_allocations a
         where d.doc_no=$1
           and d.trans_flag=34
           and a.order_item_id=d.roworder
@@ -415,7 +307,7 @@ export async function confirmSmlSaleOrder(
       await client.query(
         `select coalesce(nullif(fcc_ref,''),nullif(ticket,'')) as transfer_ref,
                 coalesce(payer_name,'') as payer_name
-           from ecom.onepay_payments
+           from odg_ecom.onepay_payments
           where sml_doc_no=$1 or order_no=$1
           order by paid_at desc nulls last, created_at desc
           limit 1`,

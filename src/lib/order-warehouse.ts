@@ -63,7 +63,7 @@ export async function getOrderWarehouseOptions(orderNo: string): Promise<OrderWa
             d.qty::int as qty, d.unit_code as unit, a.wh_code
        from public.ic_trans_detail d
        join public.ic_trans ic on ic.doc_no = d.doc_no
-       left join ecom.order_item_allocations a on a.order_item_id = d.roworder
+       left join odg_ecom.order_item_allocations a on a.order_item_id = d.roworder
       where ic.doc_no = $1 and ic.doc_format_code = 'CAE'
         and ic.remark_5 in ('web','odienmall')
       order by d.roworder`,
@@ -78,7 +78,7 @@ export async function getOrderWarehouseOptions(orderNo: string): Promise<OrderWa
   }));
   // Transport branch the staff picked when creating the order (pre-fill ອອກບິນ).
   const tRow = await queryOne<{ transport_code: string | null }>(
-    `select transport_code from ecom.onepay_payments where sml_doc_no = $1 or order_no = $1 limit 1`,
+    `select transport_code from odg_ecom.onepay_payments where sml_doc_no = $1 or order_no = $1 limit 1`,
     [orderNo],
   );
   const selectedTransport = tRow?.transport_code || null;
@@ -224,7 +224,7 @@ export async function allocateOrderToWarehouse(
         );
       }
       await client.query(
-        `insert into ecom.order_item_allocations
+        `insert into odg_ecom.order_item_allocations
            (order_item_id, wh_code, wh_name, shelf_code, shelf_name, qty, selected_by, selected_at)
          values ($1,$2,$3,$4,$5,$6,$7,now())
          on conflict (order_item_id) do update

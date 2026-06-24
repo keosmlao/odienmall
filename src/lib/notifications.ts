@@ -24,7 +24,7 @@ export async function notify(
   if (!code) return; // guests have no inbox
   try {
     await query(
-      `insert into ecom.notifications (customer_code, type, title, body, link)
+      `insert into odg_ecom.notifications (customer_code, type, title, body, link)
        values ($1, $2, $3, $4, $5)`,
       [code, n.type, n.title, n.body ?? null, n.link ?? null],
     );
@@ -48,7 +48,7 @@ export async function listNotifications(customerCode: string, limit = 30): Promi
     created_at: Date;
   }>(
     `select id, type, title, body, link, read, created_at
-       from ecom.notifications where customer_code = $1
+       from odg_ecom.notifications where customer_code = $1
       order by id desc limit $2`,
     [customerCode, limit],
   );
@@ -65,14 +65,14 @@ export async function listNotifications(customerCode: string, limit = 30): Promi
 
 export async function countUnread(customerCode: string): Promise<number> {
   const r = await queryOne<{ n: string }>(
-    `select count(*)::text as n from ecom.notifications where customer_code = $1 and read = false`,
+    `select count(*)::text as n from odg_ecom.notifications where customer_code = $1 and read = false`,
     [customerCode],
   );
   return Number(r?.n ?? 0);
 }
 
 export async function markAllRead(customerCode: string): Promise<void> {
-  await query(`update ecom.notifications set read = true where customer_code = $1 and read = false`, [
+  await query(`update odg_ecom.notifications set read = true where customer_code = $1 and read = false`, [
     customerCode,
   ]);
 }

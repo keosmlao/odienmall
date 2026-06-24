@@ -4,7 +4,7 @@ import { query, queryOne } from "./db";
 import type { Product } from "./types";
 
 // Flash sale / time-limited deals. The deal price overrides retail on the
-// storefront and at checkout (re-priced server-side). App-owned (ecom.flash_deals).
+// storefront and at checkout (re-priced server-side). App-owned (odg_ecom.flash_deals).
 
 export interface FlashDeal {
   productCode: string;
@@ -17,7 +17,7 @@ export interface FlashDeal {
 /** Map of product_code → sale_price for deals active RIGHT NOW (request-cached). */
 export const activeFlashMap = cache(async (): Promise<Map<string, number>> => {
   const rows = await query<{ product_code: string; sale_price: string }>(
-    `select product_code, sale_price from ecom.flash_deals
+    `select product_code, sale_price from odg_ecom.flash_deals
       where active and starts_at <= now() and ends_at > now()`,
   );
   return new Map(rows.map((r) => [r.product_code, Number(r.sale_price)]));
@@ -44,13 +44,13 @@ export async function flashPriceFor(code: string): Promise<number | null> {
 /** Active flash deals joined to product info, for the home rail. */
 export async function getActiveFlashDeals(limit = 12): Promise<{ products: Product[]; endsAt: string | null }> {
   const rows = await query<{ ends_at: Date }>(
-    `select min(ends_at) as ends_at from ecom.flash_deals where active and starts_at <= now() and ends_at > now()`,
+    `select min(ends_at) as ends_at from odg_ecom.flash_deals where active and starts_at <= now() and ends_at > now()`,
   );
   const endsAt = rows[0]?.ends_at ? new Date(rows[0].ends_at).toISOString() : null;
   if (!endsAt) return { products: [], endsAt: null };
 
   const codes = await query<{ product_code: string }>(
-    `select product_code from ecom.flash_deals
+    `select product_code from odg_ecom.flash_deals
       where active and starts_at <= now() and ends_at > now()
       order by ends_at asc limit $1`,
     [limit],
@@ -73,7 +73,7 @@ export async function listFlashDeals(): Promise<FlashDeal[]> {
     starts_at: Date;
     ends_at: Date;
     active: boolean;
-  }>(`select product_code, sale_price, starts_at, ends_at, active from ecom.flash_deals order by ends_at desc`);
+  }>(`select product_code, sale_price, starts_at, ends_at, active from odg_ecom.flash_deals order by ends_at desc`);
   return rows.map((r) => ({
     productCode: r.product_code,
     salePrice: Number(r.sale_price),
@@ -93,7 +93,7 @@ export async function upsertFlashDeal(input: {
 }): Promise<void> {
   if (!input.productCode || !(input.salePrice > 0)) throw new Error("ຂໍ້ມູນບໍ່ຄົບ");
   await query(
-    `insert into ecom.flash_deals (product_code, sale_price, starts_at, ends_at, active, created_by)
+    `insert into odg_ecom.flash_deals (product_code, sale_price, starts_at, ends_at, active, created_by)
      values ($1,$2,$3,$4,$5,$6)
      on conflict (product_code) do update set
         sale_price = excluded.sale_price, starts_at = excluded.starts_at,
@@ -103,7 +103,7 @@ export async function upsertFlashDeal(input: {
 }
 
 export async function deleteFlashDeal(productCode: string): Promise<void> {
-  await query(`delete from ecom.flash_deals where product_code = $1`, [productCode]);
+  await query(`delete from odg_ecom.flash_deals where product_code = $1`, [productCode]);
 }
 
 export async function getFlashDeal(productCode: string): Promise<FlashDeal | null> {
@@ -113,7 +113,7 @@ export async function getFlashDeal(productCode: string): Promise<FlashDeal | nul
     starts_at: Date;
     ends_at: Date;
     active: boolean;
-  }>(`select product_code, sale_price, starts_at, ends_at, active from ecom.flash_deals where product_code = $1`, [
+  }>(`select product_code, sale_price, starts_at, ends_at, active from odg_ecom.flash_deals where product_code = $1`, [
     productCode,
   ]);
   return r

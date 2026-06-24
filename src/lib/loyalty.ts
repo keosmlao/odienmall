@@ -26,7 +26,7 @@ export function pointsEarnedFor(amountLak: number): number {
 export async function getBalance(customerCode: string): Promise<number> {
   if (!customerCode) return 0;
   const r = await queryOne<{ bal: string }>(
-    `select coalesce(sum(delta),0)::text as bal from ecom.loyalty_ledger where customer_code = $1`,
+    `select coalesce(sum(delta),0)::text as bal from odg_ecom.loyalty_ledger where customer_code = $1`,
     [customerCode],
   );
   return Number(r?.bal ?? 0);
@@ -35,7 +35,7 @@ export async function getBalance(customerCode: string): Promise<number> {
 export async function getHistory(customerCode: string, limit = 50): Promise<LoyaltyEntry[]> {
   const rows = await query<{ id: string; delta: number; reason: string; order_no: string | null; created_at: Date }>(
     `select id, delta, reason, order_no, created_at
-       from ecom.loyalty_ledger where customer_code = $1 order by id desc limit $2`,
+       from odg_ecom.loyalty_ledger where customer_code = $1 order by id desc limit $2`,
     [customerCode, limit],
   );
   return rows.map((r) => ({
@@ -56,7 +56,7 @@ export async function earnPoints(customerCode: string, orderNo: string, amountLa
   try {
     await client.query("begin");
     const dup = await client.query(
-      `select 1 from ecom.loyalty_ledger where order_no = $1 and reason = 'earn' limit 1`,
+      `select 1 from odg_ecom.loyalty_ledger where order_no = $1 and reason = 'earn' limit 1`,
       [orderNo],
     );
     if ((dup.rowCount ?? 0) > 0) {
@@ -64,7 +64,7 @@ export async function earnPoints(customerCode: string, orderNo: string, amountLa
       return 0;
     }
     await client.query(
-      `insert into ecom.loyalty_ledger (customer_code, delta, reason, order_no) values ($1,$2,'earn',$3)`,
+      `insert into odg_ecom.loyalty_ledger (customer_code, delta, reason, order_no) values ($1,$2,'earn',$3)`,
       [customerCode, pts, orderNo],
     );
     await client.query("commit");
@@ -85,7 +85,7 @@ export async function redeemPoints(customerCode: string, orderNo: string, points
   try {
     await client.query("begin");
     const dup = await client.query(
-      `select 1 from ecom.loyalty_ledger where order_no = $1 and reason = 'redeem' limit 1`,
+      `select 1 from odg_ecom.loyalty_ledger where order_no = $1 and reason = 'redeem' limit 1`,
       [orderNo],
     );
     if ((dup.rowCount ?? 0) > 0) {
@@ -93,7 +93,7 @@ export async function redeemPoints(customerCode: string, orderNo: string, points
       return;
     }
     await client.query(
-      `insert into ecom.loyalty_ledger (customer_code, delta, reason, order_no) values ($1,$2,'redeem',$3)`,
+      `insert into odg_ecom.loyalty_ledger (customer_code, delta, reason, order_no) values ($1,$2,'redeem',$3)`,
       [customerCode, -Math.abs(points), orderNo],
     );
     await client.query("commit");

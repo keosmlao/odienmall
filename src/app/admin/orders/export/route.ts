@@ -7,7 +7,7 @@ import { SHIPPING_LABEL, type ShippingMethod } from "@/lib/shipping-constants";
 export const dynamic = "force-dynamic";
 
 // CSV export of the (filtered) order list. Same filters as the dashboard, read
-// from the query string. Admin-only — reads ecom.orders, never the ERP write.
+// from the query string. Admin-only — reads public.ic_trans CAE orders via getAllOrders.
 export async function GET(req: Request) {
   if (!(await isAdmin())) {
     return new Response("Unauthorized", { status: 401 });
