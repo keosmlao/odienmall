@@ -119,7 +119,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={lbl}>ປະເພດ</label>
             <select
@@ -144,7 +144,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={lbl}>ຍອດຂັ້ນຕ່ຳ ₭</label>
             <input
@@ -181,7 +181,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={lbl}>ວັນທີເລີ່ມ</label>
             <input
@@ -202,7 +202,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={lbl}>ຈຳນວນສິດ (ວ່າງ=ບໍ່ຈຳກັດ)</label>
             <input

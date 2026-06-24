@@ -31,12 +31,12 @@ export function PageHeader({
           {back.label}
         </Link>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-tight">{title}</h1>
+          <h1 className="text-xl font-black leading-tight tracking-tight text-slate-900 sm:text-2xl">{title}</h1>
           {subtitle && <p className="mt-1 text-[13px] font-semibold text-slate-450">{subtitle}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
       </div>
     </div>
   );
@@ -57,7 +57,7 @@ export function Card({
   return (
     <div
       className={`rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] transition-all duration-300 hover:shadow-md hover:border-slate-300/80 ${
-        padded ? "p-5 sm:p-6" : ""
+        padded ? "p-4 sm:p-5 lg:p-6" : ""
       } ${className}`}
     >
       {children}
@@ -67,9 +67,9 @@ export function Card({
 
 export function CardTitle({ children, hint }: { children: ReactNode; hint?: ReactNode }) {
   return (
-    <div className="mb-5 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+    <div className="mb-5 flex flex-col gap-1.5 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
       <h2 className="text-sm font-black tracking-tight text-slate-800">{children}</h2>
-      {hint && <span className="text-[11px] font-bold text-slate-400">{hint}</span>}
+      {hint && <span className="text-[11px] font-bold leading-5 text-slate-400 sm:text-right">{hint}</span>}
     </div>
   );
 }
@@ -156,7 +156,7 @@ export function TableShell({
   minWidth?: number;
 }) {
   return (
-    <div className="thin-scroll overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
+    <div className="thin-scroll -mx-3 overflow-x-auto rounded-none border-y border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.03)] sm:mx-0 sm:rounded-2xl sm:border">
       <table className="w-full text-sm" style={{ minWidth }}>
         {children}
       </table>

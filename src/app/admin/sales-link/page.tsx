@@ -53,7 +53,7 @@ export default async function AdminSalesLinkPage() {
       />
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:gap-4 lg:grid-cols-4">
         {tiles.map((t) => (
           <StatCard
             key={t.label}

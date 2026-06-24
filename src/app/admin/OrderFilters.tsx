@@ -51,10 +51,10 @@ export default function OrderFilters({
   return (
     <form
       onSubmit={apply}
-      className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/90 p-4 shadow-sm shadow-slate-200/30 backdrop-blur-md transition-all duration-300 hover:border-slate-300"
+      className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white/90 p-3 shadow-sm shadow-slate-200/30 backdrop-blur-md transition-all duration-300 hover:border-slate-300 sm:p-4 lg:flex-row lg:flex-wrap lg:items-center"
     >
       {/* Search Input */}
-      <div className="relative flex-1 min-w-[240px]">
+      <div className="relative w-full lg:min-w-[240px] lg:flex-1">
         <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-400">
           <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -69,13 +69,13 @@ export default function OrderFilters({
       </div>
 
       {/* Date Pickers */}
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-1 min-w-[280px]">
-        <span className="text-slate-400 text-xs font-bold uppercase tracking-wider pr-1">ວັນທີ</span>
+      <div className="grid w-full grid-cols-[auto_1fr_auto_1fr] items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1 sm:flex sm:gap-2 sm:px-3 lg:w-auto lg:min-w-[280px]">
+        <span className="pr-1 text-xs font-bold uppercase tracking-wider text-slate-400">ວັນທີ</span>
         <input
           type="date"
           value={f}
           onChange={(e) => setF(e.target.value)}
-          className="rounded-lg border-none bg-transparent py-1.5 text-sm font-semibold text-slate-750 outline-none focus:ring-0 cursor-pointer"
+          className="min-w-0 rounded-lg border-none bg-transparent py-1.5 text-sm font-semibold text-slate-750 outline-none focus:ring-0 cursor-pointer"
           aria-label="ແຕ່ວັນທີ"
         />
         <span className="text-slate-300 font-bold">—</span>
@@ -83,14 +83,14 @@ export default function OrderFilters({
           type="date"
           value={t}
           onChange={(e) => setT(e.target.value)}
-          className="rounded-lg border-none bg-transparent py-1.5 text-sm font-semibold text-slate-750 outline-none focus:ring-0 cursor-pointer"
+          className="min-w-0 rounded-lg border-none bg-transparent py-1.5 text-sm font-semibold text-slate-750 outline-none focus:ring-0 cursor-pointer"
           aria-label="ຫາວັນທີ"
         />
       </div>
 
       {/* Salesperson Dropdown */}
       {salespeople.length > 0 && (
-        <div className="relative min-w-[200px]">
+        <div className="relative w-full lg:w-auto lg:min-w-[200px]">
           <select
             value={sc}
             onChange={(e) => setSc(e.target.value)}
@@ -113,7 +113,7 @@ export default function OrderFilters({
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
         <button
           type="submit"
           className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-orange-500/15 transition-all duration-300 hover:from-orange-600 hover:to-amber-600 hover:shadow-orange-500/25 active:scale-97 cursor-pointer"
@@ -135,7 +135,7 @@ export default function OrderFilters({
       {/* CSV Export */}
       <a
         href={exportHref}
-        className="ml-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition-all duration-300 hover:border-orange-500/45 hover:bg-orange-50/20 hover:text-orange-600 active:scale-97"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 transition-all duration-300 hover:border-orange-500/45 hover:bg-orange-50/20 hover:text-orange-600 active:scale-97 sm:w-auto lg:ml-auto"
       >
         <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-slate-400 transition-colors" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />

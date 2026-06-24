@@ -77,7 +77,7 @@ export default async function AdminDashboard({
       {missingSml.length > 0 && <SmlBackfillBanner count={missingSml.length} />}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:gap-4 lg:grid-cols-4">
         <StatCard label="ຄຳສັ່ງຊື້ທັງໝົດ" value={stats.total.toLocaleString()} tone="brand" icon="M9 5h6M5 7h14l-1 13H6L5 7zM9 11v5M15 11v5" />
         <StatCard label="ລາຍຮັບ" value={formatKip(stats.revenue)} tone="green" accent icon="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         <StatCard label="ລໍຖ້າດຳເນີນການ" value={(stats.byStatus.pending ?? 0).toLocaleString()} tone="amber" icon="M12 7v5l3 2M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z" />
@@ -88,7 +88,7 @@ export default async function AdminDashboard({
       <OrderFilters status={status} search={q} from={from} to={to} sale={sale} salespeople={salespeople} exportHref={exportHref} />
 
       {/* Status filter chips */}
-      <div className="flex flex-wrap gap-2 text-sm bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/40 w-fit">
+      <div className="thin-scroll -mx-1 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200/40 bg-slate-100/50 p-1.5 text-sm sm:mx-0 sm:flex-wrap sm:overflow-visible sm:w-fit">
         <FilterChip href={chipHref()} label="ທັງໝົດ" count={stats.total} active={!status} />
         {ORDER_STATUSES.map((s) => (
           <FilterChip key={s} href={chipHref(s)} label={STATUS_LABEL[s]} count={stats.byStatus[s] ?? 0} active={status === s} />

@@ -124,10 +124,10 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
   const activeThread = threads.find((t) => t.id === active);
 
   return (
-    <div className="flex h-[calc(100vh-14rem)] min-h-[32rem] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)]">
+    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] lg:h-[calc(100vh-14rem)] lg:min-h-[32rem] lg:flex-row">
       {/* Threads Sidebar */}
-      <aside className="flex w-80 shrink-0 flex-col border-r border-slate-100 bg-slate-50/20">
-        <div className="p-4 border-b border-slate-100 bg-white">
+      <aside className="flex max-h-56 shrink-0 flex-col border-b border-slate-100 bg-slate-50/20 lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
+        <div className="border-b border-slate-100 bg-white p-3 lg:p-4">
           <div className="relative rounded-xl shadow-xs">
             <input
               type="search"
@@ -145,7 +145,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
         </div>
 
         {/* Thread List */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 thin-scroll">
+        <div className="thin-scroll flex-1 space-y-1 overflow-y-auto p-2">
           {threads.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <svg viewBox="0 0 24 24" className="mx-auto h-8 w-8 text-slate-300 mb-2" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -224,13 +224,13 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
         ) : (
           <>
             {/* Header banner */}
-            <div className="flex items-center gap-3.5 border-b border-slate-100 bg-white px-5 py-4.5 shadow-[0_1px_3px_rgba(15,23,42,0.01)]">
+            <div className="flex items-center gap-3 border-b border-slate-100 bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.01)] sm:px-5 sm:py-4.5">
               <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-black shadow-xs ${AVATAR_COLORS[activeThread?.id ?? 0 % AVATAR_COLORS.length]}`}>
                 {activeThread?.name ? activeThread.name.trim().slice(0, 1).toUpperCase() : "?"}
               </span>
-              <div className="min-w-0 leading-tight">
+              <div className="min-w-0 flex-1 leading-tight">
                 <p className="text-sm font-black text-slate-800">{activeThread?.name ?? "ລູກຄ້າ"}</p>
-                <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mt-1 flex items-center gap-1.5">
+                <p className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                   {activeThread?.customerCode ? (
                     <span className="bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-lg text-slate-500 font-mono">
                       CODE: {activeThread.customerCode}
@@ -253,12 +253,12 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
             </div>
 
             {/* Message History Viewport */}
-            <div ref={scroller} className="flex-1 space-y-3.5 overflow-y-auto p-5 thin-scroll">
+            <div ref={scroller} className="thin-scroll flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-3.5 sm:p-5">
               {msgs.map((m) => {
                 const isAdminMsg = m.sender === "admin";
                 return (
                   <div key={m.id} className={`flex ${isAdminMsg ? "justify-end" : "justify-start"}`}>
-                    <div className="flex items-end gap-2 max-w-[70%]">
+                    <div className="flex max-w-[88%] items-end gap-2 sm:max-w-[78%] lg:max-w-[70%]">
                       {/* Customer Avatar bubble inside chat log (only for customer messages) */}
                       {!isAdminMsg && (
                         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[9px] font-black leading-none ${AVATAR_COLORS[activeThread?.id ?? 0 % AVATAR_COLORS.length]}`}>
@@ -288,7 +288,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
             </div>
 
             {/* Input Form Deck */}
-            <div className="p-4 bg-white border-t border-slate-100">
+            <div className="border-t border-slate-100 bg-white p-3 sm:p-4">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();

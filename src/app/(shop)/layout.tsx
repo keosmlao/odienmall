@@ -29,7 +29,7 @@ export default async function ShopLayout({
         )}
         <Header />
         <GroupMenu />
-        <main className="shop-main mx-auto w-full max-w-[1400px] flex-1 px-3 py-4 pb-20 sm:px-4 sm:py-6 sm:pb-6">
+        <main className="shop-main mx-auto w-full max-w-[1400px] flex-1 overflow-x-clip px-3 py-4 pb-24 sm:px-4 sm:py-6 sm:pb-6">
           {children}
         </main>
         <Footer locale={locale} />

@@ -67,7 +67,7 @@ export default async function AdminProductsPage({
       />
 
       {/* KPI cards */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           label="ສິນຄ້າເທິງເວັບ"
           value={stats.total.toLocaleString()}

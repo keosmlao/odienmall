@@ -98,7 +98,7 @@ export default function FlashManager({ deals }: { deals: FlashDeal[] }) {
           <label className="mb-1 block text-xs text-gray-500">ລາຄາ Flash (₭)</label>
           <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className={inp} min={1} />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-gray-500">ເລີ່ມ</label>
             <input type="datetime-local" value={starts} onChange={(e) => setStarts(e.target.value)} className={inp} />

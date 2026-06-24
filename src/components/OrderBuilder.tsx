@@ -267,7 +267,7 @@ export default function OrderBuilder({
                 {copied ? "ກ໋ອບປີ້ແລ້ວ" : "ກ໋ອບປີ້"}
               </button>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <a href={wa} target="_blank" rel="noreferrer" className="rounded-lg bg-[#25D366] py-2.5 text-sm font-bold text-white">💬 ສົ່ງ WhatsApp</a>
               <a href={line} target="_blank" rel="noreferrer" className="rounded-lg bg-[#06C755] py-2.5 text-sm font-bold text-white">🟢 ສົ່ງ LINE</a>
             </div>
@@ -355,7 +355,7 @@ export default function OrderBuilder({
               )}
             </div>
           )}
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <input value={cust.name} onChange={(e) => setCust({ ...cust, name: e.target.value })} placeholder="ຊື່ລູກຄ້າ *" className={inp} />
             <input value={cust.phone} onChange={(e) => setCust({ ...cust, phone: e.target.value })} inputMode="tel" placeholder="ເບີໂທ *" className={inp} />
           </div>
@@ -442,14 +442,14 @@ export default function OrderBuilder({
       <div className="h-fit space-y-4 lg:sticky lg:top-6">
         <div className={card}>
           {step("3", "ການຊຳລະ & ສົ່ງ")}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <button type="button" onClick={() => setPaymentMethod("transfer")} className={`rounded-lg border px-3 py-2.5 text-sm font-bold transition ${paymentMethod === "transfer" ? "border-brand bg-brand-light text-brand-dark" : "border-gray-200 text-gray-500"}`}>🏦 ໂອນ</button>
             <button type="button" onClick={() => setPaymentMethod("cod")} className={`rounded-lg border px-3 py-2.5 text-sm font-bold transition ${paymentMethod === "cod" ? "border-orange-400 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-500"}`}>💵 ເກັບປາຍທາງ</button>
           </div>
 
           <div className="mt-3">
             <span className="mb-1.5 block text-xs font-semibold text-gray-500">ບໍລິສັດຂົນສົ່ງ</span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               {ADMIN_TRANSPORTS.map((t) => (
                 <label key={t.code} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 transition ${transport === t.code ? "border-orange-400 bg-orange-50" : "border-gray-200"}`}>
                   <input type="radio" name="ob-transport" checked={transport === t.code} onChange={() => setTransport(t.code)} className="h-4 w-4 accent-orange-500" />

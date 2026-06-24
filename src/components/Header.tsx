@@ -30,9 +30,9 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-[1400px] grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 px-4 py-2.5 sm:gap-7 sm:py-4">
+      <div className="mx-auto grid max-w-[1400px] grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-7 sm:px-4 sm:py-4">
         <Link href="/" className="flex shrink-0 items-center transition-transform hover:scale-[1.02]" aria-label="ODIENMALL">
-          <span className="flex h-13 w-16 items-center justify-center rounded-xl border border-slate-100 bg-white p-1.5 shadow-sm sm:h-16 sm:w-20">
+          <span className="flex h-11 w-14 items-center justify-center rounded-xl border border-slate-100 bg-white p-1.5 shadow-sm sm:h-16 sm:w-20">
             <Image
               src="/odm.png"
               alt="ODIENMALL"
@@ -50,7 +50,7 @@ export default function Header() {
           </Suspense>
         </div>
 
-        <div className="col-start-3 row-start-1 flex items-center justify-end gap-1 sm:gap-2">
+        <div className="col-start-3 row-start-1 flex min-w-0 items-center justify-end gap-0.5 sm:gap-2">
           <NotificationBell />
           <HeaderCompare />
           <HeaderAction href="/wishlist" label={t("nav.wishlist")}>
@@ -85,7 +85,7 @@ function HeaderAction({
     <Link
       href={href}
       aria-label={label}
-      className="relative flex min-w-11 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-slate-600 transition hover:bg-orange-50 hover:text-orange-600 sm:min-w-16"
+      className="relative flex min-w-9 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1.5 text-slate-600 transition hover:bg-orange-50 hover:text-orange-600 sm:min-w-16 sm:px-2"
     >
       {children}
       <span className="hidden text-xs font-semibold md:block">{label}</span>

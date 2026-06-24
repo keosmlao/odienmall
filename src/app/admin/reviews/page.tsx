@@ -51,7 +51,7 @@ export default async function AdminReviewsPage({
     <div>
       <PageHeader title="ຈັດການຣີວິວ" subtitle="ເບິ່ງ, ເຊື່ອງ ຫຼື ລຶບ ຄຳຕິຊົມຂອງລູກຄ້າ" />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="ຣີວິວທັງໝົດ"
           value={stats.total.toLocaleString()}

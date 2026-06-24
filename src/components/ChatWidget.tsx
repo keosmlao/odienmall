@@ -29,6 +29,7 @@ const SUGGESTIONS = [
 export default function ChatWidget() {
   const pathname = usePathname();
   const productPage = pathname.startsWith("/product/");
+  const launcherBottom = productPage ? "bottom-32 sm:bottom-6" : "bottom-20 sm:bottom-6";
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
@@ -114,9 +115,7 @@ export default function ChatWidget() {
           type="button"
           onClick={openPanel}
           aria-label="ແຊັດກັບຮ້ານ"
-          className={`fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-lg shadow-brand/30 transition hover:bg-brand-dark sm:bottom-6 ${
-            productPage ? "bottom-36" : "bottom-20"
-          }`}
+          className={`fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-lg shadow-brand/30 transition hover:bg-brand-dark ${launcherBottom}`}
         >
           <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.9-.9L3 21l1.9-5.6a8.5 8.5 0 0 1-.9-3.9A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z" />
@@ -131,20 +130,18 @@ export default function ChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className={`fixed right-4 z-40 flex h-[28rem] w-[22rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:bottom-6 ${
-          productPage ? "bottom-36" : "bottom-20"
-        }`}>
-          <div className="flex items-center justify-between bg-brand px-4 py-3 text-white">
-            <div>
+        <div className="fixed inset-x-2 bottom-2 z-50 flex h-[min(82dvh,34rem)] max-h-[calc(100dvh-1rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-auto sm:bottom-6 sm:right-4 sm:h-[28rem] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
+          <div className="flex shrink-0 items-center justify-between gap-3 bg-brand px-3 py-3 text-white sm:px-4">
+            <div className="min-w-0">
               <p className="text-sm font-bold leading-tight">ແຊັດກັບຮ້ານ OdienMall</p>
-              <p className="text-[11px] text-white/80">🤖 ຜູ້ຊ່ວຍ AI ຕອບໄວ · ໂອນຫາພະນັກງານໄດ້</p>
+              <p className="truncate text-[11px] text-white/80">🤖 ຜູ້ຊ່ວຍ AI ຕອບໄວ · ໂອນຫາພະນັກງານໄດ້</p>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="ປິດ" className="rounded-lg p-1 transition hover:bg-white/15">
+            <button type="button" onClick={() => setOpen(false)} aria-label="ປິດ" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg transition hover:bg-white/15">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
 
-          <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto bg-gray-50 p-3">
+          <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-gray-50 p-2.5 sm:p-3">
             {msgs.length === 0 && (
               <div className="mt-4">
                 <p className="text-center text-sm text-gray-400">
@@ -157,7 +154,7 @@ export default function ChatWidget() {
                       type="button"
                       onClick={() => sendText(s)}
                       disabled={sending}
-                      className="rounded-xl border border-brand/30 bg-white px-3 py-2 text-left text-xs font-semibold text-brand-dark transition hover:bg-brand-light disabled:opacity-50"
+                      className="rounded-xl border border-brand/30 bg-white px-3 py-2.5 text-left text-xs font-semibold text-brand-dark transition hover:bg-brand-light disabled:opacity-50"
                     >
                       {s}
                     </button>
@@ -175,7 +172,7 @@ export default function ChatWidget() {
                     </span>
                   )}
                   <div
-                    className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                    className={`max-w-[86%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed sm:max-w-[80%] ${
                       mine
                         ? "rounded-br-sm bg-brand text-white"
                         : m.isBot
@@ -205,7 +202,7 @@ export default function ChatWidget() {
               e.preventDefault();
               send();
             }}
-            className="flex items-end gap-2 border-t border-gray-100 bg-white p-2"
+            className="flex shrink-0 items-end gap-2 border-t border-gray-100 bg-white px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2"
           >
             <textarea
               value={draft}

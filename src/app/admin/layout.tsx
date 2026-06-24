@@ -92,7 +92,7 @@ export default async function AdminLayout({
           </div>
         </header>
 
-        <main className="w-full px-4 py-5 sm:px-5 lg:px-6 print:m-0 print:max-w-none print:p-0">
+        <main className="w-full overflow-x-clip px-3 py-4 sm:px-5 sm:py-5 lg:px-6 print:m-0 print:max-w-none print:p-0">
           {children}
         </main>
       </div>

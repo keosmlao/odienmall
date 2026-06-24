@@ -222,7 +222,7 @@ export default function CheckoutForm({
             {linkCopied ? "ກ໋ອບປີ້ແລ້ວ" : "ກ໋ອບປີ້"}
           </button>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <a href={wa} target="_blank" rel="noreferrer" className="rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white">
             ສົ່ງ WhatsApp
           </a>
