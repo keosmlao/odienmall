@@ -37,7 +37,7 @@ export default async function OrderConfirmationPage({
       ? await getReviewedCodes(session.code, order.items.map((i) => i.productCode))
       : new Set<string>();
 
-  const grandTotal = order.subtotal + order.shippingFee;
+  const grandTotal = Math.max(0, order.subtotal + order.shippingFee - order.discount);
 
   // A transfer order awaiting payment (status `pending`) shows the BCEL OnePay
   // pay section. If we don't even know the merchant, fall back to the static bank
@@ -178,6 +178,12 @@ export default async function OrderConfirmationPage({
               {order.shippingFee === 0 ? "ຟຣີ" : formatKip(order.shippingFee)}
             </span>
           </div>
+          {order.discount > 0 && (
+            <div className="flex items-baseline justify-between text-violet-600">
+              <span>ສ່ວນຫຼຸດ</span>
+              <span className="font-semibold">−{formatKip(order.discount)}</span>
+            </div>
+          )}
           <div className="flex items-baseline justify-between border-t border-gray-100 pt-2">
             <span className="font-semibold text-gray-800">ລວມທັງໝົດ</span>
             <span className="text-xl font-extrabold text-orange-600">{formatKip(grandTotal)}</span>

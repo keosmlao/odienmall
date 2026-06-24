@@ -10,7 +10,7 @@ export default function DeleteOrderButton({ orderNo }: { orderNo: string }) {
   const [error, setError] = useState<string | null>(null);
 
   function del() {
-    if (!confirm(`ລົບຄຳສັ່ງຊື້ ${orderNo}? ການກະທຳນີ້ບໍ່ສາມາດย้อนกลับ.`)) return;
+    if (!confirm(`ລົບຄຳສັ່ງຊື້ ${orderNo}? ການກະທຳນີ້ບໍ່ສາມາດກັບຄືນໄດ້.`)) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteMyOrder(orderNo);

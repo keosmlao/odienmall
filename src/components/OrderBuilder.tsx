@@ -52,6 +52,8 @@ export default function OrderBuilder({
   create,
   uploadSlip,
   lookupAddresses,
+  salespeople = [],
+  defaultSaleCode = null,
 }: {
   search: (q: string) => Promise<Hit[]>;
   searchCustomers: (q: string) => Promise<CustomerHit[]>;
@@ -69,10 +71,15 @@ export default function OrderBuilder({
     items: { code: string; qty: number }[];
     paymentMethod?: string;
     transportCode?: string | null;
+    saleCode?: string | null;
   }) => Promise<BuildResult>;
   uploadSlip?: (orderNo: string, formData: FormData) => Promise<{ ok: true; url: string } | { ok: false; error: string }>;
   /** Optional: pull a registered customer's saved addresses from the DB. */
   lookupAddresses?: (code: string) => Promise<SavedAddr[]>;
+  /** Salespeople (ພະນັກງານຂາຍ) the admin can attribute the order to. */
+  salespeople?: { code: string; name: string }[];
+  /** Default salesperson = the logged-in admin's employee code. */
+  defaultSaleCode?: string | null;
 }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
@@ -84,6 +91,7 @@ export default function OrderBuilder({
   const [addrChoice, setAddrChoice] = useState<string>(NEW_ADDR);
   const [transport, setTransport] = useState<string>(ADMIN_TRANSPORTS[0].code);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "transfer">("transfer");
+  const [saleCode, setSaleCode] = useState<string>(defaultSaleCode ?? "");
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerHits, setCustomerHits] = useState<CustomerHit[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerHit | null>(null);
@@ -196,6 +204,7 @@ export default function OrderBuilder({
         items: lines.map((l) => ({ code: l.code, qty: l.qty })),
         paymentMethod,
         transportCode: transport,
+        saleCode: saleCode || null,
       });
       if (res.ok) setDone({ orderNo: res.orderNo, total: res.total, link: res.link });
       else setError(res.error);
@@ -449,6 +458,28 @@ export default function OrderBuilder({
               ))}
             </div>
           </div>
+
+          {salespeople.length > 0 && (
+            <div className="mt-3">
+              <span className="mb-1.5 block text-xs font-semibold text-gray-500">ພະນັກງານຂາຍ</span>
+              <select
+                value={saleCode}
+                onChange={(e) => setSaleCode(e.target.value)}
+                className={inp}
+              >
+                {/* Ensure the default (logged-in admin) is selectable even if not
+                    present in the list. */}
+                {defaultSaleCode && !salespeople.some((s) => s.code === defaultSaleCode) && (
+                  <option value={defaultSaleCode}>{defaultSaleCode} (ຂ້ອຍ)</option>
+                )}
+                {salespeople.map((s) => (
+                  <option key={s.code} value={s.code}>
+                    {s.name}{s.code === defaultSaleCode ? " (ຂ້ອຍ)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <input value={cust.voucherCode} onChange={(e) => setCust({ ...cust, voucherCode: e.target.value.toUpperCase() })} placeholder="ໂຄ້ດສ່ວນຫຼຸດ (ຖ້າມີ)" className={`${inp} mt-3 uppercase`} />
           <textarea value={cust.note} onChange={(e) => setCust({ ...cust, note: e.target.value })} rows={2} placeholder="ໝາຍເຫດ (ບໍ່ບັງຄັບ)" className={`${inp} mt-2 resize-none`} />

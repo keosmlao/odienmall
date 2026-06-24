@@ -148,24 +148,50 @@ export default async function AdminOverview() {
       </div>
 
       {/* Top products (manager) */}
-      {manager && report.topProducts.length > 0 && (
-        <Card className="mt-5">
-          <h2 className="mb-3 text-sm font-bold text-slate-900">ສິນຄ້າຂາຍດີ</h2>
-          <ul className="divide-y divide-slate-100">
-            {report.topProducts.slice(0, 6).map((p, i) => (
-              <li key={p.productCode} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-orange-50 text-xs font-bold text-orange-600">{i + 1}</span>
-                  <span className="truncate text-slate-700">{p.productName}</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs text-slate-400">{p.qty} ອັນ</span>
-                  <span className="font-semibold text-slate-700">{formatKip(p.revenue)}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {manager && (report.topProducts.length > 0 || report.bySalesperson.length > 0) && (
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {report.topProducts.length > 0 && (
+            <Card>
+              <h2 className="mb-3 text-sm font-bold text-slate-900">ສິນຄ້າຂາຍດີ</h2>
+              <ul className="divide-y divide-slate-100">
+                {report.topProducts.slice(0, 6).map((p, i) => (
+                  <li key={p.productCode} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-orange-50 text-xs font-bold text-orange-600">{i + 1}</span>
+                      <span className="truncate text-slate-700">{p.productName}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <span className="text-xs text-slate-400">{p.qty} ອັນ</span>
+                      <span className="font-semibold text-slate-700">{formatKip(p.revenue)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {report.bySalesperson.length > 0 && (
+            <Card>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900">ພະນັກງານຂາຍດີເດັ່ນ</h2>
+                <Link href="/admin/report" className="text-xs font-semibold text-brand-dark hover:underline">ທັງໝົດ ›</Link>
+              </div>
+              <ul className="divide-y divide-slate-100">
+                {report.bySalesperson.slice(0, 6).map((s, i) => (
+                  <li key={s.saleCode} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">{i + 1}</span>
+                      <Link href={`/admin?sale=${encodeURIComponent(s.saleCode)}`} className="truncate text-slate-700 hover:text-brand-dark">{s.saleName}</Link>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <span className="text-xs text-slate-400">{s.orders} ບິນ</span>
+                      <span className="font-semibold text-slate-700">{formatKip(s.revenue)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );

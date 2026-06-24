@@ -32,7 +32,7 @@ export async function requestReturn(
   const order = await getOrderByNo(orderNo);
   if (!order) return { ok: false, error: "ບໍ່ພົບອໍເດີ" };
   if (!["paid", "shipping", "completed"].includes(order.status)) {
-    return { ok: false, error: "ອໍເດີນີ້ຍັງຄືນไม่ได้ (ຕ້ອງຊຳລະແລ້ວ)" };
+    return { ok: false, error: "ອໍເດີນີ້ຍັງຄືນບໍ່ໄດ້ (ຕ້ອງຊຳລະແລ້ວ)" };
   }
   return createReturnRequest({ orderNo, customerCode: session.code, reason, detail });
 }

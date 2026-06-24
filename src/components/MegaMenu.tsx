@@ -19,7 +19,7 @@ const ICON = {
 };
 
 const FEATURED = [
-  { href: "/products", label: "ສິນຄ້າທັງໝົด" },
+  { href: "/products", label: "ສິນຄ້າທັງໝົດ" },
   { href: "/products?sort=newest", label: "ສິນຄ້າໃໝ່" },
   { href: "/brands", label: "ແບຣນ" },
 ];

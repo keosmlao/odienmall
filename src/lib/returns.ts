@@ -11,7 +11,7 @@ export type ReturnStatus = (typeof RETURN_STATUSES)[number];
 export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   pending: "ລໍຖ້າກວດສອບ",
   approved: "ອະນຸມັດແລ້ວ",
-  rejected: "ปฏິເສດ",
+  rejected: "ປະຕິເສດ",
   refunded: "ຄືນເງິນແລ້ວ",
 };
 
@@ -131,7 +131,7 @@ export async function setReturnStatus(
   if (row.customer_code) {
     await notify(row.customer_code, {
       type: "return",
-      title: `ຄຳຮ້ອງคืนສິນຄ້າ: ${RETURN_STATUS_LABEL[status]}`,
+      title: `ຄຳຮ້ອງຄືນສິນຄ້າ: ${RETURN_STATUS_LABEL[status]}`,
       body: `ອໍເດີ ${row.order_no}${adminNote ? ` — ${adminNote}` : ""}`,
       link: `/order/${row.order_no}`,
     }).catch(() => {});

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { isAdmin } from "@/lib/auth";
+import { isAdmin, listSalespeople, getSalesScope } from "@/lib/auth";
 import { getOrderByNo, getOrderTms, type OrderTms } from "@/lib/orders";
 import { getOrderPayment } from "@/lib/onepay-store";
 import { getOrderWarehouseOptions } from "@/lib/order-warehouse";
@@ -13,6 +13,7 @@ import OrderStatusControl from "@/components/OrderStatusControl";
 import OrderWarehouseControl from "@/components/OrderWarehouseControl";
 import DeleteOrderAdminButton from "@/components/DeleteOrderAdminButton";
 import PendingPaymentControl from "@/components/PendingPaymentControl";
+import SaleCodeControl from "@/components/SaleCodeControl";
 import StatusBadge from "@/components/StatusBadge";
 import { BTN_SECONDARY, Card } from "@/components/admin/ui";
 
@@ -30,6 +31,7 @@ const ICON = {
   truck: "M3 6h11v11H3zM14 10h4l3 3v4h-7zM7 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4",
   payment: "M3 6h18v12H3zM3 10h18M7 15h3",
   note: "M4 4h16v16H4zM8 9h8M8 13h6",
+  sale: "M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM4 21v-2a6 6 0 0 1 6-6m5 8v-2a4 4 0 0 0-3-3.87M17 11l1.5 1.5L21 9",
 };
 
 export default async function AdminOrderDetail({
@@ -43,13 +45,18 @@ export default async function AdminOrderDetail({
   const order = await getOrderByNo(decodeURIComponent(orderNo));
   if (!order) notFound();
 
+  // Staff may only open their own orders; managers see all + can reassign.
+  const scope = await getSalesScope();
+  if (!scope.all && order.saleCode !== scope.saleCode) redirect("/admin");
+
   const inDelivery = order.status === "shipping" || order.status === "completed";
-  const [warehouseOptions, payment, tms] = await Promise.all([
+  const [warehouseOptions, payment, tms, salespeople] = await Promise.all([
     getOrderWarehouseOptions(order.orderNo),
     getOrderPayment(order.orderNo),
     inDelivery ? getOrderTms(order.orderNo) : Promise.resolve(null),
+    scope.all ? listSalespeople() : Promise.resolve([]),
   ]);
-  const grandTotal = order.subtotal + order.shippingFee;
+  const grandTotal = Math.max(0, order.subtotal + order.shippingFee - order.discount);
   const FLOW = order.paymentMethod === "cod" ? COD_FLOW : TRANSFER_FLOW;
   const currentIndex = FLOW.indexOf(order.status as OrderStatus);
   const isCancelled = order.status === "cancelled";
@@ -180,6 +187,31 @@ export default async function AdminOrderDetail({
               />
               <Info icon={ICON.truck} label="ວິທີຈັດສົ່ງ" value={shippingLabel} />
               <Info icon={ICON.payment} label="ວິທີຊຳລະ" value={paymentLabel} />
+              <Info
+                icon={ICON.sale}
+                label="ພະນັກງານຂາຍ"
+                value={
+                  <SaleCodeControl
+                    orderNo={order.orderNo}
+                    saleCode={order.saleCode}
+                    saleName={order.saleName}
+                    salespeople={salespeople}
+                    canEdit={scope.all}
+                  />
+                }
+              />
+              {order.referralCode && (
+                <Info
+                  icon={ICON.sale}
+                  label="ນາຍໜ້າ (affiliate)"
+                  value={
+                    <span>
+                      {order.affiliateName ?? order.referralCode}
+                      <span className="ml-1 text-xs text-gray-400">({order.referralCode})</span>
+                    </span>
+                  }
+                />
+              )}
               {order.address && (
                 <Info icon={ICON.location} label="ທີ່ຢູ່ຈັດສົ່ງ" value={order.address} wide />
               )}
@@ -267,6 +299,9 @@ export default async function AdminOrderDetail({
             <div className="space-y-3 text-sm">
               <AmountRow label="ລາຄາສິນຄ້າ" value={formatKip(order.subtotal)} />
               <AmountRow label="ຄ່າຂົນສົ່ງ" value={formatKip(order.shippingFee)} />
+              {order.discount > 0 && (
+                <AmountRow label="ສ່ວນຫຼຸດ" value={`−${formatKip(order.discount)}`} />
+              )}
               <div className="border-t border-dashed border-gray-200 pt-3">
                 <AmountRow
                   label="ລວມທັງໝົດ"

@@ -161,6 +161,8 @@ export interface ManualOrderInput {
   createdBy?: string | null;
   /** SML transport branch code chosen by staff. */
   transportCode?: string | null;
+  /** Salesperson (ພະນັກງານຂາຍ) attributed to the order — employee code. */
+  saleCode?: string | null;
 }
 
 export interface ManualOrderResult {
@@ -202,6 +204,7 @@ export async function buildManualOrder(input: ManualOrderInput): Promise<ManualO
       shippingMethod,
       createdBy: input.createdBy ?? null,
       transportCode: input.transportCode ?? null,
+      saleCode: input.saleCode ?? null,
     },
     input.items,
   );

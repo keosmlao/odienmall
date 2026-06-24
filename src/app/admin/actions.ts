@@ -7,6 +7,7 @@ import {
   setAdminCookie,
   clearAdminCookie,
   isAdmin,
+  isManager,
   getAdminSession,
 } from "@/lib/auth";
 import {
@@ -14,6 +15,7 @@ import {
   getOrderByNo,
   adminDeleteOrder,
   getOrdersMissingSmlDoc,
+  setOrderSaleCode,
 } from "@/lib/orders";
 import { allocateOrderToWarehouse } from "@/lib/order-warehouse";
 import { query } from "@/lib/db";
@@ -60,6 +62,26 @@ export async function adminLogout(): Promise<void> {
 }
 
 export type ChangeStatusResult = { ok: true } | { ok: false; error: string };
+
+export type SaleCodeResult =
+  | { ok: true; name: string | null }
+  | { ok: false; error: string };
+
+/** Re-assign the salesperson (ພະນັກງານຂາຍ) on an order. Manager-only. */
+export async function updateOrderSaleCode(
+  orderNo: string,
+  saleCode: string | null,
+): Promise<SaleCodeResult> {
+  if (!(await isManager())) return { ok: false, error: "ສະເພາະຜູ້ຈັດການ" };
+  try {
+    const res = await setOrderSaleCode(orderNo, saleCode);
+    await logAudit({ action: "order.sale_code", entity: orderNo, detail: res.code ?? "(ລຶບ)" });
+    revalidatePath(`/admin/orders/${orderNo}`);
+    return { ok: true, name: res.name };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ບັນທຶກບໍ່ສຳເລັດ" };
+  }
+}
 
 /**
  * Issue the bill (ອອກບິນ): allocate the whole order to ONE warehouse, then promote
@@ -182,3 +204,10 @@ export async function changeStatus(
     return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
   }
 }
+
+export async function adminSearchProducts(q: string) {
+  const { searchOrderProducts } = await import("@/lib/order-builder");
+  if (!(await isAdmin())) return [];
+  return searchOrderProducts(q);
+}
+

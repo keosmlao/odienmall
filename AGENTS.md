@@ -163,14 +163,47 @@ fine; touching `public.*` is not.
   (`checkout/actions.ts`) the cookie is read server-side and passed to `createOrder`, which
   resolves+validates it (`resolveActiveAffiliate`) and stamps `affiliate_id` (no
   self-referral). Never trusted from the client.
-- **Commission**: earned when an order hits `completed`, voided (if still unpaid) when it
-  leaves `completed` — both fired inside `updateOrderStatus`. Rate per line =
-  product override → category override → default (`ecom.commission_rates`, seeded 5%).
+- **Commission**: earned on `completed` (delivered) orders, voided if still unpaid when an
+  order leaves `completed`. In the ic_trans flow completion is TMS-driven (no app event), so
+  `syncAffiliateCommissions()` reconciles it — reading `ecom.onepay_payments` (referral_code
+  + items + subtotal, NOT the dead `ecom.orders`) and writing `ecom.commissions`. It runs via
+  `GET /api/cron` (gated by `CRON_TOKEN`) OR the manager **"ຄິດໄລ່ຄອມມິສຊັນ"** button on
+  `/admin/affiliates` (`syncCommissionsNow`; badge shows `countPendingCommissionSync`). Rate
+  per line = product → category → brand → default (`ecom.commission_rates`, seeded 5%). ⚠️ With
+  no scheduler + no manual run, commissions silently never record — see the System status page.
 - **Code**: all data access in `src/lib/affiliates.ts` (server-only); status/label enums in
   `src/lib/affiliate-constants.ts` (NO server/db imports — client-safe, mirrors
   `order-constants.ts`). Customer UI `/affiliate` (apply + dashboard + link builder).
   Admin `/admin/affiliates` (list+approve/suspend), `/[code]` (ledger + mark-paid payout),
   `/rates` (manage %). Manager-only — every page + action re-checks `isManager()`.
+
+## Salesperson (ພະນັກງານຂາຍ) attribution — `ecom` schema
+Internal counterpart to the affiliate program: admins ARE salespeople. Distinct from
+affiliates — an order can carry BOTH (`ic_trans.sale_code` + affiliate referral) and pay
+both commissions (business decision: keep separate, pay both).
+- **Who / pool**: `listSalespeople()` (`auth.ts`) = the `ADMIN_EMPLOYEE_CODES` allowlist, or
+  every ACTIVE `odg_employee` when empty. `getSalesScope()` → managers see all orders; a
+  configured staff salesperson sees only their own (non-breaking — empty `ADMIN_MANAGER_CODES`
+  ⇒ everyone is a manager).
+- **Attribution → SML**: `sale_code` is an `odg_employee` code stamped on an order from (1) the
+  `/s/[code]` sales link → `om_sale` cookie (30-day, httpOnly, validated `resolveSalespersonCode`,
+  logs a click in `ecom.sales_link_clicks`), or (2) an admin who saves the order (default = the
+  logged-in admin; manager may pick another). `createOrder` validates it (falls back to
+  `createdBy`), stores it on `ecom.onepay_payments.sale_code`, and `createCaeOrder` writes it
+  through to **`public.ic_trans.sale_code` + `ic_trans_detail.sale_code`** (varchar(25), no FK).
+  Re-assignable on the order detail (`SaleCodeControl`, manager-only → `setOrderSaleCode` →
+  `setSmlSaleCode`, gated by `SML_DIRECT_WRITE`).
+- **Visibility**: salesperson shown + filterable on the order list / CSV (`?sale=`), order
+  detail, print, the `getSalesReport().bySalesperson` ranking + dashboard leaderboard.
+- **Targets** (`ecom.sales_targets`, PK `(sale_code, month)`): per-month goal, managed one
+  person at a time at `/admin/sales-targets` (month switcher); progress = month revenue / target.
+- **Commission** (`ecom.sales_commission_rates`: `__default__` + per-person overrides;
+  `ecom.sales_commission_payouts`): earned = COMPLETED revenue × effective rate (computed live,
+  NO cron dependency). `/admin/sales-commission` (manager-only): set default + add overrides one
+  at a time, payout ledger (earned − paid = outstanding), CSV export. Salesperson self-view +
+  link builder + targets/commission/clicks at `/admin/sales-link`.
+- **Code**: `src/lib/sales-link.ts` (clicks, stats, targets, commission), salesperson helpers in
+  `src/lib/auth.ts`. Manager-gated config; `/admin/status` surfaces the related deploy gates.
 
 ## Site settings (`/admin/settings`, manager-only) — `ecom` schema
 Two singleton settings, both edited at `/admin/settings` (page redirects staff;

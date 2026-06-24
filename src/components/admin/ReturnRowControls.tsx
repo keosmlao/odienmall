@@ -30,7 +30,7 @@ export default function ReturnRowControls({ id, status }: { id: number; status: 
       {status === "pending" && (
         <>
           <button onClick={() => act("approved")} disabled={pending} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">ອະນຸມັດ</button>
-          <button onClick={() => act("rejected", true)} disabled={pending} className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">ปฏິເສດ</button>
+          <button onClick={() => act("rejected", true)} disabled={pending} className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">ປະຕິເສດ</button>
         </>
       )}
       {status === "approved" && (

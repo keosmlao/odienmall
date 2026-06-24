@@ -1,9 +1,8 @@
 "use server";
 
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { saveUpload, deleteUpload } from "@/lib/storage";
 import { isAdmin, getAdminSession } from "@/lib/auth";
 import { getBrandOverlay, setBrandOverlay } from "@/lib/brands-admin";
 import { logAudit } from "@/lib/audit";
@@ -25,12 +24,6 @@ function refresh(code: string) {
   revalidatePath("/admin/brands");
 }
 
-async function removeLocal(url: string | null) {
-  if (url?.startsWith("/uploads/brands/")) {
-    await unlink(path.join(process.cwd(), "public", url)).catch(() => {});
-  }
-}
-
 export async function uploadBrandLogo(formData: FormData): Promise<Result> {
   if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
   const code = String(formData.get("code") ?? "").trim();
@@ -41,13 +34,10 @@ export async function uploadBrandLogo(formData: FormData): Promise<Result> {
   if (file.size > MAX_SIZE) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 3MB" };
   try {
     const previous = await getBrandOverlay(code);
-    const dir = path.join(process.cwd(), "public", "uploads", "brands", safeCode(code));
-    await mkdir(dir, { recursive: true });
     const name = `${randomUUID()}.${EXT[file.type]}`;
-    await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
-    const url = `/uploads/brands/${safeCode(code)}/${name}`;
+    const url = await saveUpload(`brands/${safeCode(code)}`, name, Buffer.from(await file.arrayBuffer()));
     await setBrandOverlay(code, url, (await getAdminSession())?.code);
-    await removeLocal(previous);
+    await deleteUpload(previous);
     await logAudit({ action: "brand.logo.upload", entity: code, detail: url });
     refresh(code);
     return { ok: true };
@@ -65,7 +55,7 @@ export async function saveBrandLogoUrl(code: string, value: string): Promise<Res
   try {
     const previous = await getBrandOverlay(code);
     await setBrandOverlay(code, url || null, (await getAdminSession())?.code);
-    await removeLocal(previous);
+    await deleteUpload(previous);
     await logAudit({ action: "brand.logo.url", entity: code, detail: url || "cleared" });
     refresh(code);
     return { ok: true };

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, isManager } from "@/lib/auth";
-import { listAffiliates } from "@/lib/affiliates";
+import { listAffiliates, countPendingCommissionSync } from "@/lib/affiliates";
 import {
   AFFILIATE_STATUSES,
   AFFILIATE_STATUS_LABEL,
@@ -21,6 +21,7 @@ import {
   ButtonLink,
 } from "@/components/admin/ui";
 import AffiliateStatusControl from "./AffiliateStatusControl";
+import SyncCommissionsButton from "./SyncCommissionsButton";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,10 @@ export default async function AdminAffiliates({
 
   const sp = await searchParams;
   const status = firstParam(sp.status);
-  const affiliates = await listAffiliates(status);
+  const [affiliates, pendingSync] = await Promise.all([
+    listAffiliates(status),
+    countPendingCommissionSync(),
+  ]);
   const pendingCount = affiliates.filter((a) => a.status === "pending").length;
 
   return (
@@ -48,9 +52,12 @@ export default async function AdminAffiliates({
           </>
         }
         actions={
-          <ButtonLink href="/admin/affiliates/rates" variant="secondary">
-            ຕັ້ງຄ່າອັດຕາຄ່ານາຍໜ້າ
-          </ButtonLink>
+          <div className="flex flex-wrap items-center gap-2">
+            <SyncCommissionsButton pending={pendingSync} />
+            <ButtonLink href="/admin/affiliates/rates" variant="secondary">
+              ຕັ້ງຄ່າອັດຕາຄ່ານາຍໜ້າ
+            </ButtonLink>
+          </div>
         }
       />
 

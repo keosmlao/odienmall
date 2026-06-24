@@ -12,7 +12,7 @@ import { onepayEnabled } from "@/lib/onepay";
 import { toPaymentMethod } from "@/lib/payment-constants";
 import { validateVoucher } from "@/lib/vouchers";
 import { getBalance, previewRedeem, POINT_VALUE, MIN_REDEEM } from "@/lib/loyalty";
-import { getCustomerTier } from "@/lib/member-tier";
+import { getCustomerTier, getMemberDiscountPct } from "@/lib/member-tier";
 import { getAffiliateByCustomer } from "@/lib/affiliates";
 import { searchOrderCustomers, type OrderCustomerHit } from "@/lib/order-builder";
 
@@ -50,12 +50,19 @@ export async function getCheckoutLoyalty(): Promise<{
   if (!session?.code) {
     return { balance: 0, pointValue: POINT_VALUE, minRedeem: MIN_REDEEM, memberPct: 0, memberTier: null };
   }
-  const [balance, tier] = await Promise.all([getBalance(session.code), getCustomerTier(session.code)]);
+  // memberPct must match what createOrder actually applies — the baseline
+  // MEMBER_DEFAULT_PCT (3%) for any logged-in member, raised by their tier.
+  // Using tier.discountPct alone hid the 3% baseline discount at checkout.
+  const [balance, tier, memberPct] = await Promise.all([
+    getBalance(session.code),
+    getCustomerTier(session.code),
+    getMemberDiscountPct(session.code),
+  ]);
   return {
     balance,
     pointValue: POINT_VALUE,
     minRedeem: MIN_REDEEM,
-    memberPct: tier?.discountPct ?? 0,
+    memberPct,
     memberTier: tier?.name ?? null,
   };
 }
@@ -135,7 +142,10 @@ export async function placeOrder(
     // customer_code (session) + referral code (cookie) are resolved server-side
     // — never trusted from the client.
     const session = await getSession();
-    let referralCode = (await cookies()).get("om_ref")?.value ?? null;
+    const jar = await cookies();
+    let referralCode = jar.get("om_ref")?.value ?? null;
+    // Salesperson attribution from the /s/<code> sales link (validated in createOrder).
+    const saleCode = jar.get("om_sale")?.value ?? null;
 
     // Affiliate buying ON BEHALF of a customer: the order is NOT for the
     // affiliate's own account (customerCode null), and commission is credited to
@@ -197,6 +207,7 @@ export async function placeOrder(
         // On behalf: order belongs to the customer (guest), not the affiliate.
         customerCode: onBehalf ? null : session?.code ?? null,
         referralCode,
+        saleCode,
         voucherCode: input.voucherCode,
         // The affiliate can't spend their own loyalty points on a customer order.
         pointsToUse: onBehalf ? undefined : input.pointsToUse,

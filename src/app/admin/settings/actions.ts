@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
+import { saveUpload, deleteUpload } from "@/lib/storage";
 import { randomUUID } from "crypto";
 import { isManager, getAdminSession } from "@/lib/auth";
 import {
@@ -192,15 +191,11 @@ export async function uploadBankQr(formData: FormData): Promise<Result> {
 
   try {
     const prev = (await getBankTransfer()).qrUrl;
-    const dir = path.join(process.cwd(), "public", "uploads", "bank");
-    await mkdir(dir, { recursive: true });
     const name = `qr-${randomUUID()}.${QR_EXT[file.type]}`;
-    await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
+    const url = await saveUpload("bank", name, Buffer.from(await file.arrayBuffer()));
 
-    await setBankQr(`/uploads/bank/${name}`, (await getAdminSession())?.code);
-    if (prev && prev.startsWith("/uploads/")) {
-      await unlink(path.join(process.cwd(), "public", prev)).catch(() => {});
-    }
+    await setBankQr(url, (await getAdminSession())?.code);
+    await deleteUpload(prev);
     await logAudit({ action: "settings.bankQr", detail: "uploaded" });
     revalidatePath("/admin/settings");
     return { ok: true };
@@ -215,9 +210,7 @@ export async function removeBankQr(): Promise<Result> {
   try {
     const prev = (await getBankTransfer()).qrUrl;
     await setBankQr(null, (await getAdminSession())?.code);
-    if (prev && prev.startsWith("/uploads/")) {
-      await unlink(path.join(process.cwd(), "public", prev)).catch(() => {});
-    }
+    await deleteUpload(prev);
     await logAudit({ action: "settings.bankQr", detail: "removed" });
     revalidatePath("/admin/settings");
     return { ok: true };

@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
+import { saveUpload, deleteUpload } from "@/lib/storage";
 import { randomUUID } from "crypto";
 import { isAdmin, getAdminSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -67,13 +66,10 @@ export async function uploadProductImages(formData: FormData): Promise<Result> {
     }
 
     const sc = safeCode(code);
-    const dir = path.join(process.cwd(), "public", "uploads", "products", sc);
-    await mkdir(dir, { recursive: true });
-
     for (const f of files) {
       const name = `${randomUUID()}.${EXT[f.type]}`;
-      await writeFile(path.join(dir, name), Buffer.from(await f.arrayBuffer()));
-      await addProductImage(code, `/uploads/products/${sc}/${name}`);
+      const url = await saveUpload(`products/${sc}`, name, Buffer.from(await f.arrayBuffer()));
+      await addProductImage(code, url);
     }
     revalidate(code);
     return { ok: true };
@@ -101,9 +97,7 @@ export async function removeProductImage(id: number, code: string): Promise<Resu
   if (!(await isAdmin())) return { ok: false, error: DENIED };
   try {
     const url = await deleteProductImage(id, code);
-    if (url && url.startsWith("/uploads/")) {
-      await unlink(path.join(process.cwd(), "public", url)).catch(() => {});
-    }
+    await deleteUpload(url);
     revalidate(code);
     return { ok: true };
   } catch (e) {

@@ -1,4 +1,4 @@
-import { isAdmin } from "@/lib/auth";
+import { isAdmin, getSalesScope } from "@/lib/auth";
 import { getAllOrders } from "@/lib/orders";
 import { STATUS_LABEL, type OrderStatus } from "@/lib/order-constants";
 import { PAYMENT_LABEL, type PaymentMethod } from "@/lib/payment-constants";
@@ -14,14 +14,20 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
+  // Staff are scoped to their own sales; managers may filter by ?sale.
+  const scope = await getSalesScope();
+  const saleCode = scope.all
+    ? url.searchParams.get("sale") || undefined
+    : scope.saleCode || undefined;
   const orders = await getAllOrders({
     status: url.searchParams.get("status") || undefined,
     search: url.searchParams.get("q") || undefined,
     from: url.searchParams.get("from") || undefined,
     to: url.searchParams.get("to") || undefined,
+    saleCode,
   });
 
-  const header = ["ເລກທີ່", "ລູກຄ້າ", "ເບີໂທ", "ຈຳນວນລາຍການ", "ລາຄາສິນຄ້າ", "ຄ່າຂົນສົ່ງ", "ລວມ (LAK)", "ຈັດສົ່ງ", "ການຊຳລະ", "ສະຖານະ", "ວັນທີ"];
+  const header = ["ເລກທີ່", "ລູກຄ້າ", "ເບີໂທ", "ຈຳນວນລາຍການ", "ລາຄາສິນຄ້າ", "ຄ່າຂົນສົ່ງ", "ລວມ (LAK)", "ຈັດສົ່ງ", "ການຊຳລະ", "ພະນັກງານຂາຍ", "ສະຖານະ", "ວັນທີ"];
   const rows = orders.map((o) => [
     o.orderNo,
     o.customerName,
@@ -32,6 +38,7 @@ export async function GET(req: Request) {
     String(o.subtotal + o.shippingFee),
     SHIPPING_LABEL[o.shippingMethod as ShippingMethod] ?? o.shippingMethod,
     PAYMENT_LABEL[o.paymentMethod as PaymentMethod] ?? o.paymentMethod,
+    o.saleName ?? "",
     STATUS_LABEL[o.status as OrderStatus] ?? o.status,
     new Date(o.createdAt).toISOString().slice(0, 10),
   ]);

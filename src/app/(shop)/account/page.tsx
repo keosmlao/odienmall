@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession, getCustomerProfile } from "@/lib/auth";
 import { getOrdersByCustomer } from "@/lib/orders";
 import { getBalance, getHistory, POINT_VALUE } from "@/lib/loyalty";
+import { getSmlCustomerInsights } from "@/lib/sml-history";
 import { getCustomerAddresses } from "@/lib/addresses";
 import { onepayEnabled, onepayMerchantConfigured } from "@/lib/onepay";
 import { formatKip } from "@/lib/format";
@@ -97,12 +98,13 @@ export default async function AccountPage({
   const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
   const tab = ORDER_TABS.some((t) => t.key === rawTab) ? (rawTab as string) : "all";
 
-  const [profile, orders, addresses, pointBalance, pointHistory] = await Promise.all([
+  const [profile, orders, addresses, pointBalance, pointHistory, sml] = await Promise.all([
     getCustomerProfile(session.code),
     getOrdersByCustomer(session.code),
     getCustomerAddresses(session.code),
     getBalance(session.code),
     getHistory(session.code, 8),
+    getSmlCustomerInsights(session.code),
   ]);
 
   const activeTab = ORDER_TABS.find((t) => t.key === tab) ?? ORDER_TABS[0];
@@ -169,6 +171,36 @@ export default async function AccountPage({
           </ul>
         )}
       </div>
+
+      {/* Purchase history with ODG (from SML — all cash-sale bills) */}
+      {sml.purchaseCount > 0 && (
+        <div className="rounded-sm border border-violet-100 bg-violet-50/50 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-violet-700">ປະຫວັດການຊື້ກັບ ODIEN (SML)</p>
+              <p className="text-[11px] text-violet-600/80">
+                {sml.purchaseCount.toLocaleString()} ບິນ · ລວມ {formatKip(sml.purchaseTotal)}
+              </p>
+            </div>
+            <svg viewBox="0 0 24 24" className="h-10 w-10 text-violet-300" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 7h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z M3 8l2-3h14l2 3 M9 12h6" />
+            </svg>
+          </div>
+          <ul className="divide-y divide-violet-100 border-t border-violet-100 pt-1 text-sm">
+            {sml.purchases.map((p) => (
+              <li key={p.docNo} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-xs font-bold text-slate-700">{p.docNo}</div>
+                  <div className="text-[11px] text-slate-400">
+                    {new Date(p.date).toLocaleDateString("lo-LA")} · {p.itemCount} ລາຍການ
+                  </div>
+                </div>
+                <span className="shrink-0 font-bold text-violet-700">{formatKip(p.total)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Stats strip */}
       <div className="grid grid-cols-3 gap-3">

@@ -1,15 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart-context";
 import { formatKip } from "@/lib/format";
 import ProductImage from "@/components/ProductImage";
 import StorePageHeader from "@/components/StorePageHeader";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import CartCrossSell from "@/components/CartCrossSell";
+import { getCheckoutLoyalty } from "@/app/(shop)/checkout/actions";
 
 export default function CartPage() {
   const { items, totalQty, totalPrice, setQty, remove, clear, ready } = useCart();
+
+  // Member discount (logged-in members get the baseline %, tier may raise it).
+  // Shown as a separate line — item prices stay full, matching checkout + the
+  // server-side re-pricing in createOrder.
+  const [member, setMember] = useState<{ pct: number; tier: string | null }>({ pct: 0, tier: null });
+  useEffect(() => {
+    getCheckoutLoyalty()
+      .then((l) => setMember({ pct: l.memberPct, tier: l.memberTier }))
+      .catch(() => {});
+  }, []);
+  // Discount applied PER LINE (rounded per unit), so each row shows its own
+  // struck price; the summary is derived from the per-line sum to stay exact.
+  const factor = member.pct > 0 ? 1 - member.pct / 100 : 1;
+  const discUnit = (p: number | null) => (p == null ? 0 : Math.round(p * factor));
+  const discountedSubtotal = items.reduce((s, it) => s + discUnit(it.price) * it.qty, 0);
+  const memberDiscount = totalPrice - discountedSubtotal;
+  const grandTotal = Math.max(0, discountedSubtotal);
 
   if (!ready) {
     return <div className="py-24 text-center text-slate-400 font-semibold animate-pulse">ກຳລັງໂຫຼດກະຕ່າ...</div>;
@@ -105,9 +124,21 @@ export default function CartPage() {
                     </button>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-extrabold text-orange-600">
-                      {formatKip((it.price ?? 0) * it.qty)}
-                    </div>
+                    {memberDiscount > 0 && it.price != null ? (
+                      <>
+                        <div className="text-[11px] font-medium text-slate-400 line-through">
+                          {formatKip(it.price * it.qty)}
+                        </div>
+                        <div className="text-sm font-extrabold text-orange-600">
+                          {formatKip(discUnit(it.price) * it.qty)}
+                        </div>
+                        <div className="text-[10px] font-bold text-violet-600">ສະມາຊິກ −{member.pct}%</div>
+                      </>
+                    ) : (
+                      <div className="text-sm font-extrabold text-orange-600">
+                        {formatKip((it.price ?? 0) * it.qty)}
+                      </div>
+                    )}
                     <button
                       onClick={() => remove(it.code)}
                       className="text-xs font-bold text-slate-400 hover:text-price transition-colors duration-150 mt-0.5"
@@ -130,15 +161,25 @@ export default function CartPage() {
               <span className="text-slate-800 font-bold">{totalQty} ລາຍການ</span>
             </div>
             <div className="flex justify-between py-0.5 text-xs font-semibold text-slate-500">
+              <span>ຍອດສິນຄ້າ</span>
+              <span className="text-slate-800 font-bold">{formatKip(totalPrice)}</span>
+            </div>
+            <div className="flex justify-between py-0.5 text-xs font-semibold text-slate-500">
               <span>ຄ່າຈັດສົ່ງ</span>
               <span className="font-bold text-emerald-600">ຟຣີ</span>
             </div>
+            {memberDiscount > 0 && (
+              <div className="flex justify-between py-0.5 text-xs font-semibold text-violet-600">
+                <span>ສ່ວນຫຼຸດສະມາຊິກ{member.tier ? ` (${member.tier})` : ""} {member.pct}%</span>
+                <span className="font-bold">−{formatKip(memberDiscount)}</span>
+              </div>
+            )}
           </div>
           <div className="my-4 border-t border-slate-50" />
           <div className="flex items-baseline justify-between">
             <span className="text-sm font-bold text-slate-900">ລວມທັງໝົດ</span>
             <span className="text-2xl font-black tracking-tight text-orange-600">
-              {formatKip(totalPrice)}
+              {formatKip(grandTotal)}
             </span>
           </div>
           <Link
@@ -164,8 +205,10 @@ export default function CartPage() {
       {/* Mobile sticky checkout bar (Lazada-style) */}
       <div className="fixed inset-x-0 bottom-[53px] z-30 flex items-center gap-3 border-t border-orange-100 bg-white/95 px-4 py-2.5 shadow-[0_-6px_20px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold text-slate-400">ລວມ ({totalQty})</div>
-          <div className="truncate text-lg font-black text-orange-600">{formatKip(totalPrice)}</div>
+          <div className="text-[10px] font-semibold text-slate-400">
+            ລວມ ({totalQty}){memberDiscount > 0 ? ` · ຫຼຸດ ${member.pct}%` : ""}
+          </div>
+          <div className="truncate text-lg font-black text-orange-600">{formatKip(grandTotal)}</div>
         </div>
         <Link
           href="/checkout"

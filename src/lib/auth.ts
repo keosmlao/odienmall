@@ -138,6 +138,84 @@ export async function clearAdminCookie(): Promise<void> {
   (await cookies()).delete(ADMIN_COOKIE);
 }
 
+// ---- salespeople (ພະນັກງານຂາຍ) --------------------------------------------
+// Admins ARE salespeople. The selectable salesperson pool is the admin allowlist
+// (ADMIN_EMPLOYEE_CODES); when that's empty (any active employee may sign in),
+// it falls back to every ACTIVE odg_employee. A sale_code stamped on an order is
+// always validated against this pool before it's persisted.
+
+export interface Salesperson {
+  code: string;
+  name: string;
+}
+
+/** The selectable salespeople (admin allowlist, else all ACTIVE employees). */
+export async function listSalespeople(): Promise<Salesperson[]> {
+  const allow = envCodes("ADMIN_EMPLOYEE_CODES");
+  if (allow.length > 0) {
+    const rows = await query<{ code: string; name: string }>(
+      `select employee_code as code,
+              coalesce(nullif(fullname_lo,''), nullif(fullname_en,''), employee_code) as name
+         from public.odg_employee
+        where employee_code = any($1)
+          and upper(coalesce(employment_status,'')) = 'ACTIVE'
+        order by name`,
+      [allow],
+    );
+    return rows;
+  }
+  const rows = await query<{ code: string; name: string }>(
+    `select employee_code as code,
+            coalesce(nullif(fullname_lo,''), nullif(fullname_en,''), employee_code) as name
+       from public.odg_employee
+      where upper(coalesce(employment_status,'')) = 'ACTIVE'
+      order by name
+      limit 500`,
+  );
+  return rows;
+}
+
+/** Validate a salesperson code: returns the trimmed code if it's a real ACTIVE
+ *  employee on the allowlist (the break-glass marker passes through), else null. */
+export async function resolveSalespersonCode(code: string | null | undefined): Promise<string | null> {
+  const c = (code ?? "").trim();
+  if (!c) return null;
+  if (c === ADMIN_MARKER) return c;
+  if (!isAllowedAdmin(c)) return null;
+  const rows = await query<{ employee_code: string }>(
+    `select employee_code from public.odg_employee
+      where employee_code = $1 and upper(coalesce(employment_status,'')) = 'ACTIVE' limit 1`,
+    [c],
+  );
+  return rows[0] ? c : null;
+}
+
+/**
+ * Order-visibility scope for the signed-in admin. Managers (and legacy/break-glass
+ * sessions) see everything; a configured staff salesperson sees only their own
+ * orders. Non-breaking: with ADMIN_MANAGER_CODES empty every admin is a manager,
+ * so scoping only kicks in once managers are explicitly listed.
+ */
+export async function getSalesScope(): Promise<{ all: boolean; saleCode: string | null }> {
+  const sess = await getAdminSession();
+  if (!sess) return { all: false, saleCode: null };
+  if (sess.role !== "staff") return { all: true, saleCode: null };
+  return { all: false, saleCode: sess.code };
+}
+
+/** Display name for an employee code (for showing the salesperson on an order). */
+export async function getEmployeeName(code: string | null | undefined): Promise<string | null> {
+  const c = (code ?? "").trim();
+  if (!c) return null;
+  if (c === ADMIN_MARKER) return "admin";
+  const rows = await query<{ name: string }>(
+    `select coalesce(nullif(fullname_lo,''), nullif(fullname_en,''), employee_code) as name
+       from public.odg_employee where employee_code = $1 limit 1`,
+    [c],
+  );
+  return rows[0]?.name ?? c;
+}
+
 // ---- authentication --------------------------------------------------------
 
 interface CustRow {

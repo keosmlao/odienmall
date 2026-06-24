@@ -106,6 +106,34 @@ export default async function SalesReportPage() {
           </div>
         )}
       </Card>
+
+      {/* Sales by salesperson (ພະນັກງານຂາຍ) */}
+      <Card className="mt-6">
+        <CardTitle hint="ບໍ່ນັບບິນຍົກເລີກ">ຍອດຂາຍຕໍ່ພະນັກງານຂາຍ</CardTitle>
+        {r.bySalesperson.length === 0 ? (
+          <EmptyState title="ຍັງບໍ່ມີຂໍ້ມູນ" hint="ອໍເດີຍັງບໍ່ໄດ້ກຳນົດພະນັກງານຂາຍ" />
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {r.bySalesperson.map((s, i) => (
+              <div key={s.saleCode} className="flex items-center gap-3 py-2.5 text-sm">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
+                  {i + 1}
+                </span>
+                <Link
+                  href={`/admin?sale=${encodeURIComponent(s.saleCode)}`}
+                  className="line-clamp-1 flex-1 text-gray-700 transition hover:text-brand-dark"
+                >
+                  {s.saleName}
+                </Link>
+                <span className="shrink-0 text-gray-400">{s.orders} ບິນ</span>
+                <span className="w-28 shrink-0 text-right font-semibold text-price">
+                  {formatKip(s.revenue)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

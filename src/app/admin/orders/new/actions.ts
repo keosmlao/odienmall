@@ -1,9 +1,8 @@
 "use server";
 
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
-import { getAdminSession, isAdmin } from "@/lib/auth";
+import { saveUpload } from "@/lib/storage";
+import { getAdminSession, isAdmin, isManager, listSalespeople, type Salesperson } from "@/lib/auth";
 import { query } from "@/lib/db";
 import {
   searchOrderProducts,
@@ -60,17 +59,20 @@ export async function adminUploadSlip(orderNo: string, formData: FormData): Prom
   if (file.size > 8 * 1024 * 1024) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 8MB" };
   try {
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const dir = path.join(process.cwd(), "public", "uploads", "slips");
-    await mkdir(dir, { recursive: true });
     const fname = `${orderNo.replace(/[^a-zA-Z0-9_-]/g, "")}-${randomUUID().slice(0, 8)}.${ext}`;
-    await writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()));
-    const url = `/uploads/slips/${fname}`;
+    const url = await saveUpload("slips", fname, Buffer.from(await file.arrayBuffer()));
     await query(`update ecom.onepay_payments set slip_url = $2 where order_no = $1`, [orderNo, url]);
     await logAudit({ action: "order.slip.upload", entity: orderNo, detail: url });
     return { ok: true, url };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ອັບໂຫຼດບໍ່ສຳເລັດ" };
   }
+}
+
+/** Salespeople (ພະນັກງານຂາຍ) the admin can attribute an order to. */
+export async function adminListSalespeople(): Promise<Salesperson[]> {
+  if (!(await isAdmin())) return [];
+  return listSalespeople();
 }
 
 export async function adminSearchProducts(q: string): Promise<OrderProductHit[]> {
@@ -101,6 +103,7 @@ export async function adminCreateOrder(input: {
   items: { code: string; qty: number }[];
   paymentMethod?: string;
   transportCode?: string | null;
+  saleCode?: string | null;
 }): Promise<BuildResult> {
   if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
   if (!input.name?.trim() || !input.phone?.trim()) return { ok: false, error: "ກະລຸນາໃສ່ຊື່ ແລະ ເບີໂທ" };
@@ -113,7 +116,11 @@ export async function adminCreateOrder(input: {
     }
     const customerCode = selected?.source === "erp" ? selected.code : null;
     const admin = await getAdminSession();
-    const res = await buildManualOrder({ ...input, customerCode, createdBy: admin?.code ?? "admin" });
+    // Salesperson defaults to the logged-in admin; createOrder validates it.
+    // Staff can only attribute to themselves; managers may pick anyone.
+    const manager = await isManager();
+    const saleCode = (manager ? input.saleCode?.trim() : "") || admin?.code || null;
+    const res = await buildManualOrder({ ...input, customerCode, createdBy: admin?.code ?? "admin", saleCode });
     if (!customerRef) {
       await saveAssistedCustomer({
         name: input.name,

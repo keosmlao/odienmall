@@ -1,6 +1,7 @@
 import "server-only";
 import { pool, query, queryOne } from "./db";
-import { resolveActiveAffiliate } from "./affiliates";
+import { resolveActiveAffiliate, getAffiliateByCode } from "./affiliates";
+import { resolveSalespersonCode, getEmployeeName } from "./auth";
 import { getCodEnabled } from "./settings";
 
 export interface OrderInputItem {
@@ -28,6 +29,9 @@ export interface OrderCustomer {
   createdBy?: string | null;
   /** SML transport branch code chosen at creation (admin assisted orders). */
   transportCode?: string | null;
+  /** Salesperson (ພະນັກງານຂາຍ) — employee code; resolved & validated server-side.
+   *  From the /s/<code> sales link, or chosen/defaulted by an admin who saves it. */
+  saleCode?: string | null;
 }
 
 export interface PlacedOrder {
@@ -59,10 +63,18 @@ export interface OrderRecord {
   note: string | null;
   subtotal: number;
   shippingFee: number;
+  /** Total discount applied (voucher + member + loyalty points), in LAK. */
+  discount: number;
   status: string;
   paymentMethod: string;
   shippingMethod: string;
   smlDocNo: string | null;
+  /** Salesperson (ພະນັກງານຂາຍ) attributed to the order — employee code + name. */
+  saleCode: string | null;
+  saleName: string | null;
+  /** Affiliate (ນາຍໜ້າ) attribution — referral code + affiliate name (if any). */
+  referralCode: string | null;
+  affiliateName: string | null;
   createdAt: string;
   items: OrderLine[];
 }
@@ -70,8 +82,9 @@ export interface OrderRecord {
 import { ORDER_STATUSES, STATUS_LABEL, type OrderStatus } from "./order-constants";
 import { toShippingMethod, computeShippingFee } from "./shipping-constants";
 import { storePendingOrder, getPendingOrder } from "./onepay-store";
+import { setSmlSaleCode } from "./sml-sale-order";
 import { validateVoucher } from "./vouchers";
-import { previewRedeem } from "./loyalty";
+import { previewRedeem, POINT_VALUE } from "./loyalty";
 import { getMemberDiscountPct } from "./member-tier";
 import { activeFlashMap } from "./flash";
 import { clearSavedCart } from "./cart-recovery";
@@ -234,6 +247,13 @@ export async function createOrder(
     }
   }
 
+  // Salesperson (ພະນັກງານຂາຍ): the explicit sale code (sales link / admin choice)
+  // wins; otherwise an admin-built order falls back to its creator. Validated
+  // server-side against the salesperson pool — never trusted from the client.
+  const saleCode =
+    (await resolveSalespersonCode(customer.saleCode)) ??
+    (await resolveSalespersonCode(customer.createdBy));
+
   // Do NOT write SML yet. Hold the order as a pending snapshot attached to the
   // QR row (keyed by a temp order_no). It becomes a real ic_trans CAE (flag 34)
   // only when the customer pays (see materializePaidOrder in onepay-store).
@@ -250,6 +270,7 @@ export async function createOrder(
     discount,
     memberDiscount,
     pointsUsed,
+    saleCode,
     paymentMethod: customer.paymentMethod === "cod" ? "cod" : "transfer",
     shippingMethod,
     createdBy: customer.createdBy ?? null,
@@ -329,6 +350,19 @@ export interface AdminOrderRow {
   smlDocNo: string; // CAE doc — the admin list is sourced from public.ic_trans
   smlFlag: number; // 34 = ໃບສັ່ງຊື້, 44 = ບິນສົດ
   createdBy?: string | null; // staff/admin code if created on behalf; null = customer
+  saleCode?: string | null; // salesperson (ພະນັກງານຂາຍ) employee code
+  saleName?: string | null; // salesperson display name
+  items: AdminOrderListItem[];
+}
+
+export interface AdminOrderListItem {
+  productCode: string;
+  productName: string;
+  unit: string | null;
+  unitPrice: number | null;
+  qty: number;
+  lineTotal: number;
+  imageUrl: string | null;
 }
 
 // The admin order list reads straight from public.ic_trans (CAE web orders).
@@ -339,6 +373,8 @@ export async function getAllOrders(opts: {
   /** Inclusive date bounds, 'YYYY-MM-DD' (local ERP date). */
   from?: string;
   to?: string;
+  /** Filter to one salesperson (ພະນັກງານຂາຍ) employee code. */
+  saleCode?: string;
 } = {}): Promise<AdminOrderRow[]> {
   const conds: string[] = [WEB_ORDER];
   const params: unknown[] = [];
@@ -347,12 +383,22 @@ export async function getAllOrders(opts: {
     params.push(opts.status);
     conds.push(`(${STATUS_EXPR}) = $${params.length}`);
   }
+  const saleFilter = opts.saleCode?.trim();
+  if (saleFilter) {
+    params.push(saleFilter);
+    conds.push(`ic.sale_code = $${params.length}`);
+  }
   const s = opts.search?.trim();
   if (s) {
     params.push(`%${s}%`);
     const p = `$${params.length}`;
     conds.push(
-      `(ic.doc_no ilike ${p} or coalesce(ic.remark_3,'') ilike ${p} or coalesce(ic.point_telephone,'') ilike ${p} or ic.cust_code ilike ${p})`,
+      `(ic.doc_no ilike ${p} or coalesce(ic.remark_3,'') ilike ${p} or coalesce(ic.point_telephone,'') ilike ${p} or ic.cust_code ilike ${p}
+        or exists (
+          select 1 from public.ic_trans_detail sd
+           where sd.doc_no = ic.doc_no
+             and (sd.item_code ilike ${p} or sd.item_name ilike ${p})
+        ))`,
     );
   }
   if (opts.from) {
@@ -376,16 +422,68 @@ export async function getAllOrders(opts: {
     payment_method: string;
     created_at: Date;
     item_count: number;
+    sale_code: string | null;
+    sale_name: string | null;
   }>(
     `select ${ORDER_HEAD},
-            (select count(*) from public.ic_trans_detail d where d.doc_no = ic.doc_no)::int as item_count
+            (select count(*) from public.ic_trans_detail d where d.doc_no = ic.doc_no)::int as item_count,
+            nullif(ic.sale_code,'') as sale_code,
+            coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), nullif(ic.sale_code,'')) as sale_name
        from public.ic_trans ic
        left join public.ar_customer ar on ar.code = ic.cust_code
+       left join public.odg_employee emp on emp.employee_code = ic.sale_code
       ${where}
       order by ic.create_date_time_now desc
       limit 200`,
     params,
   );
+  const detailRows = rows.length
+    ? await query<{
+        doc_no: string;
+        product_code: string;
+        product_name: string;
+        unit: string | null;
+        unit_price: string | null;
+        qty: string | number | null;
+        line_total: string | null;
+        image_url: string | null;
+      }>(
+        `with ranked as (
+           select d.doc_no,
+                  d.item_code as product_code,
+                  d.item_name as product_name,
+                  d.unit_code as unit,
+                  d.price_2 as unit_price,
+                  d.qty,
+                  d.sum_amount_2 as line_total,
+                  (select pi.url from ecom.product_images pi
+                     where pi.product_code = d.item_code
+                     order by pi.sort_order, pi.id limit 1) as image_url,
+                  row_number() over (partition by d.doc_no order by d.roworder) as rn
+             from public.ic_trans_detail d
+            where d.doc_no = any($1)
+         )
+         select doc_no, product_code, product_name, unit, unit_price, qty, line_total, image_url
+           from ranked
+          where rn <= 3
+          order by doc_no, rn`,
+        [rows.map((r) => r.order_no)],
+      )
+    : [];
+  const itemsByDoc = new Map<string, AdminOrderListItem[]>();
+  for (const row of detailRows) {
+    const list = itemsByDoc.get(row.doc_no) ?? [];
+    list.push({
+      productCode: row.product_code,
+      productName: row.product_name,
+      unit: row.unit,
+      unitPrice: row.unit_price == null ? null : Number(row.unit_price),
+      qty: Number(row.qty ?? 0),
+      lineTotal: Number(row.line_total ?? 0),
+      imageUrl: row.image_url,
+    });
+    itemsByDoc.set(row.doc_no, list);
+  }
   const icRows: AdminOrderRow[] = rows.map((r) => ({
     orderNo: r.order_no,
     customerName: r.customer_name,
@@ -400,6 +498,9 @@ export async function getAllOrders(opts: {
     itemCount: r.item_count,
     smlDocNo: r.order_no,
     smlFlag: Number(r.trans_flag),
+    saleCode: r.sale_code,
+    saleName: r.sale_name,
+    items: itemsByDoc.get(r.order_no) ?? [],
   }));
 
   // Pending snapshots: orders created (incl. staff-assisted) but not yet written
@@ -409,7 +510,11 @@ export async function getAllOrders(opts: {
   if (s) {
     pParams.push(`%${s}%`);
     const p = `$${pParams.length}`;
-    pConds.push(`(op.order_no ilike ${p} or coalesce(op.cust_name,'') ilike ${p} or coalesce(op.phone,'') ilike ${p} or coalesce(op.cust_code,'') ilike ${p})`);
+    pConds.push(`(op.order_no ilike ${p} or coalesce(op.cust_name,'') ilike ${p} or coalesce(op.phone,'') ilike ${p} or coalesce(op.cust_code,'') ilike ${p} or op.items::text ilike ${p})`);
+  }
+  if (saleFilter) {
+    pParams.push(saleFilter);
+    pConds.push(`op.sale_code = $${pParams.length}`);
   }
   if (opts.from) {
     pParams.push(opts.from);
@@ -430,15 +535,22 @@ export async function getAllOrders(opts: {
     pay_status: string | null;
     created_at: Date;
     item_count: number;
+    items: unknown;
     created_by: string | null;
+    sale_code: string | null;
+    sale_name: string | null;
   }>(
     `select op.order_no, op.cust_name, op.cust_code, op.phone,
             coalesce(op.subtotal,0)::text as subtotal,
             coalesce(op.shipping_fee,0)::text as shipping_fee,
             op.payment_method, op.status as pay_status, op.created_at,
             coalesce(jsonb_array_length(op.items),0)::int as item_count,
-            op.created_by
+            op.items,
+            op.created_by,
+            nullif(op.sale_code,'') as sale_code,
+            coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), nullif(op.sale_code,'')) as sale_name
        from ecom.onepay_payments op
+       left join public.odg_employee emp on emp.employee_code = op.sale_code
       where ${pConds.join(" and ")}
       order by op.created_at desc
       limit 200`,
@@ -462,6 +574,9 @@ export async function getAllOrders(opts: {
       smlDocNo: "",
       smlFlag: 0,
       createdBy: r.created_by,
+      saleCode: r.sale_code,
+      saleName: r.sale_name,
+      items: pendingItemsPreview(r.items),
     };
   });
 
@@ -472,18 +587,40 @@ export async function getAllOrders(opts: {
   return merged.slice(0, 200);
 }
 
-// Stats over the CAE web orders (public.ic_trans).
-export async function getOrderStats(): Promise<{
+function pendingItemsPreview(items: unknown): AdminOrderListItem[] {
+  if (!Array.isArray(items)) return [];
+  return items.slice(0, 3).map((it) => {
+    const row = it as Partial<OrderLine>;
+    return {
+      productCode: String(row.productCode ?? ""),
+      productName: String(row.productName ?? row.productCode ?? "—"),
+      unit: row.unit ?? null,
+      unitPrice: row.unitPrice == null ? null : Number(row.unitPrice),
+      qty: Number(row.qty ?? 0),
+      lineTotal: Number(row.lineTotal ?? 0),
+      imageUrl: null,
+    };
+  });
+}
+
+// Stats over the CAE web orders (public.ic_trans). Optionally scoped to one
+// salesperson (ພະນັກງານຂາຍ) — used to limit staff to their own numbers.
+export async function getOrderStats(saleCode?: string): Promise<{
   byStatus: Record<string, number>;
   total: number;
   revenue: number;
 }> {
+  const scope = saleCode?.trim();
+  const icScope = scope ? `and ic.sale_code = $1` : "";
+  const opScope = scope ? `and op.sale_code = $1` : "";
+  const params = scope ? [scope] : [];
   const rows = await query<{ status: string; n: number; sum: string }>(
     `select (${STATUS_EXPR}) as status, count(*)::int as n,
             coalesce(sum(ic.total_amount_2),0)::text as sum
        from public.ic_trans ic
-      where ${WEB_ORDER}
+      where ${WEB_ORDER} ${icScope}
       group by (${STATUS_EXPR})`,
+    params,
   );
   const byStatus: Record<string, number> = {};
   let total = 0;
@@ -502,8 +639,9 @@ export async function getOrderStats(): Promise<{
                   else 'pending' end) as status,
             count(*)::int as n
        from ecom.onepay_payments op
-      where op.sml_doc_no is null
+      where op.sml_doc_no is null ${opScope}
       group by 1`,
+    params,
   );
   for (const r of pend) {
     byStatus[r.status] = (byStatus[r.status] ?? 0) + r.n;
@@ -547,6 +685,29 @@ export async function getOrderNosByPhone(phone: string): Promise<string[]> {
  * is nothing to backfill. Kept for the (now no-op) admin banner/action. */
 export async function getOrdersMissingSmlDoc(): Promise<string[]> {
   return [];
+}
+
+/**
+ * Re-assign the salesperson (ພະນັກງານຂາຍ) on an existing order. Validates the
+ * code against the salesperson pool, updates the order snapshot, and — for a
+ * materialised CAE bill (with SML direct-write on) — re-stamps ic_trans.sale_code.
+ * Returns the resolved code + display name.
+ */
+export async function setOrderSaleCode(
+  orderNo: string,
+  saleCode: string | null,
+): Promise<{ code: string | null; name: string | null }> {
+  const resolved = await resolveSalespersonCode(saleCode);
+  if (/^CAE/i.test(orderNo)) {
+    // Materialised CAE doc — update the snapshot keyed by sml_doc_no, then ic_trans.
+    await query(`update ecom.onepay_payments set sale_code = $2 where sml_doc_no = $1`, [orderNo, resolved]);
+    await setSmlSaleCode(orderNo, resolved);
+  } else {
+    await query(`update ecom.onepay_payments set sale_code = $2 where order_no = $1`, [orderNo, resolved]);
+    const pend = await getPendingOrder(orderNo);
+    if (pend?.smlDocNo) await setSmlSaleCode(pend.smlDocNo, resolved);
+  }
+  return { code: resolved, name: await getEmployeeName(resolved) };
 }
 
 /**
@@ -606,20 +767,32 @@ export interface SalesReport {
     qty: number;
     revenue: number;
   }[];
+  /** Revenue per salesperson (ພະນັກງານຂາຍ), best first. Excludes cancelled. */
+  bySalesperson: {
+    saleCode: string;
+    saleName: string;
+    orders: number;
+    revenue: number;
+  }[];
 }
 
-export async function getSalesReport(): Promise<SalesReport> {
+export async function getSalesReport(saleCode?: string): Promise<SalesReport> {
+  const scope = saleCode?.trim();
+  const icScope = scope ? `and ic.sale_code = $1` : "";
+  const params = scope ? [scope] : [];
   const totalsRows = await query<{ orders: number; revenue: string; aov: string }>(
     `select count(*)::int as orders,
             coalesce(sum(ic.total_amount_2) filter (where coalesce(ic.is_cancel,0)=0),0)::text as revenue,
             coalesce(round(avg(ic.total_amount_2) filter (where coalesce(ic.is_cancel,0)=0)),0)::text as aov
-       from public.ic_trans ic where ${WEB_ORDER}`,
+       from public.ic_trans ic where ${WEB_ORDER} ${icScope}`,
+    params,
   );
   const t = totalsRows[0] ?? { orders: 0, revenue: "0", aov: "0" };
 
   const statusRows = await query<{ status: string; n: number }>(
     `select (${STATUS_EXPR}) as status, count(*)::int as n
-       from public.ic_trans ic where ${WEB_ORDER} group by (${STATUS_EXPR})`,
+       from public.ic_trans ic where ${WEB_ORDER} ${icScope} group by (${STATUS_EXPR})`,
+    params,
   );
   const byStatus: Record<string, number> = {};
   for (const r of statusRows) byStatus[r.status] = r.n;
@@ -639,10 +812,11 @@ export async function getSalesReport(): Promise<SalesReport> {
          select ic.create_date_time_now::date as dd, count(*) as orders,
                 sum(ic.total_amount_2) filter (where coalesce(ic.is_cancel,0)=0) as revenue
            from public.ic_trans ic
-          where ${WEB_ORDER} and ic.create_date_time_now >= current_date - interval '13 days'
+          where ${WEB_ORDER} ${icScope} and ic.create_date_time_now >= current_date - interval '13 days'
           group by 1
        ) o on o.dd = d::date
       order by d`,
+    params,
   );
 
   const topRows = await query<{
@@ -655,10 +829,30 @@ export async function getSalesReport(): Promise<SalesReport> {
             sum(d.qty)::int as qty,
             coalesce(sum(d.sum_amount_2),0)::text as revenue
        from public.ic_trans_detail d
-       join public.ic_trans ic on ic.doc_no = d.doc_no and ${WEB_ORDER} and coalesce(ic.is_cancel,0)=0
+       join public.ic_trans ic on ic.doc_no = d.doc_no and ${WEB_ORDER} ${icScope} and coalesce(ic.is_cancel,0)=0
       group by d.item_code
       order by sum(d.sum_amount_2) desc
       limit 10`,
+    params,
+  );
+
+  const saleRows = await query<{
+    sale_code: string;
+    sale_name: string;
+    orders: number;
+    revenue: string;
+  }>(
+    `select ic.sale_code as sale_code,
+            coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), ic.sale_code) as sale_name,
+            count(*)::int as orders,
+            coalesce(sum(ic.total_amount_2),0)::text as revenue
+       from public.ic_trans ic
+       left join public.odg_employee emp on emp.employee_code = ic.sale_code
+      where ${WEB_ORDER} and coalesce(ic.is_cancel,0)=0 and coalesce(ic.sale_code,'') <> '' ${icScope}
+      group by ic.sale_code, sale_name
+      order by sum(ic.total_amount_2) desc
+      limit 20`,
+    params,
   );
 
   return {
@@ -666,6 +860,12 @@ export async function getSalesReport(): Promise<SalesReport> {
     revenue: Number(t.revenue),
     avgOrderValue: Number(t.aov),
     byStatus,
+    bySalesperson: saleRows.map((r) => ({
+      saleCode: r.sale_code,
+      saleName: r.sale_name,
+      orders: r.orders,
+      revenue: Number(r.revenue),
+    })),
     daily: dailyRows.map((r) => ({
       label: r.label,
       day: r.day,
@@ -699,7 +899,7 @@ export async function updateOrderStatus(
   if (status === cur) return true;
 
   if (status === "cancelled") {
-    if (cur === "completed") throw new OrderError("ອໍເດີສົ່ງสำเລັດແລ້ວ ຍົກເລີກບໍ່ໄດ້");
+    if (cur === "completed") throw new OrderError("ອໍເດີສົ່ງສຳເລັດແລ້ວ ຍົກເລີກບໍ່ໄດ້");
     const rows = await query<{ doc_no: string }>(
       `update public.ic_trans as ic set is_cancel = 1, cancel_datetime = now()
         where doc_no = $1 and ${WEB_ORDER} returning doc_no`,
@@ -943,6 +1143,7 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
         note: pend.note,
         subtotal: pend.subtotal,
         shippingFee: pend.shippingFee,
+        discount: pend.discount + pend.memberDiscount + pend.pointsUsed * POINT_VALUE,
         // COD orders are placed (awaiting fulfilment) the moment they're created,
         // even if the SML write is gated off and no ic_trans row exists yet.
         status:
@@ -954,6 +1155,10 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
         paymentMethod: pend.paymentMethod,
         shippingMethod: pend.shippingMethod,
         smlDocNo: null,
+        saleCode: pend.saleCode,
+        saleName: await getEmployeeName(pend.saleCode),
+        referralCode: pend.referralCode,
+        affiliateName: pend.referralCode ? (await getAffiliateByCode(pend.referralCode))?.name ?? null : null,
         createdAt: new Date().toISOString(),
         items: pend.lines.map((l) => ({
           productCode: l.productCode,
@@ -974,14 +1179,25 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
     address: string | null;
     note: string | null;
     subtotal: string;
+    gross: string;
+    discount: string;
+    sale_code: string | null;
+    sale_name: string | null;
+    referral_code: string | null;
     trans_flag: number;
     payment_method: string;
     status: string;
     created_at: Date;
   }>(
-    `select ${ORDER_HEAD}
+    `select ${ORDER_HEAD},
+            coalesce(ic.total_value_2,0) as gross,
+            coalesce(ic.total_discount_2,0) as discount,
+            nullif(ic.sale_code,'') as sale_code,
+            coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), nullif(ic.sale_code,'')) as sale_name,
+            nullif(ic.remark,'') as referral_code
        from public.ic_trans ic
        left join public.ar_customer ar on ar.code = ic.cust_code
+       left join public.odg_employee emp on emp.employee_code = ic.sale_code
       where ic.doc_no = $1 and ${WEB_ORDER}`,
     [orderNo],
   );
@@ -1011,12 +1227,19 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
     phone: o.phone,
     address: o.address,
     note: o.note,
-    subtotal: Number(o.subtotal),
+    // total_value_2 = gross (items + shipping, before discount); shipping is 0
+    // by the current business rule, so this is the full items subtotal.
+    subtotal: Number(o.gross),
     shippingFee: 0,
+    discount: Number(o.discount),
     status: o.status,
     paymentMethod: o.payment_method ?? "transfer",
     shippingMethod: "odien",
     smlDocNo: o.order_no,
+    saleCode: o.sale_code,
+    saleName: o.sale_name,
+    referralCode: o.referral_code,
+    affiliateName: o.referral_code ? (await getAffiliateByCode(o.referral_code))?.name ?? null : null,
     createdAt: (o.created_at instanceof Date ? o.created_at : new Date(o.created_at)).toISOString(),
     items: items.map((i) => ({
       productCode: i.product_code,

@@ -607,6 +607,60 @@ alter table ecom.onepay_payments add column if not exists slip_url text;
 alter table ecom.onepay_payments add column if not exists created_by text;
 -- SML transport branch chosen when a staff order is created (used at ອອກບິນ).
 alter table ecom.onepay_payments add column if not exists transport_code text;
+-- Salesperson (ພະນັກງານຂາຍ) attributed to the order — an odg_employee code.
+-- Set from the /s/<code> sales link, or chosen/defaulted by the admin who saves
+-- the order; written through to SML ic_trans.sale_code on materialise.
+alter table ecom.onepay_payments add column if not exists sale_code text;
+
+-- Clicks on a salesperson's share link (/s/<employee_code>). Lets a salesperson
+-- see how many customers opened their link (engagement → conversion).
+create table if not exists ecom.sales_link_clicks (
+  id          bigint      generated always as identity primary key,
+  sale_code   text        not null,
+  path        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists sales_link_clicks_idx on ecom.sales_link_clicks(sale_code, created_at);
+
+-- Monthly sales target (ເປົ້າຍອດຂາຍ) per salesperson. One standing goal per
+-- employee; managers edit it, the salesperson sees progress vs this month's sales.
+create table if not exists ecom.sales_targets (
+  sale_code       text         primary key,
+  monthly_target  numeric(18,2) not null default 0,
+  updated_by      text,
+  updated_at      timestamptz  not null default now()
+);
+-- Targets are per-month: key on (sale_code, month 'YYYY-MM'). Migrate the old
+-- single-target-per-person shape to a composite key.
+alter table ecom.sales_targets add column if not exists month text;
+update ecom.sales_targets set month = to_char(now(),'YYYY-MM') where coalesce(month,'') = '';
+alter table ecom.sales_targets alter column month set not null;
+alter table ecom.sales_targets drop constraint if exists sales_targets_pkey;
+alter table ecom.sales_targets add constraint sales_targets_pkey primary key (sale_code, month);
+
+-- Salesperson commission rate (%). Row sale_code='__default__' is the global
+-- default; any other row overrides it for that employee. Commission is earned on
+-- COMPLETED (delivered) orders attributed to the salesperson.
+create table if not exists ecom.sales_commission_rates (
+  sale_code   text          primary key,
+  pct         numeric(6,2)  not null default 0,
+  updated_by  text,
+  updated_at  timestamptz   not null default now()
+);
+insert into ecom.sales_commission_rates (sale_code, pct) values ('__default__', 0)
+  on conflict (sale_code) do nothing;
+
+-- Commission payouts to salespeople (a manager records each payment). Earned −
+-- paid = outstanding. Mirrors the affiliate payout ledger.
+create table if not exists ecom.sales_commission_payouts (
+  id          bigint       generated always as identity primary key,
+  sale_code   text         not null,
+  amount      numeric(18,2) not null,
+  note        text,
+  paid_by     text,
+  created_at  timestamptz  not null default now()
+);
+create index if not exists sales_comm_payouts_idx on ecom.sales_commission_payouts(sale_code, created_at);
 -- Review photo (one image URL per review; uploaded to public/uploads/reviews).
 alter table ecom.reviews add column if not exists photo_url text;
 

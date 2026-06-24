@@ -8,7 +8,7 @@ const REASONS = ["ສິນຄ້າຊຳລຸດ/ເສຍຫາຍ", "ໄດ
 const STATUS_LABEL: Record<string, string> = {
   pending: "ລໍຖ້າກວດສອບ",
   approved: "ອະນຸມັດແລ້ວ",
-  rejected: "ปฏິເສດ",
+  rejected: "ປະຕິເສດ",
   refunded: "ຄືນເງິນແລ້ວ",
 };
 
@@ -56,7 +56,7 @@ export default function ReturnRequestButton({ orderNo }: { orderNo: string }) {
   if (state) {
     return (
       <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm">
-        <span className="font-semibold text-amber-700">ຄຳຮ້ອງคืนສິນຄ້າ: {STATUS_LABEL[state.status] ?? state.status}</span>
+        <span className="font-semibold text-amber-700">ຄຳຮ້ອງຄືນສິນຄ້າ: {STATUS_LABEL[state.status] ?? state.status}</span>
       </div>
     );
   }
@@ -70,11 +70,11 @@ export default function ReturnRequestButton({ orderNo }: { orderNo: string }) {
           className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-rose-300 hover:text-rose-600"
         >
           <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8" /></svg>
-          ຮ້ອງขໍຄືນສິນຄ້າ / ຄືນເງິນ
+          ຮ້ອງຂໍຄືນສິນຄ້າ / ຄືນເງິນ
         </button>
       ) : (
         <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm font-bold text-gray-900">ຮ້ອງขໍຄືນສິນຄ້າ</p>
+          <p className="text-sm font-bold text-gray-900">ຮ້ອງຂໍຄືນສິນຄ້າ</p>
           <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand">
             {REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>

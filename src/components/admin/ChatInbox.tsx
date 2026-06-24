@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminListThreads, adminGetMessages, adminReply } from "@/app/admin/chat/actions";
+import { formatKip } from "@/lib/format";
 
 interface Msg {
   id: number;
@@ -21,6 +22,30 @@ interface Thread {
 
 const THREADS_MS = 6000;
 const MSGS_MS = 4000;
+
+const AVATAR_COLORS = [
+  "bg-gradient-to-br from-orange-500 to-amber-500 text-white",
+  "bg-gradient-to-br from-blue-500 to-indigo-500 text-white",
+  "bg-gradient-to-br from-emerald-500 to-teal-500 text-white",
+  "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white",
+  "bg-gradient-to-br from-rose-500 to-pink-500 text-white",
+  "bg-gradient-to-br from-slate-500 to-slate-700 text-white",
+];
+
+function formatChatTime(dateStr: string) {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) {
+      return d.toLocaleTimeString("lo-LA", { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
+    return d.toLocaleDateString("lo-LA", { day: "2-digit", month: "2-digit" });
+  } catch {
+    return "";
+  }
+}
 
 export default function ChatInbox({ initial }: { initial: Thread[] }) {
   const [threads, setThreads] = useState<Thread[]>(initial);
@@ -58,9 +83,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
     lastId.current = Math.max(lastId.current, ...incoming.map((m) => m.id));
   }, []);
 
-  // Load + poll the active conversation. The first fetch (afterId 0) replaces the
-  // list (switching threads); later fetches merge — all inside the async callback
-  // so we never call setState synchronously in the effect body.
+  // Load + poll the active conversation.
   useEffect(() => {
     if (active == null) return;
     let alive = true;
@@ -102,103 +125,207 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
   const activeThread = threads.find((t) => t.id === active);
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] min-h-[28rem] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      {/* Threads */}
-      <aside className="flex w-72 shrink-0 flex-col border-r border-gray-100">
-        <div className="border-b border-gray-100 p-2">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ຄົ້ນຫາ ຊື່ / ເບີ"
-            className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-brand"
-          />
+    <div className="flex h-[calc(100vh-14rem)] min-h-[32rem] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)]">
+      {/* Threads Sidebar */}
+      <aside className="flex w-80 shrink-0 flex-col border-r border-slate-100 bg-slate-50/20">
+        <div className="p-4 border-b border-slate-100 bg-white">
+          <div className="relative rounded-xl shadow-xs">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ຄົ້ນຫາ ຊື່ / ເບີ..."
+              className="w-full rounded-xl border border-slate-250 bg-white pl-10 pr-4 py-2.5 text-sm font-semibold text-slate-700 placeholder-slate-350 transition-all duration-300 focus:border-orange-500 focus:outline-hidden focus:ring-4 focus:ring-orange-500/10"
+            />
+            <span className="absolute left-3.5 top-3.5 text-slate-400">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {threads.length === 0 && (
-            <p className="p-4 text-center text-sm text-gray-400">ຍັງບໍ່ມີແຊັດ</p>
-          )}
-          {threads.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActive(t.id)}
-              className={`flex w-full flex-col gap-0.5 border-b border-gray-50 px-3 py-2.5 text-left transition ${
-                active === t.id ? "bg-brand-light/50" : "hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold text-gray-800">{t.name}</span>
-                {t.unread > 0 && (
-                  <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
-                    {t.unread}
+
+        {/* Thread List */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 thin-scroll">
+          {threads.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <svg viewBox="0 0 24 24" className="mx-auto h-8 w-8 text-slate-300 mb-2" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <p className="text-xs font-bold">ຍັງບໍ່ມີແຊັດ</p>
+            </div>
+          ) : (
+            threads.map((t) => {
+              const activeColor = AVATAR_COLORS[t.id % AVATAR_COLORS.length];
+              const isSelected = active === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActive(t.id)}
+                  className={`relative flex items-center gap-3.5 w-full rounded-xl p-3 text-left transition-all duration-350 border ${
+                    isSelected
+                      ? "bg-white border-slate-200/80 shadow-xs"
+                      : "hover:bg-slate-55 border-transparent"
+                  }`}
+                >
+                  {/* Left accent bar on active */}
+                  {isSelected && (
+                    <span className="absolute left-0 top-3.5 bottom-3.5 w-1 rounded-r-md bg-orange-500" />
+                  )}
+
+                  {/* Avatar Bubble */}
+                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-black shadow-xs ${activeColor}`}>
+                    {t.name ? t.name.trim().slice(0, 1).toUpperCase() : "?"}
                   </span>
-                )}
-              </div>
-              <span className="truncate text-xs text-gray-400">{t.lastBody ?? "—"}</span>
-            </button>
-          ))}
+
+                  {/* Thread details */}
+                  <div className="flex-1 min-w-0 leading-tight">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-xs truncate block ${isSelected ? "font-extrabold text-slate-900" : "font-bold text-slate-700"}`}>
+                        {t.name}
+                      </span>
+                      {t.lastMessageAt && (
+                        <span className="text-[9px] font-bold text-slate-400 shrink-0">
+                          {formatChatTime(t.lastMessageAt)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-1.5 mt-1.5">
+                      <span className={`text-[11px] truncate block ${isSelected ? "text-slate-500 font-medium" : "text-slate-400 font-semibold"}`}>
+                        {t.lastBody ?? "—"}
+                      </span>
+                      {t.unread > 0 && (
+                        <span className="grid h-4.5 min-w-4.5 shrink-0 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white shadow-xs shadow-rose-500/20 animate-pulse">
+                          {t.unread}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
       </aside>
 
-      {/* Conversation */}
-      <section className="flex flex-1 flex-col">
+      {/* Conversation viewport */}
+      <section className="flex flex-1 flex-col bg-slate-50/50">
         {active == null ? (
-          <div className="grid flex-1 place-items-center text-sm text-gray-400">ເລືອກການສົນທະນາ</div>
-        ) : (
-          <>
-            <div className="border-b border-gray-100 px-4 py-3">
-              <p className="text-sm font-bold text-gray-900">{activeThread?.name ?? "ລູກຄ້າ"}</p>
-              <p className="text-xs text-gray-400">
-                {activeThread?.phone || activeThread?.customerCode || "ແຂກ"}
+          <div className="grid flex-1 place-items-center text-center p-6 text-slate-400 bg-white">
+            <div>
+              <svg viewBox="0 0 24 24" className="mx-auto h-12 w-12 text-slate-200 mb-3.5" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <h3 className="text-sm font-bold text-slate-700">ເລືອກການສົນທະນາ</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+                ເລືອກລູກຄ້າຈາກລາຍການທາງຊ້າຍມື ເພື່ອເລີ່ມການສົນທະນາ
               </p>
             </div>
-            <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto bg-gray-50 p-4">
-              {msgs.map((m) => (
-                <div key={m.id} className={`flex ${m.sender === "admin" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[70%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      m.sender === "admin"
-                        ? "rounded-br-sm bg-brand text-white"
-                        : "rounded-bl-sm bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
-                    }`}
-                  >
-                    {m.body}
-                  </div>
-                </div>
-              ))}
+          </div>
+        ) : (
+          <>
+            {/* Header banner */}
+            <div className="flex items-center gap-3.5 border-b border-slate-100 bg-white px-5 py-4.5 shadow-[0_1px_3px_rgba(15,23,42,0.01)]">
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-black shadow-xs ${AVATAR_COLORS[activeThread?.id ?? 0 % AVATAR_COLORS.length]}`}>
+                {activeThread?.name ? activeThread.name.trim().slice(0, 1).toUpperCase() : "?"}
+              </span>
+              <div className="min-w-0 leading-tight">
+                <p className="text-sm font-black text-slate-800">{activeThread?.name ?? "ລູກຄ້າ"}</p>
+                <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mt-1 flex items-center gap-1.5">
+                  {activeThread?.customerCode ? (
+                    <span className="bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-lg text-slate-500 font-mono">
+                      CODE: {activeThread.customerCode}
+                    </span>
+                  ) : (
+                    <span className="bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-lg text-slate-400">
+                      GUEST
+                    </span>
+                  )}
+                  {activeThread?.phone && (
+                    <a
+                      href={`tel:${activeThread.phone}`}
+                      className="text-orange-500 hover:text-orange-600 font-bold tracking-normal transition"
+                    >
+                      {activeThread.phone}
+                    </a>
+                  )}
+                </p>
+              </div>
             </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                send();
-              }}
-              className="flex items-end gap-2 border-t border-gray-100 p-2"
-            >
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
+
+            {/* Message History Viewport */}
+            <div ref={scroller} className="flex-1 space-y-3.5 overflow-y-auto p-5 thin-scroll">
+              {msgs.map((m) => {
+                const isAdminMsg = m.sender === "admin";
+                return (
+                  <div key={m.id} className={`flex ${isAdminMsg ? "justify-end" : "justify-start"}`}>
+                    <div className="flex items-end gap-2 max-w-[70%]">
+                      {/* Customer Avatar bubble inside chat log (only for customer messages) */}
+                      {!isAdminMsg && (
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[9px] font-black leading-none ${AVATAR_COLORS[activeThread?.id ?? 0 % AVATAR_COLORS.length]}`}>
+                          {activeThread?.name ? activeThread.name.trim().slice(0, 1).toUpperCase() : "?"}
+                        </span>
+                      )}
+
+                      <div className="flex flex-col min-w-0">
+                        <div
+                          className={`whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-xs font-semibold leading-relaxed shadow-sm ${
+                            isAdminMsg
+                              ? "rounded-br-none bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-orange-500/5"
+                              : "rounded-bl-none bg-white text-slate-700 border border-slate-100"
+                          }`}
+                        >
+                          {m.body}
+                        </div>
+                        {/* Timestamp bubble */}
+                        <span className={`block mt-1 text-[9px] font-bold text-slate-400 ${isAdminMsg ? "text-right" : "text-left"}`}>
+                          {new Date(m.createdAt).toLocaleTimeString("lo-LA", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Input Form Deck */}
+            <div className="p-4 bg-white border-t border-slate-100">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  send();
                 }}
-                rows={1}
-                placeholder="ພິມຄຳຕອບ..."
-                className="max-h-28 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand"
-              />
-              <button
-                type="submit"
-                disabled={sending || !draft.trim()}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand text-white transition hover:bg-brand-dark disabled:opacity-50"
-                aria-label="ສົ່ງ"
+                className="flex items-end gap-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl p-2 focus-within:border-orange-500/80 focus-within:ring-4 focus-within:ring-orange-500/10 transition-all duration-350"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-              </button>
-            </form>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  rows={1}
+                  placeholder="ພິມຄຳຕອບ..."
+                  className="max-h-28 flex-1 resize-none bg-transparent px-2.5 py-2 text-xs font-semibold text-slate-700 placeholder-slate-350 focus:outline-hidden"
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !draft.trim()}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/10 hover:from-orange-600 hover:to-amber-600 transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none cursor-pointer active:scale-95"
+                  aria-label="ສົ່ງ"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 stroke-white" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                  </svg>
+                </button>
+              </form>
+            </div>
           </>
         )}
       </section>
     </div>
   );
 }
+

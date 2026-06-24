@@ -69,6 +69,9 @@ export default async function OrderPrintPage({
             <span className="text-gray-400">ການຊຳລະ: </span>
             {PAYMENT_LABEL[order.paymentMethod as PaymentMethod] ?? order.paymentMethod}
           </div>
+          {order.saleName && (
+            <div><span className="text-gray-400">ພະນັກງານຂາຍ: </span>{order.saleName}</div>
+          )}
           <div>
             <span className="text-gray-400">ຈັດສົ່ງ: </span>
             {SHIPPING_LABEL[order.shippingMethod as ShippingMethod] ?? order.shippingMethod}
@@ -111,9 +114,14 @@ export default async function OrderPrintPage({
           <div className="flex items-baseline justify-between text-gray-600">
             <span>ຄ່າຂົນສົ່ງ</span><span>{formatKip(order.shippingFee)}</span>
           </div>
+          {order.discount > 0 && (
+            <div className="flex items-baseline justify-between text-gray-600">
+              <span>ສ່ວນຫຼຸດ</span><span>−{formatKip(order.discount)}</span>
+            </div>
+          )}
           <div className="flex items-baseline justify-between pt-1">
             <span className="font-semibold text-gray-800">ລວມທັງໝົດ</span>
-            <span className="text-xl font-extrabold text-gray-900">{formatKip(order.subtotal + order.shippingFee)}</span>
+            <span className="text-xl font-extrabold text-gray-900">{formatKip(Math.max(0, order.subtotal + order.shippingFee - order.discount))}</span>
           </div>
         </div>
 

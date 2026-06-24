@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { formatKip } from "@/lib/format";
 import type { Voucher } from "@/lib/vouchers";
 import { saveVoucher, toggleVoucher, removeVoucher } from "@/app/admin/vouchers/actions";
+import { Card, Badge, EmptyState } from "@/components/admin/ui";
 
 const EMPTY = {
   id: 0,
@@ -94,123 +95,264 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
     });
   }
 
-  const inp = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand";
-  const lbl = "block text-xs font-medium text-gray-500 mb-1";
+  const inp = "w-full rounded-xl border border-slate-250 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 placeholder-slate-350 transition-all duration-300 focus:border-orange-500 focus:outline-hidden focus:ring-4 focus:ring-orange-500/10";
+  const lbl = "block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5";
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[22rem_1fr]">
-      {/* Form */}
-      <form onSubmit={submit} className="h-fit space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-900">{editing ? `ແກ້ໄຂ ${form.code}` : "ສ້າງໂຄ້ດໃໝ່"}</h2>
+    <div className="grid gap-6 lg:grid-cols-[24rem_1fr]">
+      {/* Create/Edit Form Container */}
+      <form onSubmit={submit} className="h-fit space-y-4 rounded-2xl border border-slate-200/85 bg-white p-5 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] hover:shadow-md hover:border-slate-300/80 transition-all duration-300">
+        <div className="border-b border-slate-100 pb-3">
+          <h2 className="text-sm font-black text-slate-800 leading-tight">
+            {editing ? `ແກ້ໄຂໂຄ້ດ ${form.code}` : "ສ້າງໂຄ້ດສ່ວນຫຼຸດໃໝ່"}
+          </h2>
+        </div>
+        
         <div>
           <label className={lbl}>ໂຄ້ດ *</label>
-          <input value={form.code} onChange={(e) => set("code", e.target.value.toUpperCase())} className={`${inp} font-mono uppercase`} placeholder="SALE10" required />
+          <input
+            value={form.code}
+            onChange={(e) => set("code", e.target.value.toUpperCase())}
+            className={`${inp} font-mono uppercase tracking-wider`}
+            placeholder="SALE10"
+            required
+          />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>ປະເພດ</label>
-            <select value={form.kind} onChange={(e) => set("kind", e.target.value as "percent" | "amount")} className={inp}>
+            <select
+              value={form.kind}
+              onChange={(e) => set("kind", e.target.value as "percent" | "amount")}
+              className={`${inp} cursor-pointer`}
+            >
               <option value="percent">ເປີເຊັນ %</option>
               <option value="amount">ຈຳນວນ ₭</option>
             </select>
           </div>
           <div>
             <label className={lbl}>ມູນຄ່າ *</label>
-            <input type="number" value={form.value} onChange={(e) => set("value", e.target.value)} className={inp} min={1} required />
+            <input
+              type="number"
+              value={form.value}
+              onChange={(e) => set("value", e.target.value)}
+              className={inp}
+              min={1}
+              required
+            />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={lbl}>ຍອດຂັ້ນຕ່ຳ ₭</label>
-            <input type="number" value={form.minSubtotal} onChange={(e) => set("minSubtotal", e.target.value)} className={inp} min={0} />
+            <input
+              type="number"
+              value={form.minSubtotal}
+              onChange={(e) => set("minSubtotal", e.target.value)}
+              className={inp}
+              min={0}
+              placeholder="0 ₭"
+            />
           </div>
-          {form.kind === "percent" && (
+          {form.kind === "percent" ? (
             <div>
               <label className={lbl}>ສ່ວນຫຼຸດສູງສຸດ ₭</label>
-              <input type="number" value={form.maxDiscount} onChange={(e) => set("maxDiscount", e.target.value)} className={inp} min={0} />
+              <input
+                type="number"
+                value={form.maxDiscount}
+                onChange={(e) => set("maxDiscount", e.target.value)}
+                className={inp}
+                min={0}
+                placeholder="ບໍ່ຈຳກັດ"
+              />
+            </div>
+          ) : (
+            <div className="opacity-45">
+              <label className={lbl}>ສ່ວນຫຼຸດສູງສຸດ ₭</label>
+              <input
+                type="text"
+                disabled
+                className={`${inp} bg-slate-50 cursor-not-allowed`}
+                placeholder="ສະເພາະເປີເຊັນ"
+              />
             </div>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={lbl}>ເລີ່ມ</label>
-            <input type="date" value={form.startsAt} onChange={(e) => set("startsAt", e.target.value)} className={inp} />
+            <label className={lbl}>ວັນທີເລີ່ມ</label>
+            <input
+              type="date"
+              value={form.startsAt}
+              onChange={(e) => set("startsAt", e.target.value)}
+              className={inp}
+            />
           </div>
           <div>
-            <label className={lbl}>ໝົດອາຍຸ</label>
-            <input type="date" value={form.expiresAt} onChange={(e) => set("expiresAt", e.target.value)} className={inp} />
+            <label className={lbl}>ວັນໝົດອາຍຸ</label>
+            <input
+              type="date"
+              value={form.expiresAt}
+              onChange={(e) => set("expiresAt", e.target.value)}
+              className={inp}
+            />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={lbl}>ໃຊ້ໄດ້ລວມ (ວ່າງ=ບໍ່ຈຳກັດ)</label>
-            <input type="number" value={form.usageLimit} onChange={(e) => set("usageLimit", e.target.value)} className={inp} min={1} />
+            <label className={lbl}>ຈຳນວນສິດ (ວ່າງ=ບໍ່ຈຳກັດ)</label>
+            <input
+              type="number"
+              value={form.usageLimit}
+              onChange={(e) => set("usageLimit", e.target.value)}
+              className={inp}
+              min={1}
+              placeholder="ບໍ່ຈຳກັດ"
+            />
           </div>
           <div>
-            <label className={lbl}>ຕໍ່ລູກຄ້າ (0=ບໍ່ຈຳກັດ)</label>
-            <input type="number" value={form.perCustomerLimit} onChange={(e) => set("perCustomerLimit", e.target.value)} className={inp} min={0} />
+            <label className={lbl}>ສິດ/ຄົນ (0=ບໍ່ຈຳກັດ)</label>
+            <input
+              type="number"
+              value={form.perCustomerLimit}
+              onChange={(e) => set("perCustomerLimit", e.target.value)}
+              className={inp}
+              min={0}
+            />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} />
-          ເປີດໃຊ້ງານ
-        </label>
-        {error && <p className="text-sm text-rose-600">{error}</p>}
-        <div className="flex gap-2 pt-1">
-          <button type="submit" disabled={pending} className="flex-1 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60">
-            {pending ? "..." : editing ? "ບັນທຶກ" : "ສ້າງ"}
+
+        {/* Toggle option */}
+        <div className="pt-1.5">
+          <label className="flex items-center gap-2.5 text-xs font-bold text-slate-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.active}
+              onChange={(e) => set("active", e.target.checked)}
+              className="h-4.5 w-4.5 rounded border-slate-350 text-orange-500 focus:ring-orange-500 cursor-pointer"
+            />
+            <span>ເປີດໃຊ້ງານຄູປ໋ອງນີ້</span>
+          </label>
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-rose-50 border border-rose-100/50 px-3 py-2 text-xs font-bold text-rose-600">
+            {error}
+          </p>
+        )}
+
+        <div className="flex gap-2 pt-2 border-t border-slate-100/80">
+          <button
+            type="submit"
+            disabled={pending}
+            className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 py-3 text-xs font-black text-white shadow-sm shadow-orange-500/10 hover:shadow-orange-500/20 active:scale-97 transition-all duration-300 disabled:opacity-60 cursor-pointer"
+          >
+            {pending ? "ກຳລັງບັນທຶກ..." : editing ? "ບັນທຶກ" : "ສ້າງຄູປ໋ອງ"}
           </button>
           {editing && (
-            <button type="button" onClick={reset} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-500 hover:bg-slate-50 active:scale-97 transition-all duration-300 disabled:opacity-50 cursor-pointer"
+            >
               ຍົກເລີກ
             </button>
           )}
         </div>
       </form>
 
-      {/* List */}
-      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+      {/* Coupons List Table */}
+      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] hover:shadow-md hover:border-slate-300/80 transition-all duration-300">
         <table className="w-full text-sm" style={{ minWidth: 640 }}>
-          <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-400">
-            <tr>
-              <th className="px-4 py-3 text-left">ໂຄ້ດ</th>
-              <th className="px-4 py-3 text-left">ສ່ວນຫຼຸດ</th>
-              <th className="px-4 py-3 text-right">ໃຊ້ແລ້ວ</th>
-              <th className="px-4 py-3 text-left">ໝົດອາຍຸ</th>
-              <th className="px-4 py-3 text-center">ສະຖານະ</th>
-              <th className="px-4 py-3" />
+          <thead>
+            <tr className="border-b border-slate-200/60 bg-slate-50/70 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+              <th className="px-6 py-4 font-black text-left">ໂຄ້ດ</th>
+              <th className="px-6 py-4 font-black text-left">ສ່ວນຫຼຸດ</th>
+              <th className="px-6 py-4 font-black text-right">ໃຊ້ແລ້ວ</th>
+              <th className="px-6 py-4 font-black text-left">ໝົດອາຍຸ</th>
+              <th className="px-6 py-4 font-black text-center">ສະຖານະ</th>
+              <th className="px-6 py-4 font-black" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {vouchers.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400">ຍັງບໍ່ມີໂຄ້ດ</td></tr>
-            )}
-            {vouchers.map((v) => (
-              <tr key={v.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-mono font-semibold text-gray-800">{v.code}</td>
-                <td className="px-4 py-3 text-gray-600">
-                  {v.kind === "percent" ? `${v.value}%` : formatKip(v.value)}
-                  {v.minSubtotal > 0 && <span className="ml-1 text-xs text-gray-400">(ຂັ້ນຕ່ຳ {formatKip(v.minSubtotal)})</span>}
-                </td>
-                <td className="px-4 py-3 text-right text-gray-600">
-                  {v.usedCount}{v.usageLimit != null ? `/${v.usageLimit}` : ""}
-                </td>
-                <td className="px-4 py-3 text-gray-400">{v.expiresAt ? new Date(v.expiresAt).toLocaleDateString("lo-LA") : "—"}</td>
-                <td className="px-4 py-3 text-center">
-                  <button
-                    onClick={() => toggle(v)}
-                    disabled={pending}
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${v.active ? "bg-emerald-100 text-emerald-700" : "bg-gray-200 text-gray-500"}`}
-                  >
-                    {v.active ? "ເປີດ" : "ປິດ"}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <button onClick={() => setForm(toForm(v))} className="text-brand-dark hover:underline">ແກ້ໄຂ</button>
-                  <button onClick={() => del(v)} disabled={pending} className="ml-3 text-rose-500 hover:underline">ລົບ</button>
+          <tbody className="divide-y divide-slate-100">
+            {vouchers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12">
+                  <EmptyState
+                    title="ຍັງບໍ່ມີໂຄ້ດສ່ວນຫຼຸດ"
+                    hint="ສ້າງໂຄ້ດສ່ວນຫຼຸດໃໝ່ ໂດຍການປ້ອນຂໍ້ມູນໃນຟອມທາງດ້ານຊ້າຍມື"
+                    icon="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </td>
               </tr>
-            ))}
+            ) : (
+              vouchers.map((v) => (
+                <tr key={v.id} className="transition duration-150 hover:bg-slate-50/30">
+                  <td className="px-6 py-4 font-mono font-black text-slate-800 text-xs tracking-wider">{v.code}</td>
+                  <td className="px-6 py-4 text-slate-650 font-semibold text-xs">
+                    {v.kind === "percent" ? (
+                      <span className="inline-flex items-center rounded-lg bg-orange-50 px-2 py-1 font-bold text-orange-700 ring-1 ring-inset ring-orange-200/50">
+                        {v.value}%
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2 py-1 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200/50">
+                        {formatKip(v.value)}
+                      </span>
+                    )}
+                    {v.minSubtotal > 0 && (
+                      <span className="ml-2 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                        (ຂັ້ນຕ່ຳ {formatKip(v.minSubtotal)})
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right text-slate-650 font-bold text-xs">
+                    {v.usedCount}
+                    {v.usageLimit != null ? (
+                      <span className="text-slate-400 font-medium"> / {v.usageLimit}</span>
+                    ) : (
+                      <span className="text-slate-400 font-medium"> / ∞</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-slate-450 font-semibold text-xs">
+                    {v.expiresAt ? (
+                      new Date(v.expiresAt).toLocaleDateString("lo-LA", { day: "2-digit", month: "2-digit", year: "numeric" })
+                    ) : (
+                      <span className="text-slate-300 font-medium">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => toggle(v)}
+                      disabled={pending}
+                      className="cursor-pointer transition-all duration-300 transform active:scale-95 disabled:opacity-50"
+                    >
+                      <Badge tone={v.active ? "green" : "gray"}>
+                        {v.active ? "ເປີດໃຊ້ງານ" : "ປິດໃຊ້ງານ"}
+                      </Badge>
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap text-xs">
+                    <button
+                      onClick={() => setForm(toForm(v))}
+                      className="text-orange-600 hover:text-orange-700 hover:underline font-bold transition cursor-pointer"
+                    >
+                      ແກ້ໄຂ
+                    </button>
+                    <button
+                      onClick={() => del(v)}
+                      disabled={pending}
+                      className="ml-4 text-rose-500 hover:text-rose-600 hover:underline font-bold transition disabled:opacity-50 cursor-pointer"
+                    >
+                      ລົບ
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

@@ -51,7 +51,11 @@ const ROW_SELECT = `
     coalesce(i.balance_qty, 0)::float8 as stock,
     (i.is_new_item = 1)  as "isNew",
     (i.item_promote = 1) as "isPromo",
-    nullif(ov.image_url,'')          as "imageUrl",
+    coalesce(
+      (select pi.url from ecom.product_images pi where pi.product_code = i.code
+        order by pi.sort_order, pi.id limit 1),
+      nullif(ov.image_url,'')
+    )                                as "imageUrl",
     coalesce(ov.is_hidden, false)    as "isHidden",
     coalesce(ov.is_featured, false)  as "isFeatured",
     nullif(ov.description,'')         as description,
@@ -158,7 +162,8 @@ export async function getAdminProductStats(): Promise<AdminProductStats> {
   const row = await queryOne<AdminProductStats>(
     `select
         count(*)::int as total,
-        count(*) filter (where nullif(ov.image_url,'') is not null)::int as "withImage",
+        count(*) filter (where nullif(ov.image_url,'') is not null
+          or exists (select 1 from ecom.product_images pi where pi.product_code = i.code))::int as "withImage",
         count(*) filter (where coalesce(ov.is_hidden,false))::int   as hidden,
         count(*) filter (where coalesce(ov.is_featured,false))::int as featured,
         count(*) filter (where coalesce(i.balance_qty,0) between 1 and ${LOW_STOCK_MAX})::int as "lowStock"

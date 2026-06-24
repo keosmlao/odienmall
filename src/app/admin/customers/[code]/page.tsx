@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { isAdmin, isManager, getCustomerProfile } from "@/lib/auth";
 import { getOrdersByCustomer } from "@/lib/orders";
 import { listMemberTiers, getCustomerTier } from "@/lib/member-tier";
-import { getSmlCustomerInsights } from "@/lib/customers-admin";
 import { formatKip } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import CustomerTierControl from "@/components/admin/CustomerTierControl";
@@ -22,13 +21,12 @@ export default async function AdminCustomerDetail({
   const { code } = await params;
   const customerCode = decodeURIComponent(code);
 
-  const [profile, orders, tiers, currentTier, manager, sml] = await Promise.all([
+  const [profile, orders, tiers, currentTier, manager] = await Promise.all([
     getCustomerProfile(customerCode),
     getOrdersByCustomer(customerCode),
     listMemberTiers(),
     getCustomerTier(customerCode),
     isManager(),
-    getSmlCustomerInsights(customerCode),
   ]);
 
   // Reachable only via the customers list, so an order history must exist even
@@ -56,22 +54,14 @@ export default async function AdminCustomerDetail({
             <div><span className="text-gray-400">ຄະແນນສະສົມ: </span>{profile.pointBalance.toLocaleString()}</div>
           )}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 text-sm sm:grid-cols-4">
+        <div className="mt-4 flex gap-6 border-t border-gray-100 pt-4 text-sm">
           <div>
-            <div className="text-gray-400">ຄະແນນສະສົມ (SML)</div>
-            <div className="text-lg font-black text-violet-600">{sml.pointBalance.toLocaleString("en-US")}</div>
+            <div className="text-gray-400">ຈຳນວນອໍເດີ</div>
+            <div className="text-lg font-bold text-gray-900">{orders.length}</div>
           </div>
           <div>
-            <div className="text-gray-400">ຊື້ກັບ SML</div>
-            <div className="text-lg font-bold text-gray-900">{sml.purchaseCount} ບິນ</div>
-          </div>
-          <div>
-            <div className="text-gray-400">ຍອດຊື້ SML</div>
-            <div className="text-lg font-bold text-price">{formatKip(sml.purchaseTotal)}</div>
-          </div>
-          <div>
-            <div className="text-gray-400">ອໍເດີເວັບ</div>
-            <div className="text-lg font-bold text-gray-900">{orders.length} · {formatKip(totalSpent)}</div>
+            <div className="text-gray-400">ຍອດໃຊ້ຈ່າຍ</div>
+            <div className="text-lg font-bold text-price">{formatKip(totalSpent)}</div>
           </div>
         </div>
         {manager && (
@@ -108,30 +98,6 @@ export default async function AdminCustomerDetail({
                     <span className="font-semibold text-gray-700">{formatKip(o.subtotal)}</span>
                   </div>
                 </Link>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Full purchase history from SML (all cash-sale bills, not just web) */}
-      <div className="mt-5">
-        <Card>
-          <CardTitle hint="ບິນຂາຍສົດ (flag 44) ຈາກ ERP">ປະຫວັດການຊື້ ກັບ SML</CardTitle>
-          {sml.purchases.length === 0 ? (
-            <EmptyState title="ບໍ່ພົບປະຫວັດການຊື້ໃນ SML" />
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {sml.purchases.map((p) => (
-                <div key={p.docNo} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <div>
-                    <div className="font-mono font-semibold text-slate-700">{p.docNo}</div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(p.date).toLocaleDateString("lo-LA")} · {p.itemCount} ລາຍການ
-                    </div>
-                  </div>
-                  <span className="font-semibold text-price">{formatKip(p.total)}</span>
-                </div>
               ))}
             </div>
           )}

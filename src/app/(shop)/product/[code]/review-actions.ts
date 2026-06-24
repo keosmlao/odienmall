@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
+import { saveUpload } from "@/lib/storage";
 import { getSession } from "@/lib/auth";
 import { getProductByCode } from "@/lib/catalog";
 import { createReview } from "@/lib/reviews";
@@ -56,11 +55,9 @@ export async function uploadReviewPhoto(formData: FormData): Promise<UploadResul
   if (file.size > 8 * 1024 * 1024) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 8MB" };
   try {
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const dir = path.join(process.cwd(), "public", "uploads", "reviews");
-    await mkdir(dir, { recursive: true });
     const fname = `${randomUUID().slice(0, 12)}.${ext}`;
-    await writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()));
-    return { ok: true, url: `/uploads/reviews/${fname}` };
+    const url = await saveUpload("reviews", fname, Buffer.from(await file.arrayBuffer()));
+    return { ok: true, url };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ອັບໂຫຼດບໍ່ສຳເລັດ" };
   }

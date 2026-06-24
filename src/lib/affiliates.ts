@@ -709,6 +709,26 @@ export async function syncAffiliateCommissions(): Promise<{
   return { scanned: orders.length, created, voided };
 }
 
+/**
+ * How many delivered (TMS-completed), affiliate-referred orders DON'T yet have a
+ * commission row — i.e. commission the sync would create. Tells a manager whether
+ * the manual "ຄິດໄລ່ຄອມມິສຊັນ" button has work to do (it grows when cron is off).
+ */
+export async function countPendingCommissionSync(): Promise<number> {
+  const r = await queryOne<{ n: number }>(
+    `select count(*)::int as n
+       from ecom.onepay_payments p
+       join ecom.affiliates a on a.code = p.referral_code
+       join public.ic_trans ic on ic.doc_no = p.sml_doc_no
+       left join ecom.commissions c on c.order_no = p.order_no
+      where p.referral_code is not null and p.referral_code <> '' and p.sml_doc_no is not null
+        and coalesce(ic.is_cancel,0) = 0
+        and exists (select 1 from public.odg_tms_detail t where t.bill_no = p.sml_doc_no and t.sent_end is not null)
+        and c.id is null`,
+  );
+  return r?.n ?? 0;
+}
+
 // ── admin views / actions ───────────────────────────────────────────────────
 
 export interface AffiliateListRow extends Affiliate {

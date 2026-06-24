@@ -1,8 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { mkdir, unlink, writeFile } from "fs/promises";
-import path from "path";
+import { saveUpload, deleteUpload } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
 import { getAdminSession, isManager } from "@/lib/auth";
 import {
@@ -42,12 +41,6 @@ function validate(input: HomeBannerInput): string | null {
 function refresh() {
   revalidatePath("/");
   revalidatePath("/admin/banners");
-}
-
-async function removeLocal(url: string | null) {
-  if (url?.startsWith("/uploads/banners/")) {
-    await unlink(path.join(process.cwd(), "public", url)).catch(() => {});
-  }
 }
 
 export async function addBanner(input: HomeBannerInput): Promise<Result> {
@@ -93,13 +86,10 @@ export async function uploadBannerImage(formData: FormData): Promise<Result> {
   if (file.size > MAX_SIZE) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 6MB" };
   try {
     const previous = await getBannerImage(id);
-    const dir = path.join(process.cwd(), "public", "uploads", "banners");
-    await mkdir(dir, { recursive: true });
     const name = `${id}-${randomUUID()}.${EXT[file.type]}`;
-    await writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
-    const url = `/uploads/banners/${name}`;
+    const url = await saveUpload("banners", name, Buffer.from(await file.arrayBuffer()));
     await setBannerImage(id, url, (await getAdminSession())?.code);
-    await removeLocal(previous);
+    await deleteUpload(previous);
     await logAudit({ action: "banner.image.upload", entity: String(id), detail: url });
     refresh();
     return { ok: true };
@@ -113,7 +103,7 @@ export async function removeBannerImage(id: number): Promise<Result> {
   try {
     const previous = await getBannerImage(id);
     await setBannerImage(id, null, (await getAdminSession())?.code);
-    await removeLocal(previous);
+    await deleteUpload(previous);
     await logAudit({ action: "banner.image.remove", entity: String(id) });
     refresh();
     return { ok: true };
@@ -127,7 +117,7 @@ export async function deleteBanner(id: number): Promise<Result> {
   try {
     const previous = await getBannerImage(id);
     await deleteBannerById(id);
-    await removeLocal(previous);
+    await deleteUpload(previous);
     await logAudit({ action: "banner.delete", entity: String(id) });
     refresh();
     return { ok: true };

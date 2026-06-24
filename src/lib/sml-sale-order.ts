@@ -102,6 +102,8 @@ export interface CaeOrderInput {
   shippingFee: number;
   /** Voucher discount in LAK (0 if none). Reduces the bill total. */
   discount?: number;
+  /** Salesperson (ພະນັກງານຂາຍ) — an odg_employee code → ic_trans.sale_code. */
+  saleCode?: string | null;
 }
 
 /**
@@ -127,13 +129,14 @@ export async function createCaeOrder(input: CaeOrderInput): Promise<string> {
     const cur = (lak: number) => Math.round(lak * rate * 1e6) / 1e6;
     const docNo = await nextCaeDocNo(client);
 
+    const saleCode = (input.saleCode ?? "").trim();
     await client.query(
       `insert into public.ic_trans (
          roworder, trans_type, trans_flag, inquiry_type, doc_date, doc_no,
          vat_type, vat_rate, cust_code, branch_code, currency_code, exchange_rate,
          total_value, total_amount, total_value_2, total_amount_2,
          total_discount, total_discount_2,
-         doc_time, creator_code, doc_format_code,
+         doc_time, creator_code, doc_format_code, sale_code,
          point_telephone, remark_3, remark_4, remark_2, remark, remark_5,
          create_datetime, create_date_time_now
        ) values (
@@ -141,7 +144,7 @@ export async function createCaeOrder(input: CaeOrderInput): Promise<string> {
          2, 10, $2, $3, $4, $5,
          $6, $7, $8, $9,
          $14, $15,
-         to_char(now(),'HH24:MI'), $2, $10,
+         to_char(now(),'HH24:MI'), $2, $10, $18,
          $11, $12, $13, $16, $17, 'odienmall',
          now(), now()
        )`,
@@ -151,6 +154,7 @@ export async function createCaeOrder(input: CaeOrderInput): Promise<string> {
         input.phone || "", input.name || "", input.address || "",
         cur(discount), discount,
         input.note || "", input.referralCode || "",
+        saleCode || null,
       ],
     );
 
@@ -165,21 +169,21 @@ export async function createCaeOrder(input: CaeOrderInput): Promise<string> {
            item_code, item_name, unit_code, qty, price, sum_amount,
            branch_code, wh_code, shelf_code, vat_type, calc_flag, stand_value, divide_value,
            average_cost, average_cost_1, sum_of_cost, sum_of_cost_1,
-           price_exclude_vat, sum_amount_exclude_vat, price_2, sum_amount_2,
+           price_exclude_vat, sum_amount_exclude_vat, price_2, sum_amount_2, sale_code,
            create_date_time_now
          ) values (
            nextval('public.ic_trans_detail_roworder_seq'), 2, 34, 1, now()::date, $1, $2,
            $3, $4, $5, $6, $7, $8,
            $9, '0000', '000000', 1, -1, 1, 1,
            $10, $10, $11, $11,
-           $12, $13, $14, $15,
+           $12, $13, $14, $15, $16,
            now()
          )`,
         [
           docNo, cust,
           it.productCode, it.productName, it.unit ?? "", it.qty, cur(it.lineTotal), cur(it.lineTotal),
           BRANCH, avg, avg * it.qty,
-          it.lineTotal, it.lineTotal, it.lineTotal, it.lineTotal,
+          it.lineTotal, it.lineTotal, it.lineTotal, it.lineTotal, saleCode || null,
         ],
       );
     }
@@ -192,6 +196,19 @@ export async function createCaeOrder(input: CaeOrderInput): Promise<string> {
   } finally {
     client.release();
   }
+}
+
+/**
+ * Re-stamp the salesperson (sale_code) on an already-written CAE bill — header
+ * + all detail lines. Gated by SML_DIRECT_WRITE (a public.* write); a no-op when
+ * the gate is off (the snapshot still carries the value). Returns true on write.
+ */
+export async function setSmlSaleCode(docNo: string, saleCode: string | null): Promise<boolean> {
+  if (!smlDirectWriteEnabled()) return false;
+  const code = (saleCode ?? "").trim() || null;
+  await query(`update public.ic_trans set sale_code = $2 where doc_no = $1`, [docNo, code]);
+  await query(`update public.ic_trans_detail set sale_code = $2 where doc_no = $1`, [docNo, code]);
+  return true;
 }
 
 /**
