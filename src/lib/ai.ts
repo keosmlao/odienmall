@@ -19,6 +19,15 @@ export interface AiMessage {
   content: string;
 }
 
+export interface AiCompletionResult {
+  text: string | null;
+  provider: "openai" | "anthropic" | "none";
+  model: string | null;
+  ok: boolean;
+  error: string | null;
+  latencyMs: number;
+}
+
 function readOpenAiText(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
   const direct = (data as { output_text?: unknown }).output_text;
@@ -45,10 +54,11 @@ async function openAiComplete(
   system: string,
   messages: AiMessage[],
   opts: { maxTokens?: number; temperature?: number },
-): Promise<string | null> {
+): Promise<AiCompletionResult | null> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) return null;
 
+  const started = Date.now();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20_000);
   try {
@@ -70,14 +80,31 @@ async function openAiComplete(
     });
     clearTimeout(timer);
     if (!res.ok) {
-      console.error("openAiComplete HTTP", res.status, await res.text().catch(() => ""));
-      return null;
+      const body = await res.text().catch(() => "");
+      const error = `OpenAI HTTP ${res.status}${body ? `: ${body.slice(0, 500)}` : ""}`;
+      console.error("openAiComplete HTTP", res.status, body);
+      return { text: null, provider: "openai", model: OPENAI_MODEL, ok: false, error, latencyMs: Date.now() - started };
     }
-    return readOpenAiText(await res.json());
+    const text = readOpenAiText(await res.json());
+    return {
+      text,
+      provider: "openai",
+      model: OPENAI_MODEL,
+      ok: !!text,
+      error: text ? null : "OpenAI returned no output_text",
+      latencyMs: Date.now() - started,
+    };
   } catch (e) {
     clearTimeout(timer);
     console.error("openAiComplete failed:", e);
-    return null;
+    return {
+      text: null,
+      provider: "openai",
+      model: OPENAI_MODEL,
+      ok: false,
+      error: e instanceof Error ? e.message : "OpenAI request failed",
+      latencyMs: Date.now() - started,
+    };
   }
 }
 
@@ -85,9 +112,10 @@ async function anthropicComplete(
   system: string,
   messages: AiMessage[],
   opts: { maxTokens?: number; temperature?: number },
-): Promise<string | null> {
+): Promise<AiCompletionResult | null> {
   const key = process.env.ANTHROPIC_API_KEY?.trim();
   if (!key) return null;
+  const started = Date.now();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20_000);
   try {
@@ -109,8 +137,10 @@ async function anthropicComplete(
     });
     clearTimeout(timer);
     if (!res.ok) {
-      console.error("anthropicComplete HTTP", res.status, await res.text().catch(() => ""));
-      return null;
+      const body = await res.text().catch(() => "");
+      const error = `Anthropic HTTP ${res.status}${body ? `: ${body.slice(0, 500)}` : ""}`;
+      console.error("anthropicComplete HTTP", res.status, body);
+      return { text: null, provider: "anthropic", model: ANTHROPIC_MODEL, ok: false, error, latencyMs: Date.now() - started };
     }
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
     const text = (data.content ?? [])
@@ -118,12 +148,48 @@ async function anthropicComplete(
       .map((b) => b.text ?? "")
       .join("")
       .trim();
-    return text || null;
+    return {
+      text: text || null,
+      provider: "anthropic",
+      model: ANTHROPIC_MODEL,
+      ok: !!text,
+      error: text ? null : "Anthropic returned no text",
+      latencyMs: Date.now() - started,
+    };
   } catch (e) {
     clearTimeout(timer);
     console.error("anthropicComplete failed:", e);
-    return null;
+    return {
+      text: null,
+      provider: "anthropic",
+      model: ANTHROPIC_MODEL,
+      ok: false,
+      error: e instanceof Error ? e.message : "Anthropic request failed",
+      latencyMs: Date.now() - started,
+    };
   }
+}
+
+export async function aiCompleteDetailed(
+  system: string,
+  messages: AiMessage[],
+  opts: { maxTokens?: number; temperature?: number } = {},
+): Promise<AiCompletionResult> {
+  const openAi = await openAiComplete(system, messages, opts);
+  if (openAi?.text) return openAi;
+  const anthropic = await anthropicComplete(system, messages, opts);
+  if (anthropic?.text) return anthropic;
+  return (
+    anthropic ??
+    openAi ?? {
+      text: null,
+      provider: "none",
+      model: null,
+      ok: false,
+      error: "No AI provider key configured",
+      latencyMs: 0,
+    }
+  );
 }
 
 /** One AI completion. Returns the text reply, or null if unavailable. */
@@ -132,5 +198,5 @@ export async function aiComplete(
   messages: AiMessage[],
   opts: { maxTokens?: number; temperature?: number } = {},
 ): Promise<string | null> {
-  return (await openAiComplete(system, messages, opts)) ?? (await anthropicComplete(system, messages, opts));
+  return (await aiCompleteDetailed(system, messages, opts)).text;
 }

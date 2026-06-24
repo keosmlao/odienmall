@@ -8,6 +8,7 @@ import {
   getCodEnabled,
   listWebGroupOptions,
   getChatBotEnabled,
+  getAiKnowledge,
 } from "@/lib/settings";
 import { PageHeader, Card, CardTitle } from "@/components/admin/ui";
 import DevNoticeForm from "./DevNoticeForm";
@@ -17,6 +18,12 @@ import OnepayTestForm from "./OnepayTestForm";
 import CodToggleForm from "./CodToggleForm";
 import WebGroupsForm from "./WebGroupsForm";
 import ChatBotToggleForm from "./ChatBotToggleForm";
+import ChatBotTestForm from "./ChatBotTestForm";
+import ChatBotMaintenanceForm from "./ChatBotMaintenanceForm";
+import ChatBotLogs from "./ChatBotLogs";
+import AiKnowledgeForm from "./AiKnowledgeForm";
+import { countHumanTakenThreads } from "@/lib/chat";
+import { getRecentAiLogs } from "@/lib/ai-logs";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +31,7 @@ export default async function AdminSettings() {
   if (!(await isAdmin())) redirect("/admin/login");
   if (!(await isManager())) redirect("/admin");
 
-  const [notice, announcement, bank, onepay, codEnabled, webGroups, chatBot] = await Promise.all([
+  const [notice, announcement, bank, onepay, codEnabled, webGroups, chatBot, chatHandoffs, aiLogs, aiKnowledge] = await Promise.all([
     getDevNotice(),
     getAnnouncement(),
     getBankTransfer(),
@@ -32,6 +39,9 @@ export default async function AdminSettings() {
     getCodEnabled(),
     listWebGroupOptions(),
     getChatBotEnabled(),
+    countHumanTakenThreads(),
+    getRecentAiLogs(8).catch(() => []),
+    getAiKnowledge(),
   ]);
 
   return (
@@ -78,7 +88,13 @@ export default async function AdminSettings() {
         <CardTitle hint="ຜູ້ຊ່ວຍ AI ຕອບລູກຄ້າໃນແຊັດຈາກຂໍ້ມູນ DB (ຕັ້ງ OPENAI_API_KEY; Anthropic ເປັນ fallback).">
           ແຊັດ — ຜູ້ຊ່ວຍ AI
         </CardTitle>
-        <ChatBotToggleForm initial={chatBot} />
+        <div className="space-y-4">
+          <ChatBotToggleForm initial={chatBot} />
+          <AiKnowledgeForm initial={aiKnowledge} />
+          <ChatBotMaintenanceForm handoffCount={chatHandoffs} />
+          <ChatBotTestForm />
+          <ChatBotLogs logs={aiLogs} />
+        </div>
       </Card>
 
       <Card>

@@ -3,6 +3,9 @@ import { query } from "./db";
 import { onepayEnabled, onepayMerchantConfigured } from "./onepay";
 import { smlDirectWriteEnabled } from "./sml-sale-order";
 import { countPendingCommissionSync } from "./affiliates";
+import { getChatBotEnabled } from "./settings";
+import { countHumanTakenThreads } from "./chat";
+import { countRecentAiFailures } from "./ai-logs";
 
 // Read-only deployment-readiness checks for the admin "System status" page.
 // NEVER returns secret values — only whether each gate is configured + a hint.
@@ -94,15 +97,22 @@ export async function getSystemStatus(): Promise<StatusItem[]> {
 
   const openAiOk = !!process.env.OPENAI_API_KEY?.trim();
   const anthropicOk = !!process.env.ANTHROPIC_API_KEY?.trim();
+  const chatBotEnabled = await getChatBotEnabled().catch(() => true);
+  const chatHandoffs = await countHumanTakenThreads().catch(() => 0);
+  const aiFailures = await countRecentAiFailures(24).catch(() => 0);
   items.push({
     label: "AI chatbot",
-    level: openAiOk || anthropicOk ? "ok" : "info",
-    value: openAiOk ? "OpenAI / ChatGPT" : anthropicOk ? "Anthropic fallback" : "human-only",
-    hint: openAiOk
-      ? "chatbot ຕອບຈາກ DB context ຜ່ານ OPENAI_API_KEY"
-      : anthropicOk
-        ? "ຖ້າ Anthropic credit ໝົດ ໃຫ້ຕັ້ງ OPENAI_API_KEY"
-        : "ຕັ້ງ OPENAI_API_KEY ເພື່ອໃຫ້ bot ຕອບອັດຕະໂນມັດ",
+    level: aiFailures > 0 ? "warn" : openAiOk || anthropicOk ? (chatBotEnabled ? "ok" : "info") : "info",
+    value: `${openAiOk ? "OpenAI / ChatGPT" : anthropicOk ? "Anthropic fallback" : "human-only"} · ${chatBotEnabled ? "bot ON" : "bot OFF"}`,
+    hint: aiFailures > 0
+      ? `${aiFailures} AI failure ໃນ 24 ຊົ່ວໂມງ — ເບິ່ງ logs ທີ່ /admin/settings`
+      : chatHandoffs > 0
+      ? `${chatHandoffs} thread ຖືກ human takeover — reset ໄດ້ທີ່ /admin/settings`
+      : openAiOk
+        ? "chatbot ຕອບຈາກ DB context ຜ່ານ OPENAI_API_KEY"
+        : anthropicOk
+          ? "ຖ້າ Anthropic credit ໝົດ ໃຫ້ຕັ້ງ OPENAI_API_KEY"
+          : "ຕັ້ງ OPENAI_API_KEY ເພື່ອໃຫ້ bot ຕອບອັດຕະໂນມັດ",
   });
 
   items.push({

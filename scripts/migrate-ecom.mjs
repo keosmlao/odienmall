@@ -648,6 +648,37 @@ create table if not exists odg_ecom.chat_config (
 );
 insert into odg_ecom.chat_config (id) values (1) on conflict (id) do nothing;
 
+-- AI diagnostics: every attempted bot reply/test can write a small non-secret
+-- trace row so admins can debug "bot is on but not answering" without shell
+-- access. Does NOT store API keys.
+create table if not exists odg_ecom.ai_chat_logs (
+  id             bigint      generated always as identity primary key,
+  thread_id      bigint,
+  event          text        not null,
+  provider       text,
+  model          text,
+  ok             boolean     not null default false,
+  has_db_context boolean     not null default false,
+  latency_ms     int,
+  prompt         text,
+  reply          text,
+  error          text,
+  created_at     timestamptz not null default now()
+);
+create index if not exists ai_chat_logs_created_idx on odg_ecom.ai_chat_logs(created_at desc);
+create index if not exists ai_chat_logs_thread_idx on odg_ecom.ai_chat_logs(thread_id, created_at desc);
+
+-- Manager-editable extra knowledge injected into the AI prompt. Use for
+-- temporary policies, delivery notes, warranty notes, promo wording, etc.
+create table if not exists odg_ecom.ai_knowledge (
+  id          int          primary key default 1,
+  enabled     boolean      not null default true,
+  content     text         not null default '',
+  updated_by  text,
+  updated_at  timestamptz  not null default now()
+);
+insert into odg_ecom.ai_knowledge (id) values (1) on conflict (id) do nothing;
+
 -- Review photo (one image URL per review; uploaded to public/uploads/reviews).
 alter table odg_ecom.reviews add column if not exists photo_url text;
 

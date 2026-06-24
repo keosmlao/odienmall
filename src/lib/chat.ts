@@ -19,6 +19,8 @@ export interface ChatThreadRow {
   customerCode: string | null;
   name: string;
   phone: string | null;
+  /** True after a human admin replies or the bot hands off; AI stays quiet until reset. */
+  humanTaken: boolean;
   lastMessageAt: string;
   lastSender: string | null;
   lastBody: string | null;
@@ -140,6 +142,33 @@ export async function setHumanTaken(threadId: number): Promise<void> {
   await query(`update odg_ecom.chat_threads set human_taken = true where id = $1`, [threadId]);
 }
 
+/** Let the AI assistant answer this thread again after a human/admin handoff. */
+export async function releaseHumanTaken(threadId: number): Promise<void> {
+  await query(`update odg_ecom.chat_threads set human_taken = false where id = $1`, [threadId]);
+}
+
+/** Manager dashboard metric: threads where AI is currently silenced. */
+export async function countHumanTakenThreads(): Promise<number> {
+  const r = await queryOne<{ n: string }>(
+    `select count(*)::text as n from odg_ecom.chat_threads where human_taken = true`,
+  );
+  return Number(r?.n ?? 0);
+}
+
+/** Bulk reset — useful after an AI outage or after enabling a new provider key. */
+export async function releaseAllHumanTaken(): Promise<number> {
+  const r = await queryOne<{ n: string }>(
+    `with updated as (
+       update odg_ecom.chat_threads
+          set human_taken = false
+        where human_taken = true
+        returning 1
+     )
+     select count(*)::text as n from updated`,
+  );
+  return Number(r?.n ?? 0);
+}
+
 /** The logged-in customer_code linked to a thread (null for guests). */
 export async function getThreadCustomerCode(threadId: number): Promise<string | null> {
   const r = await query<{ customer_code: string | null }>(
@@ -176,12 +205,13 @@ export async function listThreads(search?: string): Promise<ChatThreadRow[]> {
     customer_code: string | null;
     name: string;
     phone: string | null;
+    human_taken: boolean;
     last_message_at: Date;
     last_sender: string | null;
     last_body: string | null;
     unread: string;
   }>(
-    `select t.id, t.cust_key, t.customer_code, t.name, t.phone,
+    `select t.id, t.cust_key, t.customer_code, t.name, t.phone, t.human_taken,
             t.last_message_at, t.last_sender,
             (select body from odg_ecom.chat_messages m where m.thread_id = t.id order by m.id desc limit 1) as last_body,
             (select count(*) from odg_ecom.chat_messages m
@@ -198,6 +228,7 @@ export async function listThreads(search?: string): Promise<ChatThreadRow[]> {
     customerCode: r.customer_code,
     name: r.name,
     phone: r.phone,
+    humanTaken: r.human_taken,
     lastMessageAt: r.last_message_at.toISOString(),
     lastSender: r.last_sender,
     lastBody: r.last_body,

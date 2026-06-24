@@ -65,12 +65,24 @@ test("odg_ecom migration contains current app-owned feature tables", async () =>
     "odg_ecom.onepay_payments",
     "odg_ecom.return_requests",
     "odg_ecom.chat_threads",
+    "odg_ecom.ai_chat_logs",
+    "odg_ecom.ai_knowledge",
     "odg_ecom.sales_targets",
     "odg_ecom.sales_commission_rates",
     "odg_ecom.audit_log",
   ]) {
     assert.match(migration, new RegExp(table.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+});
+
+test("AI logs redact sensitive text and have retention cleanup", async () => {
+  const logs = await read("src/lib/ai-logs.ts");
+  const cron = await read("src/app/api/cron/route.ts");
+  assert.match(logs, /redactSensitive/);
+  assert.match(logs, /\[phone\]/);
+  assert.match(logs, /\[email\]/);
+  assert.match(logs, /deleteAiLogsOlderThan/);
+  assert.match(cron, /deleteAiLogsOlderThan\(30\)/);
 });
 
 test("high-risk admin mutations write audit events", async () => {

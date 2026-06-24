@@ -25,7 +25,7 @@ export default function MobileNav() {
     }`;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 shadow-[0_-4px_18px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_18px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
       <div className="grid grid-cols-5">
         {[HOME, PRODUCTS].map((it) => (
           <Link key={it.href} href={it.href} className={cls(it.href)}>

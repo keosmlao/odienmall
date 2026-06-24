@@ -95,7 +95,7 @@ export default function ProductBuyBox({ product }: { product: Product }) {
         </Link>
       </div>
 
-      <div className="fixed inset-x-0 bottom-[53px] z-[35] grid grid-cols-2 gap-2 border-t border-orange-100 bg-white/95 p-2 shadow-[0_-6px_20px_rgba(15,23,42,0.10)] backdrop-blur sm:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(53px+env(safe-area-inset-bottom))] z-[35] grid grid-cols-2 gap-2 border-t border-orange-100 bg-white/95 p-2 shadow-[0_-6px_20px_rgba(15,23,42,0.10)] backdrop-blur sm:hidden">
         <button
           onClick={handleAdd}
           disabled={outOfStock}

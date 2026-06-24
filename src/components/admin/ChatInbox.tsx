@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adminListThreads, adminGetMessages, adminReply } from "@/app/admin/chat/actions";
+import { adminListThreads, adminGetMessages, adminReply, adminResumeBot } from "@/app/admin/chat/actions";
 
 interface Msg {
   id: number;
   sender: "customer" | "admin";
+  isBot?: boolean;
   body: string;
   createdAt: string;
 }
@@ -14,6 +15,7 @@ interface Thread {
   name: string;
   phone: string | null;
   customerCode: string | null;
+  humanTaken: boolean;
   lastMessageAt: string;
   lastBody: string | null;
   unread: number;
@@ -52,6 +54,8 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [resumingBot, setResumingBot] = useState(false);
+  const [botNotice, setBotNotice] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const lastId = useRef(0);
   const scroller = useRef<HTMLDivElement>(null);
@@ -121,6 +125,23 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
     else setDraft(text);
   }
 
+  async function resumeBot() {
+    if (active == null || resumingBot) return;
+    setResumingBot(true);
+    setBotNotice(null);
+    const res = await adminResumeBot(active);
+    setResumingBot(false);
+    if (!res.ok) {
+      setBotNotice(res.error);
+      return;
+    }
+    setBotNotice("ເປີດໃຫ້ AI ກັບມາຕອບແລ້ວ");
+    const incoming = await adminGetMessages(active, lastId.current);
+    mergeMsgs(incoming);
+    const t = await adminListThreads(search || undefined);
+    setThreads(t);
+  }
+
   const activeThread = threads.find((t) => t.id === active);
 
   return (
@@ -160,7 +181,10 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
               return (
                 <button
                   key={t.id}
-                  onClick={() => setActive(t.id)}
+                  onClick={() => {
+                    setBotNotice(null);
+                    setActive(t.id);
+                  }}
                   className={`relative flex items-center gap-3.5 w-full rounded-xl p-3 text-left transition-all duration-350 border ${
                     isSelected
                       ? "bg-white border-slate-200/80 shadow-xs"
@@ -198,6 +222,11 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                           {t.unread}
                         </span>
                       )}
+                      {t.humanTaken && t.unread === 0 && (
+                        <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-slate-500">
+                          HUMAN
+                        </span>
+                      )}
                     </div>
                   </div>
                 </button>
@@ -224,7 +253,8 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
         ) : (
           <>
             {/* Header banner */}
-            <div className="flex items-center gap-3 border-b border-slate-100 bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.01)] sm:px-5 sm:py-4.5">
+            <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-3 py-3 shadow-[0_1px_3px_rgba(15,23,42,0.01)] sm:px-5 sm:py-4.5">
+              <div className="flex items-center gap-3">
               <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-xs font-black shadow-xs ${AVATAR_COLORS[activeThread?.id ?? 0 % AVATAR_COLORS.length]}`}>
                 {activeThread?.name ? activeThread.name.trim().slice(0, 1).toUpperCase() : "?"}
               </span>
@@ -250,6 +280,23 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                   )}
                 </p>
               </div>
+              {activeThread?.humanTaken && (
+                <button
+                  type="button"
+                  onClick={resumeBot}
+                  disabled={resumingBot}
+                  className="shrink-0 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] font-black text-orange-700 transition hover:bg-orange-100 disabled:opacity-60"
+                >
+                  {resumingBot ? "ກຳລັງປຸກ AI..." : "ໃຫ້ AI ກັບມາຕອບ"}
+                </button>
+              )}
+              </div>
+              {(activeThread?.humanTaken || botNotice) && (
+                <div className={`rounded-xl px-3 py-2 text-xs font-semibold leading-5 ${botNotice?.includes("ຜິດ") || botNotice?.includes("ບໍ່") ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-600"}`}>
+                  {botNotice ??
+                    "AI ຖືກປິດສຳລັບ thread ນີ້ ເພາະພະນັກງານຮັບຊ່ວງແລ້ວ. ກົດປຸ່ມເພື່ອໃຫ້ AI ກັບມາຕອບ."}
+                </div>
+              )}
             </div>
 
             {/* Message History Viewport */}
@@ -278,6 +325,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                         </div>
                         {/* Timestamp bubble */}
                         <span className={`block mt-1 text-[9px] font-bold text-slate-400 ${isAdminMsg ? "text-right" : "text-left"}`}>
+                          {m.isBot ? "AI · " : ""}
                           {new Date(m.createdAt).toLocaleTimeString("lo-LA", { hour: "2-digit", minute: "2-digit", hour12: false })}
                         </span>
                       </div>

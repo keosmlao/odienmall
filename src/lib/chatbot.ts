@@ -1,12 +1,13 @@
 import "server-only";
 import { query } from "./db";
-import { aiComplete, aiConfigured, type AiMessage } from "./ai";
+import { aiCompleteDetailed, aiConfigured, type AiMessage } from "./ai";
 import { postMessage, getThreadMessages, getThreadCustomerCode, countBotReplies } from "./chat";
 import { getOrdersByCustomer, getOrderByNo, getOrderNosByPhone, getOrderTms } from "./orders";
 import { STATUS_LABEL, type OrderStatus } from "./order-constants";
-import { getChatBotEnabled } from "./settings";
+import { getAiKnowledge, getChatBotEnabled } from "./settings";
 import { activeFlashMap } from "./flash";
 import { FAQS, POLICIES } from "./pages-content";
+import { logAiChat } from "./ai-logs";
 
 export { aiConfigured };
 
@@ -71,6 +72,24 @@ async function findProducts(text: string): Promise<string> {
     .join("\n");
 }
 
+export interface ChatBotTestResult {
+  ok: boolean;
+  provider: "openai" | "anthropic" | "none";
+  model: string | null;
+  botEnabled: boolean;
+  hasDbContext: boolean;
+  reply: string | null;
+  error: string | null;
+}
+
+function activeProvider(): Pick<ChatBotTestResult, "provider" | "model"> {
+  const openAiModel = process.env.OPENAI_MODEL?.trim() || "gpt-5.4-mini";
+  const anthropicModel = process.env.ANTHROPIC_MODEL?.trim() || "claude-haiku-4-5-20251001";
+  if (process.env.OPENAI_API_KEY?.trim()) return { provider: "openai", model: openAiModel };
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return { provider: "anthropic", model: anthropicModel };
+  return { provider: "none", model: null };
+}
+
 const ORDER_RE = /\b((?:OM|CAE)[A-Z0-9@]+)\b/i;
 const PHONE_RE = /(\d[\d\s-]{6,}\d)/;
 
@@ -128,7 +147,13 @@ async function findOrders(threadId: number, text: string): Promise<string> {
   return lines.join("\n");
 }
 
-function buildSystem(productContext: string, orderContext: string): string {
+async function getExtraKnowledge(): Promise<string> {
+  const k = await getAiKnowledge().catch(() => null);
+  if (!k?.enabled) return "";
+  return k.content.trim().slice(0, 8000);
+}
+
+function buildSystem(productContext: string, orderContext: string, extraKnowledge = ""): string {
   const faq = FAQS.map((f) => `ຖາມ: ${f.q}\nຕอບ: ${f.a}`).join("\n\n");
   const policies = Object.values(POLICIES)
     .map((p) => `${p.title}:\n${p.body.join("\n")}`)
@@ -141,16 +166,100 @@ function buildSystem(productContext: string, orderContext: string): string {
 - ການຮ້ອງຮຽນ, ຄືນ/ຄືນເງິນສະເພาະบุคคล, ຫຼື ເລື່ອງທີ່ບໍ່ມີໃນຂໍ້ມູນ — ຫຼື ລູກຄ້າຂໍລົມກັບพนักงาน — ໃຫ້ຕอບສັ້ນໆ ແລ້ວຕໍ່ທ້າຍດ້ວຍ ${HANDOFF}
 - ບໍ່ຮູ້ ກໍບອກວ່າບໍ່ຮູ້ ແລ້ວສົ່ງຕໍ່ພະນັກງານ (${HANDOFF}).
 
+- ຫ້າມສັນຍາສ່ວນຫຼຸດ/ລາຄາພິເສດ/ຂອງແຖມ ຖ້າບໍ່ມີໃນຂໍ້ມູນ.
+- ຫ້າມຢືນຢັນວັນຈັດສົ່ງ, ການຮັບປະກັນສະເພາະ, ຫຼື ການຄືນເງິນແທນພະນັກງານ.
+- ຫ້າມຂໍ ຫຼື ສະແດງຂໍ້ມູນລັບ: password, OTP, ເລກບັດ, token, API key.
+- ຖ້າລູກຄ້າສົ່ງເລກໂທ ຫຼື ເລກອໍເດີ ໃຫ້ໃຊ້ເພື່ອຕິດຕາມເທົ່ານັ້ນ; ຢ່າເປີດເຜີຍຂໍ້ມູນສ່ວນຕົວອື່ນ.
+
 ຂໍ້ມູນຮ້ານ:
 ${SHOP_INFO}
 
 ${orderContext ? `ອໍເດີຂອງລູກຄ້າຄົນນີ້ (ຈາກລະບົບ):\n${orderContext}\n` : ""}
 ${productContext ? `ສິນຄ້າທີ່ກ່ຽວຂ້ອງກັບຄຳຖາມ (ຈາກລະບົບ):\n${productContext}\n` : ""}
+${extraKnowledge ? `ຄວາມຮູ້/FAQ ພິເສດຈາກ admin:\n${extraKnowledge}\n` : ""}
 ຄຳຖາມ-ຄຳຕອບ ທີ່ພົບເລື້ອຍ:
 ${faq}
 
 ນະໂຍບາຍ:
 ${policies}`;
+}
+
+/** Manager-facing smoke test for /admin/settings: validates toggle, provider,
+ * DB grounding and the actual AI API in one call. */
+export async function testChatBot(question: string): Promise<ChatBotTestResult> {
+  const provider = activeProvider();
+  const botEnabled = await getChatBotEnabled().catch(() => true);
+  const text = question.trim() || "ມີຕູ້ເຢັນຫຍັງແນະນຳແດ່";
+  if (!aiConfigured()) {
+    return {
+      ok: false,
+      ...provider,
+      botEnabled,
+      hasDbContext: false,
+      reply: null,
+      error: "ຍັງບໍ່ມີ OPENAI_API_KEY ຫຼື ANTHROPIC_API_KEY",
+    };
+  }
+  if (!botEnabled) {
+    return {
+      ok: false,
+      ...provider,
+      botEnabled,
+      hasDbContext: false,
+      reply: null,
+      error: "bot ຖືກປິດໃນ /admin/settings",
+    };
+  }
+
+  try {
+    const productContext = await findProducts(text);
+    const system = buildSystem(productContext, "", await getExtraKnowledge());
+    const ai = await aiCompleteDetailed(system, [{ role: "user", content: text }], {
+      maxTokens: 350,
+      temperature: 0.2,
+    });
+    const reply = ai.text;
+    await logAiChat({
+      event: "settings.test",
+      provider: ai.provider,
+      model: ai.model,
+      ok: !!reply,
+      hasDbContext: !!productContext,
+      latencyMs: ai.latencyMs,
+      prompt: text,
+      reply,
+      error: ai.error,
+    });
+    if (!reply) {
+      return {
+        ok: false,
+        provider: ai.provider,
+        model: ai.model,
+        botEnabled,
+        hasDbContext: !!productContext,
+        reply: null,
+        error: ai.error ?? "AI API ບໍ່ສົ່ງຄຳຕອບກັບມາ",
+      };
+    }
+    return {
+      ok: true,
+      provider: ai.provider,
+      model: ai.model,
+      botEnabled,
+      hasDbContext: !!productContext,
+      reply: reply.replaceAll(HANDOFF, "").trim() || reply,
+      error: null,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      ...provider,
+      botEnabled,
+      hasDbContext: false,
+      reply: null,
+      error: e instanceof Error ? e.message : "ທົດສອບ AI ບໍ່ສຳເລັດ",
+    };
+  }
 }
 
 async function setHumanTaken(threadId: number): Promise<void> {
@@ -187,7 +296,7 @@ export async function botReply(threadId: number, latestText: string): Promise<vo
       findProducts(latestText),
       findOrders(threadId, latestText),
     ]);
-    const system = buildSystem(productContext, orderContext);
+    const system = buildSystem(productContext, orderContext, await getExtraKnowledge());
     const messages: AiMessage[] = recent.map((m) => ({
       role: m.sender === "customer" ? "user" : "assistant",
       content: m.body,
@@ -196,7 +305,20 @@ export async function botReply(threadId: number, latestText: string): Promise<vo
       messages.push({ role: "user", content: latestText });
     }
 
-    const reply = await aiComplete(system, messages);
+    const ai = await aiCompleteDetailed(system, messages);
+    const reply = ai.text;
+    await logAiChat({
+      threadId,
+      event: "bot.reply",
+      provider: ai.provider,
+      model: ai.model,
+      ok: !!reply,
+      hasDbContext: !!productContext || !!orderContext,
+      latencyMs: ai.latencyMs,
+      prompt: latestText,
+      reply,
+      error: ai.error,
+    });
     if (!reply) {
       // Transient AI outage (no credits / timeout / rate limit). Do NOT mark the
       // thread human_taken — that would permanently silence the bot even after the

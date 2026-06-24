@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Lao } from "next/font/google";
+import DisableMobileZoom from "@/components/DisableMobileZoom";
 import "./globals.css";
 import { SITE_URL } from "@/lib/config";
 
@@ -37,12 +38,22 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="lo" className={`${notoLao.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full" suppressHydrationWarning>{children}</body>
+      <body className="min-h-full" suppressHydrationWarning>
+        <DisableMobileZoom />
+        {children}
+      </body>
     </html>
   );
 }

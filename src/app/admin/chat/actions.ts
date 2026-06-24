@@ -7,9 +7,11 @@ import {
   postMessage,
   markRead,
   setHumanTaken,
+  releaseHumanTaken,
   type ChatMessage,
   type ChatThreadRow,
 } from "@/lib/chat";
+import { botReply } from "@/lib/chatbot";
 
 export async function adminListThreads(search?: string): Promise<ChatThreadRow[]> {
   if (!(await isAdmin())) return [];
@@ -39,6 +41,24 @@ export async function adminReply(threadId: number, body: string): Promise<AdminR
     // A human admin has taken over → silence the AI assistant on this thread.
     await setHumanTaken(threadId).catch(() => {});
     return { ok: true, message };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+export type ResumeBotResult = { ok: true } | { ok: false; error: string };
+
+/** Allow AI to answer a thread again, then try answering the latest customer message. */
+export async function adminResumeBot(threadId: number): Promise<ResumeBotResult> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await releaseHumanTaken(threadId);
+    const msgs = await getThreadMessages(threadId, 0);
+    const latestCustomer = [...msgs].reverse().find((m) => m.sender === "customer");
+    if (latestCustomer) {
+      await botReply(threadId, latestCustomer.body).catch(() => {});
+    }
+    return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
   }

@@ -203,7 +203,7 @@ export default function CartPage() {
       <RecentlyViewed title="ສິນຄ້າແນະນຳຈາກທີ່ທ່ານເບິ່ງ" />
 
       {/* Mobile sticky checkout bar (Lazada-style) */}
-      <div className="fixed inset-x-0 bottom-[53px] z-30 flex items-center gap-3 border-t border-orange-100 bg-white/95 px-4 py-2.5 shadow-[0_-6px_20px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(53px+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 border-t border-orange-100 bg-white/95 px-4 py-2.5 shadow-[0_-6px_20px_rgba(15,23,42,0.10)] backdrop-blur lg:hidden">
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-semibold text-slate-400">
             ລວມ ({totalQty}){memberDiscount > 0 ? ` · ຫຼຸດ ${member.pct}%` : ""}

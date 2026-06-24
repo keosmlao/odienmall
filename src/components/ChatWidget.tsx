@@ -29,11 +29,14 @@ const SUGGESTIONS = [
 export default function ChatWidget() {
   const pathname = usePathname();
   const productPage = pathname.startsWith("/product/");
-  const launcherBottom = productPage ? "bottom-32 sm:bottom-6" : "bottom-20 sm:bottom-6";
+  const launcherBottom = productPage
+    ? "bottom-[calc(8rem+env(safe-area-inset-bottom))] sm:bottom-6"
+    : "bottom-[calc(5rem+env(safe-area-inset-bottom))] sm:bottom-6";
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [unseen, setUnseen] = useState(0);
   const lastId = useRef(0);
   const tmpId = useRef(0);
@@ -84,6 +87,7 @@ export default function ChatWidget() {
     const text = raw.trim();
     if (!text || sending) return;
     setSending(true);
+    setError(null);
     setDraft("");
     // Optimistically show the customer's message right away (negative temp id).
     const tempIdVal = (tmpId.current -= 1);
@@ -100,6 +104,7 @@ export default function ChatWidget() {
       if (r.messages.length) merge(r.messages);
     } else {
       setDraft(text);
+      setError(res.error);
     }
   }
 
@@ -130,7 +135,7 @@ export default function ChatWidget() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed inset-x-2 bottom-2 z-50 flex h-[min(82dvh,34rem)] max-h-[calc(100dvh-1rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-auto sm:bottom-6 sm:right-4 sm:h-[28rem] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
+        <div className="fixed inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-50 flex h-[min(82dvh,34rem)] max-h-[calc(100dvh-1rem)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-auto sm:bottom-6 sm:right-4 sm:h-[28rem] sm:w-[22rem] sm:max-w-[calc(100vw-2rem)]">
           <div className="flex shrink-0 items-center justify-between gap-3 bg-brand px-3 py-3 text-white sm:px-4">
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight">ແຊັດກັບຮ້ານ OdienMall</p>
@@ -226,6 +231,11 @@ export default function ChatWidget() {
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
             </button>
           </form>
+          {error && (
+            <p className="border-t border-rose-100 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+              {error}
+            </p>
+          )}
         </div>
       )}
     </>

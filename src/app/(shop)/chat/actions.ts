@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { getSession } from "@/lib/auth";
 import {
   getOrCreateThread,
@@ -12,6 +13,7 @@ import {
   type ChatMessage,
 } from "@/lib/chat";
 import { botReply } from "@/lib/chatbot";
+import { checkAndRecordChatMessage } from "@/lib/chat-rate-limit";
 
 const GUEST_COOKIE = "om_chat";
 
@@ -48,6 +50,18 @@ export async function sendChatMessage(body: string, name?: string): Promise<Send
   if (!text) return { ok: false, error: "ກະລຸນາພິມຂໍ້ຄວາມ" };
   try {
     const id = await identity();
+    const h = await headers();
+    const ip =
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      h.get("x-real-ip")?.trim() ||
+      "unknown";
+    const rate = checkAndRecordChatMessage(`${id.custKey}:${ip}`);
+    if (!rate.allowed) {
+      return {
+        ok: false,
+        error: `ສົ່ງຖີ່ເກີນໄປ ກະລຸນາລໍຖ້າ ${Math.ceil(rate.retryAfterSec / 60)} ນາທີ`,
+      };
+    }
     const threadId = await getOrCreateThread(id.custKey, {
       name: name?.trim() || id.name,
       customerCode: id.customerCode,

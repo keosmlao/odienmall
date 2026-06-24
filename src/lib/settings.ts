@@ -415,3 +415,59 @@ export async function setChatBotEnabled(enabled: boolean, by?: string): Promise<
     [enabled, by ?? null],
   );
 }
+
+// ---------------------------------------------------------------------------
+// Manager-editable AI knowledge. This is appended to the chatbot system prompt
+// so staff can update FAQs/policies without code changes.
+// ---------------------------------------------------------------------------
+
+export interface AiKnowledge {
+  enabled: boolean;
+  content: string;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+const AI_KNOWLEDGE_DEFAULT: AiKnowledge = {
+  enabled: true,
+  content: "",
+  updatedAt: null,
+  updatedBy: null,
+};
+
+export async function getAiKnowledge(): Promise<AiKnowledge> {
+  try {
+    const row = await queryOne<{
+      enabled: boolean;
+      content: string;
+      updatedAt: Date | null;
+      updatedBy: string | null;
+    }>(
+      `select enabled, content, updated_at as "updatedAt", updated_by as "updatedBy"
+         from odg_ecom.ai_knowledge where id = 1`,
+    );
+    return row
+      ? {
+          enabled: row.enabled,
+          content: row.content ?? "",
+          updatedAt: row.updatedAt?.toISOString() ?? null,
+          updatedBy: row.updatedBy,
+        }
+      : AI_KNOWLEDGE_DEFAULT;
+  } catch {
+    return AI_KNOWLEDGE_DEFAULT;
+  }
+}
+
+export async function setAiKnowledge(next: { enabled: boolean; content: string }, by?: string): Promise<void> {
+  await query(
+    `insert into odg_ecom.ai_knowledge (id, enabled, content, updated_by, updated_at)
+       values (1, $1, $2, $3, now())
+     on conflict (id) do update
+       set enabled = excluded.enabled,
+           content = excluded.content,
+           updated_by = excluded.updated_by,
+           updated_at = now()`,
+    [next.enabled, next.content.trim(), by ?? null],
+  );
+}

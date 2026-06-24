@@ -15,8 +15,12 @@ import {
   setHomePromotion,
   setWebGroups,
   setChatBotEnabled,
+  setAiKnowledge,
 } from "@/lib/settings";
 import { logAudit } from "@/lib/audit";
+import { testChatBot, type ChatBotTestResult } from "@/lib/chatbot";
+import { releaseAllHumanTaken } from "@/lib/chat";
+import { deleteAiLogsOlderThan } from "@/lib/ai-logs";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -28,6 +32,71 @@ export async function saveChatBot(enabled: boolean): Promise<Result> {
     await logAudit({ action: "settings.chatbot", detail: enabled ? "on" : "off" });
     revalidatePath("/admin/settings");
     return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+}
+
+export async function testChatBotFromSettings(question: string): Promise<ChatBotTestResult> {
+  if (!(await isManager())) {
+    return {
+      ok: false,
+      provider: "none",
+      model: null,
+      botEnabled: false,
+      hasDbContext: false,
+      reply: null,
+      error: DENIED,
+    };
+  }
+  const q = String(question ?? "").trim().slice(0, 500);
+  const result = await testChatBot(q);
+  await logAudit({
+    action: "settings.chatbot.test",
+    detail: `${result.ok ? "ok" : "failed"}:${result.provider}:${result.model ?? "-"}`,
+  });
+  return result;
+}
+
+export type ResetChatBotHandoversResult = { ok: true; count: number } | { ok: false; error: string };
+
+export async function resetChatBotHandovers(): Promise<ResetChatBotHandoversResult> {
+  if (!(await isManager())) return { ok: false, error: DENIED };
+  try {
+    const count = await releaseAllHumanTaken();
+    await logAudit({ action: "settings.chatbot.resetHandovers", detail: `${count}` });
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/chat");
+    return { ok: true, count };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+}
+
+export async function saveAiKnowledge(input: { enabled: boolean; content: string }): Promise<Result> {
+  if (!(await isManager())) return { ok: false, error: DENIED };
+  const content = String(input.content ?? "").trim();
+  if (content.length > 12000) return { ok: false, error: "AI knowledge ຍາວເກີນ 12,000 ຕົວອັກສອນ" };
+  try {
+    await setAiKnowledge({ enabled: !!input.enabled, content }, (await getAdminSession())?.code);
+    await logAudit({ action: "settings.aiKnowledge", detail: input.enabled ? `enabled:${content.length}` : "disabled" });
+    revalidatePath("/admin/settings");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+}
+
+export type CleanupAiLogsResult = { ok: true; count: number } | { ok: false; error: string };
+
+export async function cleanupAiLogs(days = 30): Promise<CleanupAiLogsResult> {
+  if (!(await isManager())) return { ok: false, error: DENIED };
+  try {
+    const count = await deleteAiLogsOlderThan(days);
+    await logAudit({ action: "settings.aiLogs.cleanup", detail: `${days}:${count}` });
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/status");
+    return { ok: true, count };
   } catch (e) {
     return { ok: false, error: errMsg(e) };
   }
