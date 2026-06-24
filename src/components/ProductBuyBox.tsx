@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/lib/cart-context";
 import { useT } from "@/lib/i18n-context";
+import { formatKip } from "@/lib/format";
+import ProductImage from "./ProductImage";
 import type { Product } from "@/lib/types";
 
 export default function ProductBuyBox({ product }: { product: Product }) {
@@ -11,7 +13,21 @@ export default function ProductBuyBox({ product }: { product: Product }) {
   const t = useT();
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [stuck, setStuck] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
   const outOfStock = product.stock <= 0;
+
+  // Desktop: show a sticky add-to-cart bar once the main buy buttons scroll out.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < 0),
+      { threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   function handleAdd() {
     add(
@@ -63,7 +79,7 @@ export default function ProductBuyBox({ product }: { product: Product }) {
         </div>
       </div>
 
-      <div className="hidden gap-3 sm:grid sm:grid-cols-2">
+      <div ref={boxRef} className="hidden gap-3 sm:grid sm:grid-cols-2">
         <button
           onClick={handleAdd}
           disabled={outOfStock}
@@ -93,6 +109,31 @@ export default function ProductBuyBox({ product }: { product: Product }) {
         >
           {t("common.go_to_cart")}
         </Link>
+      </div>
+
+      {/* Desktop sticky buy bar — appears after the buy box scrolls away */}
+      <div
+        className={`fixed inset-x-0 bottom-0 z-40 hidden border-t border-slate-200 bg-white/95 shadow-[0_-6px_20px_rgba(15,23,42,0.10)] backdrop-blur transition-transform duration-300 sm:block ${
+          stuck ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+        <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 py-3">
+          <ProductImage code={product.code} name={product.name} brand={product.brandName} imageUrl={product.imageUrl} rounded="rounded-lg" className="h-12 w-12 border border-slate-100 object-contain" />
+          <div className="min-w-0 flex-1">
+            <div className="line-clamp-1 text-sm font-bold text-slate-800">{product.name}</div>
+            <div className="text-lg font-black text-orange-600">{formatKip(product.price)}</div>
+          </div>
+          <button
+            onClick={handleAdd}
+            disabled={outOfStock}
+            className="h-11 rounded-sm border border-orange-500 bg-orange-50 px-6 text-sm font-bold text-orange-600 transition hover:bg-orange-100 disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400"
+          >
+            {outOfStock ? t("common.out_of_stock") : justAdded ? `✓ ${t("common.added")}` : t("common.add_to_cart")}
+          </button>
+          <Link href="/cart" className="h-11 rounded-sm bg-gradient-to-r from-orange-500 to-rose-500 px-6 text-sm font-bold leading-[44px] text-white">
+            {t("common.go_to_cart")}
+          </Link>
+        </div>
       </div>
     </div>
   );

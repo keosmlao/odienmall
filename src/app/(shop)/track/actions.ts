@@ -1,28 +1,81 @@
 "use server";
 
-import { getOrderByNo, getOrderNosByPhone, STATUS_LABEL, type OrderStatus, type OrderRecord } from "@/lib/orders";
+import {
+  getOrderByNo,
+  getOrderNosByPhone,
+  getOrderTms,
+  STATUS_LABEL,
+  type OrderStatus,
+  type OrderRecord,
+  type OrderTms,
+} from "@/lib/orders";
+
+export interface TrackedShipment {
+  car: string | null;
+  dateLogistic: string | null;
+  sentStart: string | null;
+  sentEnd: string | null;
+  deliveryCondition: string | null;
+}
 
 export interface TrackedOrder {
   orderNo: string;
   status: string;
   statusLabel: string;
   paymentMethod: string;
+  shippingMethod: string;
   createdAt: string;
+  subtotal: number;
+  shippingFee: number;
   total: number;
-  items: { name: string; qty: number }[];
+  items: {
+    code: string;
+    name: string;
+    unit: string | null;
+    qty: number;
+    unitPrice: number | null;
+    lineTotal: number;
+  }[];
+  shipment: TrackedShipment | null;
 }
 
 export type TrackResult = { ok: true; orders: TrackedOrder[] } | { ok: false; error: string };
 
-function toTracked(o: OrderRecord): TrackedOrder {
+function safeShipment(tms: OrderTms | null): TrackedShipment | null {
+  if (!tms) return null;
+  return {
+    car: tms.car,
+    dateLogistic: tms.dateLogistic,
+    sentStart: tms.sentStart,
+    sentEnd: tms.sentEnd,
+    deliveryCondition: tms.deliveryCondition,
+  };
+}
+
+async function toTracked(o: OrderRecord): Promise<TrackedOrder> {
+  const shipment = ["shipping", "completed"].includes(o.status)
+    ? await getOrderTms(o.orderNo).catch(() => null)
+    : null;
+
   return {
     orderNo: o.orderNo,
     status: o.status,
     statusLabel: STATUS_LABEL[o.status as OrderStatus] ?? o.status,
     paymentMethod: o.paymentMethod,
+    shippingMethod: o.shippingMethod,
     createdAt: o.createdAt,
+    subtotal: o.subtotal,
+    shippingFee: o.shippingFee,
     total: o.subtotal + o.shippingFee,
-    items: o.items.map((i) => ({ name: i.productName, qty: i.qty })),
+    items: o.items.map((i) => ({
+      code: i.productCode,
+      name: i.productName,
+      unit: i.unit,
+      qty: i.qty,
+      unitPrice: i.unitPrice,
+      lineTotal: i.lineTotal,
+    })),
+    shipment: safeShipment(shipment),
   };
 }
 
@@ -37,16 +90,16 @@ export async function trackOrder(queryStr: string): Promise<TrackResult> {
   try {
     // Try as an order number first.
     const byNo = await getOrderByNo(q);
-    if (byNo) return { ok: true, orders: [toTracked(byNo)] };
+    if (byNo) return { ok: true, orders: [await toTracked(byNo)] };
 
     // Else treat as a phone number.
     const digits = q.replace(/\D/g, "");
     if (digits.length < 6) return { ok: false, error: "ບໍ່ພົບ — ກວດເລກອໍເດີ ຫຼື ໃສ່ເບີໂທໃຫ້ຄົບ" };
     const nos = await getOrderNosByPhone(digits);
     if (nos.length === 0) return { ok: false, error: "ບໍ່ພົບອໍເດີສຳລັບເບີນີ້" };
-    const orders = (await Promise.all(nos.map((n) => getOrderByNo(n))))
-      .filter((o): o is OrderRecord => o != null)
-      .map(toTracked);
+    const records = (await Promise.all(nos.map((n) => getOrderByNo(n))))
+      .filter((o): o is OrderRecord => o != null);
+    const orders = await Promise.all(records.map(toTracked));
     if (orders.length === 0) return { ok: false, error: "ບໍ່ພົບອໍເດີ" };
     return { ok: true, orders };
   } catch {

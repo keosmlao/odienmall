@@ -24,6 +24,7 @@ export default function CheckoutForm({
   savedAddresses = [],
   offeredMethods = OFFERED_PAYMENT_METHODS as unknown as PaymentMethod[],
   isAffiliate = false,
+  vouchers = [],
 }: {
   loggedIn?: boolean;
   initialName?: string;
@@ -31,6 +32,7 @@ export default function CheckoutForm({
   savedAddresses?: AddressRecord[];
   offeredMethods?: PaymentMethod[];
   isAffiliate?: boolean;
+  vouchers?: { code: string; kind: "percent" | "amount"; value: number; minSubtotal: number }[];
 }) {
   const { items, totalPrice, totalQty, clear, ready } = useCart();
   const router = useRouter();
@@ -104,9 +106,10 @@ export default function CheckoutForm({
   const [voucherErr, setVoucherErr] = useState<string | null>(null);
   const [voucherChecking, setVoucherChecking] = useState(false);
 
-  async function applyVoucher() {
-    const code = voucherInput.trim();
+  async function applyVoucher(codeArg?: string) {
+    const code = (codeArg ?? voucherInput).trim();
     if (!code || voucherChecking) return;
+    if (codeArg) setVoucherInput(codeArg);
     setVoucherChecking(true);
     setVoucherErr(null);
     const res = await previewVoucher(code, items.map((i) => ({ code: i.code, qty: i.qty })));
@@ -576,7 +579,7 @@ export default function CheckoutForm({
                   />
                   <button
                     type="button"
-                    onClick={applyVoucher}
+                    onClick={() => applyVoucher()}
                     disabled={voucherChecking || !voucherInput.trim()}
                     className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-950 disabled:bg-slate-200 disabled:text-slate-400"
                   >
@@ -584,6 +587,26 @@ export default function CheckoutForm({
                   </button>
                 </div>
                 {voucherErr && <p className="mt-1.5 text-[11px] font-semibold text-rose-500">{voucherErr}</p>}
+                {/* Lazada-style voucher picker — tap an available voucher to apply */}
+                {vouchers.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {vouchers.map((v) => (
+                      <button
+                        key={v.code}
+                        type="button"
+                        onClick={() => applyVoucher(v.code)}
+                        disabled={voucherChecking}
+                        className="inline-flex items-center gap-1 rounded-md border border-dashed border-rose-300 bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"
+                        title={v.minSubtotal > 0 ? `ຍອດຂັ້ນຕ່ຳ ${formatKip(v.minSubtotal)}` : undefined}
+                      >
+                        🎟 {v.code}
+                        <span className="font-normal text-rose-400">
+                          {v.kind === "percent" ? `−${v.value}%` : `−${formatKip(v.value)}`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>

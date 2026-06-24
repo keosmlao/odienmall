@@ -2,11 +2,11 @@
 // `icon` is an SVG path string; `tone` colours the icon chip.
 
 const CARD_STYLE: Record<string, string> = {
-  brand: "border-l-[3px] border-l-orange-500 bg-gradient-to-br from-orange-50/15 via-white to-white hover:shadow-orange-500/8 hover:border-orange-500",
-  green: "border-l-[3px] border-l-emerald-500 bg-gradient-to-br from-emerald-50/15 via-white to-white hover:shadow-emerald-500/8 hover:border-emerald-500",
-  amber: "border-l-[3px] border-l-amber-500 bg-gradient-to-br from-amber-50/15 via-white to-white hover:shadow-amber-500/8 hover:border-amber-500",
-  blue: "border-l-[3px] border-l-blue-500 bg-gradient-to-br from-blue-50/15 via-white to-white hover:shadow-blue-500/8 hover:border-blue-500",
-  slate: "border-l-[3px] border-l-slate-400 bg-gradient-to-br from-slate-50/15 via-white to-white hover:shadow-slate-400/8 hover:border-slate-400",
+  brand: "hover:border-orange-200",
+  green: "hover:border-emerald-200",
+  amber: "hover:border-amber-200",
+  blue: "hover:border-blue-200",
+  slate: "hover:border-slate-300",
 };
 
 const ICON_STYLE: Record<string, string> = {
@@ -34,7 +34,7 @@ export default function StatCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-100 p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+      className={`rounded-xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition ${
         CARD_STYLE[tone] ?? CARD_STYLE.slate
       }`}
     >
@@ -48,7 +48,7 @@ export default function StatCard({
           </span>
         )}
       </div>
-      <div className={`mt-4 text-2xl font-black tracking-tight sm:text-[1.8rem] leading-none ${accent ? "text-price" : "text-slate-900"}`}>
+      <div className={`mt-3 text-xl font-black leading-none tracking-tight sm:text-2xl ${accent ? "text-price" : "text-slate-900"}`}>
         {value}
       </div>
       {hint && <div className="mt-2 text-xs font-semibold text-slate-400">{hint}</div>}

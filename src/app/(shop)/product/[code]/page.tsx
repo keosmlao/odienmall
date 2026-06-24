@@ -259,6 +259,23 @@ export default async function ProductPage({
           <div className="relative z-10">
             <ProductAlertButton productCode={product.code} />
           </div>
+
+          {/* Lazada-style trust badges */}
+          <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 sm:grid-cols-4">
+            {[
+              { icon: "M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", t: "ສິນຄ້າແທ້ 100%" },
+              { icon: "M3 6h11v11H3zM14 10h4l3 3v4h-7zM7 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4M18 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4", t: "ສົ່ງໄວທົ່ວລາວ" },
+              { icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", t: "ຮັບປະກັນຄຸນນະພາບ" },
+              { icon: "M3 12a9 9 0 1 0 9-9 9 9 0 0 0-9 9zM3 12H1m11-7V3M3 7l9 5 9-5", t: "ຄືນສິນຄ້າໄດ້" },
+            ].map((b) => (
+              <div key={b.t} className="flex items-center gap-2 text-[11px] font-semibold text-slate-500">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={b.icon} /></svg>
+                </span>
+                {b.t}
+              </div>
+            ))}
+          </div>
         </div>
 
         <aside className="hidden h-fit border-l border-slate-100 pl-5 lg:block">

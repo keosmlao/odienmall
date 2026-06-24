@@ -209,26 +209,26 @@ export default function AdminNav({
         href={n.href}
         onClick={onClick}
         aria-current={active ? "page" : undefined}
-        className={`group relative flex shrink-0 items-center gap-3 text-sm font-semibold transition duration-200 ${
+        className={`group relative flex shrink-0 items-center gap-2.5 text-[13px] font-semibold transition duration-200 ${
           active
             ? isMobile
-              ? "rounded-xl bg-orange-500 px-3 py-2 text-white shadow-lg shadow-orange-950/20"
-              : "rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-3 py-2.5 text-white shadow-lg shadow-orange-950/20"
+              ? "rounded-lg bg-orange-500 px-2.5 py-1.5 text-white shadow-sm"
+              : "rounded-lg bg-orange-50 px-2.5 py-2 text-orange-700"
             : isMobile
-              ? "rounded-xl px-3 py-2 text-slate-400 hover:bg-white/5 hover:text-white"
-              : "rounded-xl px-3 py-2.5 text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
+              ? "rounded-lg px-2.5 py-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              : "rounded-lg px-2.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         }`}
       >
         <span
-          className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition ${
             active
-              ? "bg-white/20 text-white"
-              : "bg-slate-800/80 text-slate-500 group-hover:bg-slate-700/80 group-hover:text-slate-200"
-          } ${isMobile ? "h-7 w-7" : ""}`}
+              ? isMobile ? "bg-white/20 text-white" : "bg-orange-500 text-white"
+              : "bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700"
+          } ${isMobile ? "h-6 w-6" : ""}`}
         >
           <svg
             viewBox="0 0 24 24"
-            className="h-[18px] w-[18px]"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
             strokeWidth={1.8}
@@ -261,23 +261,20 @@ export default function AdminNav({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 flex-col overflow-hidden border-r border-white/5 bg-[#0b1120] lg:flex print:!hidden">
-        <div className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full bg-orange-500/[0.08] blur-3xl" />
-        <div className="pointer-events-none absolute -right-20 top-1/3 h-52 w-52 rounded-full bg-blue-500/[0.05] blur-3xl" />
-
-        <div className="relative border-b border-white/[0.06] px-5 py-5">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex print:!hidden">
+        <div className="border-b border-slate-100 px-5 py-5">
           <Link
             href="/admin/dashboard"
-            className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-3 shadow-2xl shadow-black/10 transition hover:border-orange-500/20 hover:bg-white/[0.07]"
+            className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 transition hover:border-orange-200 hover:bg-orange-50/40"
           >
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white shadow-lg shadow-black/20">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-slate-100">
               <Image src="/odm.png" alt="ODIENMALL" width={52} height={38} className="h-8 w-auto object-contain" priority />
             </span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-sm font-black tracking-[0.12em] text-white">ODIENMALL</span>
-              <span className="mt-1 block text-[10px] font-semibold tracking-wide text-slate-500">ADMIN PORTAL</span>
+              <span className="block text-sm font-black tracking-[0.12em] text-slate-900">ODIENMALL</span>
+              <span className="mt-1 block text-[10px] font-semibold tracking-wide text-slate-400">ADMIN PORTAL</span>
             </span>
-            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]" title="Online" />
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="Online" />
           </Link>
         </div>
 
@@ -289,16 +286,15 @@ export default function AdminNav({
               <section
                 key={group}
                 aria-labelledby={headingId}
-                className={groupIndex === 0 ? "pb-4" : "border-t border-white/[0.05] py-4"}
+                className={groupIndex === 0 ? "pb-3" : "border-t border-slate-100 py-3"}
               >
-                <div className="mb-2 flex items-center gap-2 px-3">
+                <div className="mb-2 px-3">
                   <h2
                     id={headingId}
-                    className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600"
+                    className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400"
                   >
                     {group}
                   </h2>
-                  <span className="h-px flex-1 bg-gradient-to-r from-slate-800 to-transparent" />
                 </div>
                 <div className="space-y-1">
                   {items.map((item) => renderLink(item, false))}
@@ -308,28 +304,28 @@ export default function AdminNav({
           })}
         </nav>
 
-        <div className="relative border-t border-white/[0.06] bg-black/10 p-4">
+        <div className="border-t border-slate-100 bg-slate-50/60 p-4">
           {adminName && (
-            <div className="mb-3 flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 text-sm font-black text-white shadow-lg shadow-orange-950/30">
+            <div className="mb-3 flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 text-sm font-black text-white shadow-sm shadow-orange-500/20">
                 {adminName.slice(0, 1)}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-bold text-slate-200">{adminName}</div>
-                <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <div className="truncate text-xs font-bold text-slate-700">{adminName}</div>
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   {role === "staff" ? "Staff" : "Manager"}
                 </div>
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-2">
-            <Link href="/" className="group flex items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-2.5 text-xs font-semibold text-slate-400 transition hover:border-white/10 hover:bg-white/[0.07] hover:text-white">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500 transition group-hover:text-orange-400" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg>
+            <Link href="/" className="group flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-xs font-semibold text-slate-500 transition hover:border-orange-300 hover:text-orange-600">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400 transition group-hover:text-orange-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg>
               <span>ໜ້າຮ້ານ</span>
             </Link>
-            <button onClick={logout} disabled={pending} className="group flex items-center justify-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2 py-2.5 text-xs font-semibold text-slate-400 transition hover:border-rose-500/20 hover:bg-rose-500/10 hover:text-rose-400 disabled:opacity-50">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500 transition group-hover:text-rose-400" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></svg>
+            <button onClick={logout} disabled={pending} className="group flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-xs font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400 transition group-hover:text-rose-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></svg>
               <span>{pending ? "..." : "ອອກລະບົບ"}</span>
             </button>
           </div>
@@ -337,25 +333,25 @@ export default function AdminNav({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#0b1120]/95 shadow-lg shadow-slate-950/10 backdrop-blur-xl lg:hidden print:hidden">
+      <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl lg:hidden print:hidden">
         <div className="flex items-center gap-3 px-4 py-3">
-          <Link href="/admin/dashboard" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white">
+          <Link href="/admin/dashboard" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white ring-1 ring-slate-100">
             <Image src="/odm.png" alt="ODIENMALL" width={42} height={30} className="h-6 w-auto object-contain" priority />
           </Link>
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">OdienMall Admin</span>
-            <span className="block truncate text-sm font-bold text-white">{activeItem?.label || "ລະບົບຈັດການ"}</span>
+            <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">OdienMall Admin</span>
+            <span className="block truncate text-sm font-bold text-slate-900">{activeItem?.label || "ລະບົບຈັດການ"}</span>
           </span>
           {adminName && (
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 text-xs font-black text-white shadow-lg shadow-orange-950/30">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 text-xs font-black text-white shadow-sm shadow-orange-500/20">
               {adminName.slice(0, 1)}
             </span>
           )}
-          <button onClick={logout} disabled={pending} className="shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] p-2 text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-400 disabled:opacity-50" aria-label="ອອກຈາກລະບົບ">
+          <button onClick={logout} disabled={pending} className="shrink-0 rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50" aria-label="ອອກຈາກລະບົບ">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></svg>
           </button>
         </div>
-        <nav className="thin-scroll flex items-center gap-1 overflow-x-auto border-t border-white/[0.04] px-3 py-2">{nav.map((n) => renderLink(n, true))}</nav>
+        <nav className="thin-scroll flex items-center gap-1 overflow-x-auto border-t border-slate-100 px-3 py-2">{nav.map((n) => renderLink(n, true))}</nav>
       </div>
     </>
   );

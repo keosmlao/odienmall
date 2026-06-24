@@ -19,7 +19,7 @@ export default function GroupTile({
   return (
     <Link
       href={`/group/${encodeURIComponent(mainCode)}/${encodeURIComponent(code)}`}
-      className="group flex min-w-0 flex-col items-center gap-2 bg-white p-3 text-center transition hover:relative hover:z-10 hover:-translate-y-0.5 hover:shadow-lg"
+      className="group flex min-w-0 flex-col items-center gap-2 p-3 text-center transition hover:-translate-y-0.5"
     >
       <span
         className="grid h-14 w-14 place-items-center rounded-full text-lg font-bold transition group-hover:scale-105"

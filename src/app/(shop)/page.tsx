@@ -129,17 +129,18 @@ export default async function HomePage() {
 
       {/* Categories (product groups — matches the top GroupMenu nav) */}
       {subTiles.length > 0 && (
-        <section className="!mb-4 !p-0">
-          <SectionHeader title="ໝວດໝູ່ສິນຄ້າ" href="/products" flush />
-          <div className="grid grid-cols-4 divide-x divide-y divide-slate-100 sm:grid-cols-6 lg:grid-cols-8">
+        <section className="!mb-4 overflow-hidden rounded-lg bg-white shadow-sm">
+          <SectionHeader title="ໝວດໝູ່ສິນຄ້າ" href="/products" />
+          <div className="grid grid-cols-4 gap-1 p-2 sm:grid-cols-6 sm:gap-2 sm:p-3 lg:grid-cols-8">
             {subTiles.slice(0, 16).map((s) => (
-              <GroupTile
-                key={s.code}
-                mainCode={s.mainCode}
-                code={s.code}
-                name={s.name}
-                productCount={s.productCount}
-              />
+              <div key={s.code} className="rounded-xl transition hover:bg-orange-50/60">
+                <GroupTile
+                  mainCode={s.mainCode}
+                  code={s.code}
+                  name={s.name}
+                  productCount={s.productCount}
+                />
+              </div>
             ))}
           </div>
         </section>
