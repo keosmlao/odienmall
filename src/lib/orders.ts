@@ -96,9 +96,10 @@ import { activeFlashMap } from "./flash";
 import { clearSavedCart } from "./cart-recovery";
 import { notify } from "./notifications";
 import { lineNotifyAdmin } from "./line-notify";
+import { sendSms, smsConfigured } from "./sms";
 export { ORDER_STATUSES, STATUS_LABEL, type OrderStatus };
-
-export class OrderError extends Error {}
+export { OrderError } from "./order-error";
+import { OrderError } from "./order-error";
 
 // ── Orders live in public.ic_trans (CAE flow) ───────────────────────────────
 // Legacy web orders used remark_5='web'; current orders use 'odienmall'.
@@ -221,9 +222,11 @@ export async function priceCart(items: OrderInputItem[]): Promise<{ lines: Order
             coalesce(i.balance_qty, 0)::text as balance,
             coalesce((
               select sum((item->>'qty')::numeric)
-                from odg_ecom.onepay_payments p,
-                     jsonb_array_elements(p.items) as item
+                from odg_ecom.onepay_payments p
+                left join public.ic_trans t on t.doc_no = p.sml_doc_no
+                cross join lateral jsonb_array_elements(p.items) as item
                where p.status in ('pending','paid')
+                 and coalesce(t.is_cancel, 0) = 0
                  and (item->>'code') = i.code
             ), 0)::text as pending
        from public.ic_inventory i
@@ -340,10 +343,11 @@ export async function createOrder(
     shippingFee,
   });
 
-  // For QR/transfer orders, notify admin LINE that a new order is pending payment.
-  if (customer.paymentMethod !== "cod") {
+  // Notify admin LINE on every new order.
+  {
+    const method = customer.paymentMethod === "cod" ? "COD" : "QR/ໂອນ";
     lineNotifyAdmin(
-      `\n[OdienMall] ອໍເດີໃໝ່ (ລໍຖ້າຊຳລະ QR)\nເລກ: ${orderNo}\nລູກຄ້າ: ${name} ${phone}\nຍອດ: ${subtotal.toLocaleString()} ₭`,
+      `\n[OdienMall] ອໍເດີໃໝ່ (${method})\nເລກ: ${orderNo}\nລູກຄ້າ: ${name} ${phone}\nຍອດ: ${subtotal.toLocaleString()} ₭`,
     ).catch(() => {});
   }
 
@@ -788,10 +792,11 @@ export async function syncDeliveryNotifications(): Promise<number> {
     order_no: string;
     sml_doc_no: string;
     cust_code: string | null;
+    phone: string | null;
     status: string;
     notified_status: string | null;
   }>(
-    `select p.order_no, p.sml_doc_no, ic.cust_code,
+    `select p.order_no, p.sml_doc_no, ic.cust_code, p.phone,
             (${STATUS_EXPR}) as status, p.notified_status
        from odg_ecom.onepay_payments p
        join public.ic_trans ic on ic.doc_no = p.sml_doc_no
@@ -812,6 +817,14 @@ export async function syncDeliveryNotifications(): Promise<number> {
           link: `/order/${r.order_no}`,
         }).catch(() => {});
         sent++;
+      }
+      // SMS the delivery update too (best-effort; needs SMS_API_URL).
+      if (smsConfigured() && r.phone) {
+        const text =
+          r.status === "shipping"
+            ? `OdienMall: ອໍເດີ ${r.sml_doc_no} ກຳລັງຈັດສົ່ງ 🚚`
+            : `OdienMall: ອໍເດີ ${r.sml_doc_no} ສົ່ງເຖິງແລ້ວ ຂອບໃຈທີ່ໃຊ້ບໍລິການ 🎉`;
+        sendSms(r.phone, text).catch(() => {});
       }
     }
     await query(`update odg_ecom.onepay_payments set notified_status = $2 where order_no = $1`, [
@@ -1278,12 +1291,15 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
         discount: pend.discount + pend.memberDiscount + pend.pointsUsed * POINT_VALUE,
         // COD orders are placed (awaiting fulfilment) the moment they're created,
         // even if the SML write is gated off and no ic_trans row exists yet.
+        // 'expired' = an unpaid transfer order auto-cancelled by the cron cleanup.
         status:
           pend.status === "paid"
             ? "paid"
-            : pend.paymentMethod === "cod"
-              ? "cod"
-              : "pending",
+            : pend.status === "expired"
+              ? "cancelled"
+              : pend.paymentMethod === "cod"
+                ? "cod"
+                : "pending",
         paymentMethod: pend.paymentMethod,
         shippingMethod: pend.shippingMethod,
         smlDocNo: null,

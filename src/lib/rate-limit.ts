@@ -60,3 +60,25 @@ function prune(now: number): void {
     if (b.blockedUntil <= now && now - b.first > WINDOW_MS) buckets.delete(k);
   }
 }
+
+// ── Generic action throttle (sliding count window) ───────────────────────────
+// For anti-spam on user actions (reviews, Q&A): allow up to `max` calls per
+// `windowMs`. Same in-memory limitation as above — back with Redis for multi-
+// instance production.
+type CountBucket = { count: number; first: number };
+const counters = new Map<string, CountBucket>();
+
+/** Record an attempt; returns true if allowed (under the limit), false if exceeded. */
+export function throttle(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  if (counters.size > MAX_KEYS) {
+    for (const [k, b] of counters) if (now - b.first > windowMs) counters.delete(k);
+  }
+  let b = counters.get(key);
+  if (!b || now - b.first > windowMs) {
+    b = { count: 0, first: now };
+    counters.set(key, b);
+  }
+  b.count += 1;
+  return b.count <= max;
+}

@@ -100,6 +100,28 @@ fine; touching ERP `public.*` structures is not.
   `scripts/sml-test-insert.mjs` path were removed. Use `scripts/sml-cae-test.mjs`
   for rollback-only CAE testing.
 
+## Loyalty rewards (ແລກຂອງລາງວັນ) — points + RWRT requisition
+- **Points balance = `public.ar_customer.point_balance`** (READ-ONLY ERP) — the
+  authoritative accumulated points. `src/lib/rewards.ts` `getCustomerPointBalance`.
+  NOT `odg_ar_customer_point`. Separate from the web-only `odg_ecom.loyalty_ledger`
+  (checkout points→LAK discount) — don't conflate the two.
+- **Reward catalog** = ERP `public.odg_pomotion_point` (READ-ONLY) overlaid with
+  `odg_ecom.promotion_overlays` (image/pinned). Storefront `/rewards`, admin
+  `/admin/rewards` (images) + `/admin/rewards/redemptions` (fulfilment).
+- **Redeem flow**: customer redeems on `/rewards` (`redeemRewardAction`, login + rate
+  limited) → row in `odg_ecom.reward_redemptions` (status pending) → **available points
+  = ar_customer.point_balance − sum(non-rejected redemptions)** so the page reflects the
+  spend immediately. Customer history `/account/rewards`.
+- **ໃບຂໍເບີກ → ERP**: on redeem, `src/lib/reward-requisition.ts` writes the ERP doc
+  **RWRT** (`erp_doc_format` "ຂໍເບີກສິນຄ້າ/ວັດຖຸດິບ ຂອງລາງວັນສຳລັບລູກຄ້າ"): `trans_type=3`,
+  single **`trans_flag=122`** (no 34→44), branch 01, price 0, cust_code empty (customer in
+  `remark`), wh `0000` placeholder. Admin `/admin/rewards/redemptions/[id]` picks ສາງຈ່າຍ +
+  ຂົນສົ່ງ → `issueRewardRequisition` stamps the real wh/shelf on each line + posts
+  `ic_trans_shipment` (no cash-book — paid with points). Gated by `SML_DIRECT_WRITE`;
+  env-overridable `REWARD_DOC_FORMAT`/`REWARD_REQ_FLAG`/`REWARD_TRANS_TYPE`/`REWARD_BRANCH`.
+  ⚠️ RWRT triggers NOT sandbox-verified — run `scripts/reward-requisition-test.mjs`
+  (rollback-only) on a TEST DB first. Reject frees the reserved points.
+
 ## Admin order management (`/admin`)
 - Login = **`odg_employee`** (ERP, READ-ONLY): username `employee_code`, password verified
   format-agnostically (plaintext/md5/sha/bcrypt), ACTIVE only — `authenticateAdmin` in
@@ -282,6 +304,22 @@ has no product images, so the overlay gallery is the real image source.
   handled by the format-agnostic verifier.
 - Order status timeline: `components/OrderTimeline.tsx` (pending→confirmed→shipped→
   completed + cancelled) on the customer order page; status driven by admin updates.
+
+### LINE login + new-member registration
+- `authenticateLineCustomer` (auth.ts) resolves a LINE userId in order: app link
+  (`odg_ecom.customer_line_accounts`) → **`public.ar_customer.line_id`** (ERP stores
+  the LINE userId for ~3.7k customers — exact match logs them in instantly) →
+  `ar_customer.email`. Any match upserts the app link so next time is the fast path.
+- No match → the OAuth callback / LIFF route stash the verified LINE identity in a
+  signed `om_line_pending` cookie (15 min) and send the user to **`/login/line/link`**,
+  a stepped flow: "ເຄີຍຊື້ເຄື່ອງບໍ່?" →
+  - **ເຄີຍ**: phone + password (ERP default **`0000`**) → `linkLineToCustomer` binds.
+  - **ບໍ່ເຄີຍ**: name + phone → `registerLineCustomer` **INSERTs `public.ar_customer`**
+    (code = phone digits, `ar_type='01'`, password `0000`, `line_id`) then logs in.
+- ⚠️ Registration is a production `public.*` write. The `check_ar_type` BEFORE-INSERT
+  trigger requires `ar_type` non-null (and inserts erp_project_list only for '03', which
+  we never use). Validate on a TEST DB with `scripts/ar-customer-register-test.mjs`
+  (rollback-only). DB default password is `0000` for ~all customers.
 
 ## Data mapping (the only ERP tables used, all in schema `public`)
 - `ic_inventory` — product master. Web items: **`is_eordershow = 1`** (~202 items).

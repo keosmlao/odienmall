@@ -40,8 +40,10 @@ export default function Footer({ locale = "lo" }: { locale?: Locale }) {
             <FooterColumn
               title={t("footer.help", locale)}
               links={[
-                ["/promotions", "ໂປຣໂມຊັນ"],
+                ["/flash-sales", "⚡ Flash Sale"],
+                ["/rewards", "⭐ ຂອງລາງວັນ"],
                 ["/track", t("footer.track", locale)],
+                ["/chat", "💬 ຊ່ວຍເຫຼືອ"],
                 ["/help", t("footer.faq", locale)],
                 ["/policy/shipping", t("footer.shipping", locale)],
                 ["/policy/returns", t("footer.returns", locale)],

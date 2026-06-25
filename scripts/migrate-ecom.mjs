@@ -518,16 +518,11 @@ create table if not exists odg_ecom.return_requests (
 create index if not exists return_requests_order_idx on odg_ecom.return_requests(order_no);
 create index if not exists return_requests_status_idx on odg_ecom.return_requests(status, created_at desc);
 
--- ── Member tier assignment (app-owned) ───────────────────────────────────────
--- Discount % per tier is defined in the READ-ONLY ERP public.ar_group_sub
--- (e.g. gold 3% / platinum 4% / black 5%). Customer→tier assignment lives here
--- (admin assigns), and the discount auto-applies at checkout for that customer.
-create table if not exists odg_ecom.customer_tier (
-  customer_code  text        primary key,        -- ar_customer.code
-  group_sub_code text        not null,           -- ar_group_sub.code
-  updated_by     text,
-  updated_at     timestamptz not null default now()
-);
+-- Member tier: the customer→tier assignment lives in the ERP itself
+-- (public.ar_customer_detail.group_sub_1 → ar_group_sub); discount % per tier
+-- comes from ar_group_sub + odg_ecom.tier_overrides. The old app-owned
+-- odg_ecom.customer_tier / odg_ecom.tier_settings tables are RETIRED (duplicated
+-- ERP data) — see the drop block at the end of this migration.
 
 -- Member-tier discount applied to a pending order (carried until payment).
 alter table odg_ecom.onepay_payments add column if not exists member_discount numeric(18,2) not null default 0;
@@ -829,6 +824,51 @@ create table if not exists odg_ecom.promotion_overlays (
   updated_by   text
 );
 alter table odg_ecom.promotion_overlays add column if not exists pinned boolean not null default false;
+
+-- Member tier overrides (overrides values from public.ar_group_sub).
+create table if not exists odg_ecom.tier_overrides (
+  tier_code    text        primary key,
+  discount_pct numeric(6,2),
+  min_spend    numeric(18,2),
+  updated_at   timestamptz not null default now(),
+  updated_by   text
+);
+
+-- ── Reward redemptions (loyalty catalog) ─────────────────────────────────────
+-- A customer redeems an ERP reward (public.odg_pomotion_point) using ERP points
+-- (public.odg_ar_customer_point). App-owned: the request lives here, ERP is NOT
+-- written. Available points = ERP balance − sum(points_spent) of active rows, so
+-- redeeming reserves the points immediately (the /rewards page reflects it).
+-- Admin moves the row through approved → fulfilled (or rejected, which releases).
+create table if not exists odg_ecom.reward_redemptions (
+  id            bigint      generated always as identity primary key,
+  customer_code text        not null,
+  promo_code    text        not null,            -- odg_pomotion_point.code
+  ic_code       text,                            -- the reward product code
+  reward_name   text        not null,
+  points_spent  int         not null,
+  free_qty      numeric(18,2),
+  unit_code     text,
+  status        text        not null default 'pending', -- pending|approved|fulfilled|rejected
+  note          text,
+  created_at    timestamptz not null default now(),
+  updated_by    text,
+  updated_at    timestamptz
+);
+create index if not exists reward_redemptions_cust_idx on odg_ecom.reward_redemptions(customer_code, id desc);
+create index if not exists reward_redemptions_status_idx on odg_ecom.reward_redemptions(status, id desc);
+-- The ໃບຂໍເບີກ (requisition) written to public.ic_trans for this redemption, and
+-- the chosen delivery branch once admin issues it.
+alter table odg_ecom.reward_redemptions add column if not exists sml_doc_no text;
+alter table odg_ecom.reward_redemptions add column if not exists transport_code text;
+
+-- ── Retired tables (duplicated ERP data) ─────────────────────────────────────
+-- customer_tier / tier_settings → replaced by public.ar_customer_detail.group_sub_1
+-- + public.ar_group_sub (+ odg_ecom.tier_overrides for web overrides). Dropped so
+-- the two schemas don't carry the same tier data twice.
+drop table if exists odg_ecom.customer_tier;
+drop table if exists odg_ecom.tier_settings;
+
 `;
 
 const c = new pg.Client({

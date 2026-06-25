@@ -5,28 +5,106 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { useWishlist } from "@/lib/wishlist";
 import { useT } from "@/lib/i18n-context";
+import { useMemberTier } from "@/lib/useMemberTier";
+import { getTierStyle, type TierCookieData } from "@/lib/tier-constants";
 import SearchBox from "./SearchBox";
 import NotificationBell from "./NotificationBell";
 import HeaderMiniCart from "./HeaderMiniCart";
 import HeaderCompare from "./HeaderCompare";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-export default function Header() {
+export default function Header({
+  initialTier,
+  points = 0,
+}: {
+  initialTier?: TierCookieData | null;
+  points?: number;
+}) {
   const { count: wishCount, ready: wishReady } = useWishlist();
   const t = useT();
+  const cookieTier = useMemberTier();
+  // Server-fetched initialTier is always fresh; cookie is a client-side fallback
+  const tier = cookieTier ?? initialTier ?? null;
+  const ts = tier ? getTierStyle(tier.rank) : null;
+
+  const progressPct = tier && tier.nextSpend
+    ? Math.min(100, Math.round((tier.spend / tier.nextSpend) * 100))
+    : tier ? 100 : 0;
+
+  const sep = ts ? "opacity-30" : "text-slate-300";
+
+  function fmtM(n: number): string {
+    if (n >= 1_000_000) {
+      const m = n / 1_000_000;
+      return (Number.isInteger(m) ? m : parseFloat(m.toFixed(1))) + "M";
+    }
+    if (n >= 1_000) return Math.round(n / 1_000) + "K";
+    return n.toLocaleString("lo-LA");
+  }
 
   return (
     <header className="bg-white text-slate-800">
-      <div className="hidden border-b border-orange-100 bg-orange-50/70 sm:block">
-        <div className="mx-auto flex h-8 max-w-[1400px] items-center justify-end gap-5 px-4 text-[11px] font-medium text-slate-500">
-          <Link href="/promotions" className="transition hover:text-orange-600">🎁 ໂປຣໂມ</Link>
-          <Link href="/track" className="transition hover:text-orange-600">{t("nav.track")}</Link>
-          <Link href="/affiliate" className="transition hover:text-orange-600">{t("nav.affiliate")}</Link>
-          <span className="text-slate-300">|</span>
-          <a href="tel:+8562059929992" className="transition hover:text-orange-600">
+      {/* Utility bar — full background color by tier */}
+      <div className={`hidden border-b sm:block ${ts ? ts.topBarBg : "bg-orange-50/70"} ${ts ? ts.topBarBorder : "border-orange-100"}`}>
+        <div className={`mx-auto flex max-w-[1400px] items-center justify-end gap-5 px-4 py-1 text-[11px] font-medium ${ts ? ts.topBarText : "text-slate-500"}`}>
+          {/* Tier badge + discount + points + progress */}
+          {tier && ts && (
+            <>
+              <Link href="/account" className="flex items-center gap-2 py-1">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black ${ts.badgeClass}`}>
+                  <span>{ts.icon}</span>
+                  <span>{tier.name}</span>
+                </span>
+                {tier.discountPct > 0 && (
+                  <span className="font-bold opacity-90">ສ່ວນຫຼຸດ {tier.discountPct}%</span>
+                )}
+                {points > 0 && (
+                  <span className="flex items-center gap-0.5 opacity-80">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor">
+                      <path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" />
+                    </svg>
+                    {points.toLocaleString("lo-LA")} ແຕ້ມ
+                  </span>
+                )}
+                {tier.nextSpend && (
+                  <span className="flex items-center gap-1.5">
+                    {/* Progress bar */}
+                    <span className={`relative h-[5px] w-28 overflow-hidden rounded-full ${ts.progressTrack}`}>
+                      <span
+                        className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ${ts.progressBg}`}
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </span>
+                    {/* Amount */}
+                    <span className="tabular-nums text-[9px] opacity-75">
+                      {fmtM(tier.spend)}<span className="opacity-40 mx-0.5">/</span>{fmtM(tier.nextSpend)}₭
+                    </span>
+                    {/* Arrow */}
+                    <span className="opacity-30 text-[10px]">›</span>
+                    {/* Next tier name */}
+                    <span className="text-[10px] font-bold">{tier.nextName}</span>
+                    {/* Next tier discount bonus */}
+                    {tier.nextDiscountPct != null && tier.nextDiscountPct > tier.discountPct && (
+                      <span className={`rounded-full px-1.5 py-0 text-[9px] font-black leading-[18px] ${ts.badgeClass}`}>
+                        +{parseFloat((tier.nextDiscountPct - tier.discountPct).toFixed(1))}%
+                      </span>
+                    )}
+                  </span>
+                )}
+              </Link>
+              <span className={sep}>|</span>
+            </>
+          )}
+          <Link href="/rewards" className={`transition ${ts ? ts.linkHover : "hover:text-orange-600"}`}>⭐ ຂອງລາງວັນ</Link>
+          <Link href="/flash-sales" className={`transition ${ts ? ts.linkHover : "hover:text-orange-600"}`}>⚡ Flash Sale</Link>
+          <Link href="/track" className={`transition ${ts ? ts.linkHover : "hover:text-orange-600"}`}>{t("nav.track")}</Link>
+          <Link href="/chat" className={`transition ${ts ? ts.linkHover : "hover:text-orange-600"}`}>💬 ຊ່ວຍເຫຼືອ</Link>
+          <Link href="/affiliate" className={`transition ${ts ? ts.linkHover : "hover:text-orange-600"}`}>{t("nav.affiliate")}</Link>
+          <span className={sep}>|</span>
+          <a href="tel:+8562059929992" className={`transition ${ts ? ts.linkHover : "hover:text-orange-600"}`}>
             {t("nav.help")}: 020 5992 9992
           </a>
-          <span className="text-slate-300">|</span>
+          <span className={sep}>|</span>
           <LanguageSwitcher />
         </div>
       </div>

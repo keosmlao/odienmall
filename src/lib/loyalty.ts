@@ -1,8 +1,10 @@
 import "server-only";
 import { pool, query, queryOne } from "./db";
 
-// Loyalty points (logged-in customers only). Ledger-based: balance = sum(delta).
-// Earn on payment, redeem at checkout (points → LAK discount). Config via env.
+// Loyalty points (logged-in customers only). Balance = ERP
+// public.ar_customer.point_balance (single source of truth; the ERP maintains it
+// fully). odg_ecom.loyalty_ledger is a web audit trail of earn/redeem events only
+// (getHistory). Earn on payment, redeem at checkout (points → LAK discount). Env config.
 
 export const EARN_PER = Number(process.env.LOYALTY_EARN_PER || 1000); // 1 pt per N LAK spent
 export const POINT_VALUE = Number(process.env.LOYALTY_POINT_VALUE || 10); // 1 pt = X LAK on redeem
@@ -22,14 +24,17 @@ export function pointsEarnedFor(amountLak: number): number {
   return Math.max(0, Math.floor(amountLak / EARN_PER));
 }
 
-/** Current balance for a customer (sum of ledger). */
+/** Current points balance for a customer. Single source of truth = the ERP
+ *  public.ar_customer.point_balance (the "full" accumulated balance the ERP
+ *  maintains). The odg_ecom.loyalty_ledger is kept only as a web audit trail of
+ *  earn/redeem events (see getHistory) — it no longer defines the balance. */
 export async function getBalance(customerCode: string): Promise<number> {
   if (!customerCode) return 0;
-  const r = await queryOne<{ bal: string }>(
-    `select coalesce(sum(delta),0)::text as bal from odg_ecom.loyalty_ledger where customer_code = $1`,
+  const r = await queryOne<{ bal: string | null }>(
+    `select point_balance as bal from public.ar_customer where code = $1`,
     [customerCode],
   );
-  return Number(r?.bal ?? 0);
+  return r?.bal != null ? Math.max(0, Number(r.bal)) : 0;
 }
 
 export async function getHistory(customerCode: string, limit = 50): Promise<LoyaltyEntry[]> {

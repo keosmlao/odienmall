@@ -1,5 +1,6 @@
 import "server-only";
-import { query, queryOne } from "./db";
+import { pool, query, queryOne } from "./db";
+import { OrderError } from "./order-error";
 import {
   onepayEnabled,
   onepayMerchantConfigured,
@@ -18,6 +19,7 @@ import { notify } from "./notifications";
 import { lineNotifyAdmin } from "./line-notify";
 import { sendPushToAdminBroadcast } from "./push";
 import { sendOrderConfirmationEmail, emailConfigured } from "./email";
+import { sendSms, smsConfigured } from "./sms";
 
 // Persistence + orchestration for per-order OnePay QR codes (odg_ecom.onepay_payments).
 // This table also holds the PENDING-ORDER snapshot until the customer pays — the
@@ -44,8 +46,15 @@ export interface PendingOrderInput extends CaeOrderInput {
   guestEmail?: string | null;
 }
 
+// Arbitrary constant key for the order-creation advisory lock. Serialises the
+// oversell re-check + pending-order insert so two concurrent checkouts cannot
+// both reserve the last unit of stock.
+const STOCK_LOCK_KEY = 778899;
+
 /** Hold a not-yet-paid order as a snapshot on its QR row (keyed by temp order_no).
- *  The charged amount is NET = subtotal + shipping − voucher discount − points value. */
+ *  The charged amount is NET = subtotal + shipping − voucher discount − points value.
+ *  Runs an authoritative oversell re-check under an advisory lock — throws
+ *  OrderError if stock ran out between pricing and this insert. */
 export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
   const discount = Math.max(0, Math.round(o.discount ?? 0)); // voucher discount (LAK)
   const memberDiscount = Math.max(0, Math.round(o.memberDiscount ?? 0));
@@ -53,33 +62,84 @@ export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
   const net = Math.max(0, o.subtotal + o.shippingFee - discount - memberDiscount - points * POINT_VALUE);
   const payMethod = o.paymentMethod === "cod" ? "cod" : "transfer";
   const shipMethod = o.shippingMethod === "thanjai" ? "thanjai" : "odien";
-  await query(
-    `insert into odg_ecom.onepay_payments
-       (order_no, uuid, amount, qrc, status, cust_code, cust_name, phone, address, note,
-        referral_code, items, subtotal, shipping_fee, voucher_code, discount, points_used,
-        member_discount, payment_method, shipping_method, created_by, transport_code, sale_code,
-        gift_message, guest_email)
-     values ($1, $1, $2, '', 'pending', $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-     on conflict (order_no) do update set
-        cust_code = excluded.cust_code, cust_name = excluded.cust_name,
-        phone = excluded.phone, address = excluded.address, note = excluded.note,
-        referral_code = excluded.referral_code, items = excluded.items,
-        subtotal = excluded.subtotal, shipping_fee = excluded.shipping_fee,
-        voucher_code = excluded.voucher_code, discount = excluded.discount,
-        points_used = excluded.points_used, member_discount = excluded.member_discount,
-        payment_method = excluded.payment_method,
-        shipping_method = excluded.shipping_method, amount = excluded.amount,
-        created_by = excluded.created_by, transport_code = excluded.transport_code,
-        sale_code = excluded.sale_code,
-        gift_message = excluded.gift_message, guest_email = excluded.guest_email`,
-    [
-      o.orderNo, net, o.customerCode, o.name, o.phone,
-      o.address, o.note, o.referralCode, JSON.stringify(o.lines), o.subtotal, o.shippingFee,
-      o.voucherCode?.trim() || null, discount, points, memberDiscount, payMethod, shipMethod,
-      o.createdBy ?? null, o.transportCode?.trim() || null, o.saleCode?.trim() || null,
-      o.giftMessage?.trim() || null, o.guestEmail?.trim() || null,
-    ],
-  );
+
+  const lines = o.lines ?? [];
+  const codes = [...new Set(lines.map((l) => l.productCode))];
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    // Serialise concurrent order creation: the oversell check and the insert
+    // below are atomic against any other in-flight storePendingOrder.
+    await client.query("select pg_advisory_xact_lock($1)", [STOCK_LOCK_KEY]);
+
+    // Authoritative oversell re-check (balance − qty held by OTHER pending/paid orders).
+    if (codes.length > 0) {
+      const stock = await client.query<{ code: string; balance: string; pending: string }>(
+        `select i.code,
+                coalesce(i.balance_qty, 0)::text as balance,
+                coalesce((
+                  select sum((item->>'qty')::numeric)
+                    from odg_ecom.onepay_payments p
+                    left join public.ic_trans t on t.doc_no = p.sml_doc_no
+                    cross join lateral jsonb_array_elements(p.items) as item
+                   where p.status in ('pending','paid')
+                     and p.order_no <> $2
+                     and coalesce(t.is_cancel, 0) = 0
+                     and (item->>'code') = i.code
+                ), 0)::text as pending
+           from public.ic_inventory i
+          where i.code = any($1)`,
+        [codes, o.orderNo],
+      );
+      const byCode = new Map(stock.rows.map((r) => [r.code, Number(r.balance) - Number(r.pending)]));
+      const want = new Map<string, { qty: number; name: string }>();
+      for (const l of lines) {
+        const cur = want.get(l.productCode);
+        want.set(l.productCode, { qty: (cur?.qty ?? 0) + l.qty, name: l.productName ?? l.productCode });
+      }
+      for (const [code, { qty, name }] of want) {
+        const available = byCode.get(code) ?? 0;
+        if (available < qty) {
+          throw new OrderError(`ສິນຄ້າ "${name}" ມີເຄົງ ${Math.max(0, Math.floor(available))} ຊິ້ນ ກະລຸນາຫຼຸດຈຳນວນ`);
+        }
+      }
+    }
+
+    await client.query(
+      `insert into odg_ecom.onepay_payments
+         (order_no, uuid, amount, qrc, status, cust_code, cust_name, phone, address, note,
+          referral_code, items, subtotal, shipping_fee, voucher_code, discount, points_used,
+          member_discount, payment_method, shipping_method, created_by, transport_code, sale_code,
+          gift_message, guest_email)
+       values ($1, $1, $2, '', 'pending', $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+       on conflict (order_no) do update set
+          cust_code = excluded.cust_code, cust_name = excluded.cust_name,
+          phone = excluded.phone, address = excluded.address, note = excluded.note,
+          referral_code = excluded.referral_code, items = excluded.items,
+          subtotal = excluded.subtotal, shipping_fee = excluded.shipping_fee,
+          voucher_code = excluded.voucher_code, discount = excluded.discount,
+          points_used = excluded.points_used, member_discount = excluded.member_discount,
+          payment_method = excluded.payment_method,
+          shipping_method = excluded.shipping_method, amount = excluded.amount,
+          created_by = excluded.created_by, transport_code = excluded.transport_code,
+          sale_code = excluded.sale_code,
+          gift_message = excluded.gift_message, guest_email = excluded.guest_email`,
+      [
+        o.orderNo, net, o.customerCode, o.name, o.phone,
+        o.address, o.note, o.referralCode, JSON.stringify(o.lines), o.subtotal, o.shippingFee,
+        o.voucherCode?.trim() || null, discount, points, memberDiscount, payMethod, shipMethod,
+        o.createdBy ?? null, o.transportCode?.trim() || null, o.saleCode?.trim() || null,
+        o.giftMessage?.trim() || null, o.guestEmail?.trim() || null,
+      ],
+    );
+    await client.query("commit");
+  } catch (e) {
+    await client.query("rollback").catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 type SnapshotRow = {
@@ -221,6 +281,15 @@ async function materializeOrder(orderNo: string, paid: boolean): Promise<string 
         link: `/order/${orderNo}`,
       }).catch(() => {});
     }
+  }
+
+  // SMS the customer an order confirmation (best-effort; needs SMS_API_URL).
+  if (smsConfigured() && snap.phone) {
+    const total = (snap.subtotal + snap.shippingFee).toLocaleString();
+    const text = paid
+      ? `OdienMall: ຊຳລະສຳເລັດ ອໍເດີ ${docNo} ຍອດ ${total} LAK. ຕິດຕາມ: ${process.env.NEXT_PUBLIC_SITE_URL ?? "https://odienmall.com"}/order/${snap.orderNo ?? docNo}`
+      : `OdienMall: ຮັບອໍເດີ ${docNo} (COD) ຍອດ ${total} LAK ຈ່າຍເມື່ອຮັບສິນຄ້າ. ຕິດຕາມ: ${process.env.NEXT_PUBLIC_SITE_URL ?? "https://odienmall.com"}/order/${snap.orderNo ?? docNo}`;
+    sendSms(snap.phone, text).catch(() => {});
   }
 
   // Notify admin via LINE and web-push.
@@ -631,6 +700,41 @@ export async function remindUnpaidQr(idleMinutes = 120): Promise<number> {
     sent++;
   }
   return sent;
+}
+
+/**
+ * Expire unpaid transfer/QR orders that were never paid after `expireHours`
+ * (default 24h, env UNPAID_EXPIRE_HOURS). Sets status='expired' so the held
+ * stock is released (the oversell check only counts 'pending'/'paid'), and
+ * notifies the customer once. Only un-materialised transfer orders are touched
+ * — COD orders (materialised immediately) and paid orders are never expired.
+ * Run from cron. Returns how many orders were expired.
+ */
+export async function expireStalePendingOrders(
+  expireHours = Number(process.env.UNPAID_EXPIRE_HOURS || 24),
+): Promise<number> {
+  const hours = Number.isFinite(expireHours) && expireHours > 0 ? expireHours : 24;
+  const rows = await query<{ order_no: string; cust_code: string | null; amount: string }>(
+    `update odg_ecom.onepay_payments
+        set status = 'expired'
+      where status = 'pending'
+        and payment_method = 'transfer'
+        and sml_doc_no is null
+        and created_at < now() - ($1 || ' hours')::interval
+      returning order_no, cust_code, amount::text`,
+    [String(hours)],
+  );
+  for (const r of rows) {
+    if (r.cust_code) {
+      await notify(r.cust_code, {
+        type: "order",
+        title: "ອໍເດີໝົດອາຍຸການຊຳລະ",
+        body: `ອໍເດີ ${r.order_no} ຖືກຍົກເລີກ ເນື່ອງຈາກບໍ່ໄດ້ຊຳລະພາຍໃນ ${hours} ຊົ່ວໂມງ`,
+        link: `/order/${r.order_no}`,
+      }).catch(() => {});
+    }
+  }
+  return rows.length;
 }
 
 export { QR_EXPIRE_MINUTES };

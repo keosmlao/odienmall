@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateLineCustomer, setSessionCookie } from "@/lib/auth";
+import { signPayload } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
+
+const PENDING_COOKIE = "om_line_pending";
 
 interface VerifyResponse {
   sub?: string;
@@ -39,14 +42,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "line_token" }, { status: 401 });
   }
 
-  const sess = await authenticateLineCustomer({
+  const lineIdentity = {
     lineUserId: verified.sub,
     displayName: verified.name ?? null,
     pictureUrl: verified.picture ?? null,
     email: verified.email ?? null,
-  });
+  };
+  const sess = await authenticateLineCustomer(lineIdentity);
   if (!sess) {
-    return NextResponse.json({ ok: false, error: "line_unlinked" }, { status: 403 });
+    // Not yet linked → stash the verified identity + tell the client to go link.
+    const res = NextResponse.json({ ok: false, error: "line_unlinked", link: "/login/line/link" }, { status: 403 });
+    res.cookies.set(PENDING_COOKIE, signPayload(lineIdentity), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 15 * 60,
+    });
+    return res;
   }
 
   await setSessionCookie(sess);

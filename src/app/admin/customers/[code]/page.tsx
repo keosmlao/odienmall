@@ -2,11 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isAdmin, isManager, getCustomerProfile } from "@/lib/auth";
 import { getOrdersByCustomer } from "@/lib/orders";
-import { listMemberTiers, getCustomerTier } from "@/lib/member-tier";
+import { getCustomerTier } from "@/lib/member-tier";
 import { getCustomerNotes } from "@/lib/customer-notes";
 import { formatKip } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
-import CustomerTierControl from "@/components/admin/CustomerTierControl";
 import CustomerNotesPanel from "@/components/admin/CustomerNotesPanel";
 import type { OrderStatus } from "@/lib/order-constants";
 import { PageHeader, Card, CardTitle, EmptyState } from "@/components/admin/ui";
@@ -24,10 +23,9 @@ export default async function AdminCustomerDetail({
   const { code } = await params;
   const customerCode = decodeURIComponent(code);
 
-  const [profile, orders, tiers, currentTier, manager, customerNotes] = await Promise.all([
+  const [profile, orders, currentTier, manager, customerNotes] = await Promise.all([
     getCustomerProfile(customerCode),
     getOrdersByCustomer(customerCode),
-    listMemberTiers(),
     getCustomerTier(customerCode),
     isManager(),
     getCustomerNotes(customerCode),
@@ -68,12 +66,16 @@ export default async function AdminCustomerDetail({
             <div className="text-lg font-bold text-price">{formatKip(totalSpent)}</div>
           </div>
         </div>
-        {manager && (
+        {currentTier && (
           <div className="mt-4 border-t border-gray-100 pt-4">
-            <div className="mb-2 text-sm font-semibold text-gray-700">
-              ລະດັບສະມາຊິກ (ສ່ວນຫຼຸດ){currentTier ? ` — ${currentTier.name} ${currentTier.discountPct}%` : ""}
+            <div className="text-sm text-gray-500">
+              ລະດັບສະມາຊິກ:{" "}
+              <span className="font-semibold text-gray-900">
+                {currentTier.name}
+                {currentTier.discountPct > 0 && ` · ສ່ວນຫຼຸດ ${currentTier.discountPct}%`}
+              </span>
+              <span className="ml-2 text-xs text-gray-400">(ຈາກ ERP)</span>
             </div>
-            <CustomerTierControl customerCode={customerCode} current={currentTier?.code ?? null} tiers={tiers} />
           </div>
         )}
       </Card>

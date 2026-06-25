@@ -45,6 +45,42 @@ function inferContentType(filename: string): string {
   return CONTENT_TYPE_BY_EXT[ext] ?? "application/octet-stream";
 }
 
+// ── Image upload validation (content-sniffed, not just MIME header) ──────────
+// SVG is intentionally NOT accepted anywhere (it can carry inline <script>).
+const IMAGE_MAGIC: Array<{ ext: string; type: string; test: (b: Buffer) => boolean }> = [
+  { ext: "jpg", type: "image/jpeg", test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { ext: "png", type: "image/png", test: (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+  { ext: "gif", type: "image/gif", test: (b) => b.subarray(0, 3).toString("ascii") === "GIF" },
+  {
+    ext: "webp",
+    type: "image/webp",
+    test: (b) => b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP",
+  },
+];
+
+/** Detect a real image type from its leading bytes, or null if not a known raster image. */
+export function sniffImageType(bytes: Buffer): { ext: string; type: string } | null {
+  if (bytes.length < 12) return null;
+  for (const m of IMAGE_MAGIC) if (m.test(bytes)) return { ext: m.ext, type: m.type };
+  return null;
+}
+
+export interface ValidatedImage {
+  bytes: Buffer;
+  ext: string;
+  type: string;
+}
+
+/** Read + validate an uploaded image File by content. Throws a Lao error on failure. */
+export async function readImageUpload(file: File, maxBytes: number): Promise<ValidatedImage> {
+  if (file.size === 0) throw new Error("ກະລຸນາເລືອກໄຟລ໌ຮູບ");
+  if (file.size > maxBytes) throw new Error(`ໄຟລ໌ໃຫຍ່ເກີນ ${Math.round(maxBytes / 1024 / 1024)}MB`);
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const sniff = sniffImageType(bytes);
+  if (!sniff) throw new Error("ຮອງຮັບສະເພາະຮູບ JPG, PNG, WEBP, GIF");
+  return { bytes, ext: sniff.ext, type: sniff.type };
+}
+
 /** Persist bytes under <subdir>/<filename>; returns the public URL. */
 export async function saveUpload(subdir: string, filename: string, bytes: Buffer): Promise<string> {
   const id = randomUUID();

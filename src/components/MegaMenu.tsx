@@ -18,7 +18,8 @@ const FEATURED = [
   { href: "/products", label: "ສິນຄ້າທັງໝົດ" },
   { href: "/products?sort=newest", label: "ສິນຄ້າໃໝ່" },
   { href: "/brands", label: "ແບຣນ" },
-  { href: "/promotions", label: "🎁 ໂປຣໂມ" },
+  { href: "/flash-sales", label: "⚡ Flash Sale" },
+  { href: "/rewards", label: "⭐ ຂອງລາງວັນ" },
 ];
 
 function Icon({ d, className }: { d: string; className?: string }) {
@@ -251,11 +252,25 @@ export default function MegaMenu({ groups }: { groups: GroupMain[] }) {
                 ສິນຄ້າທັງໝົດ
               </Link>
               <Link
-                href="/promotions"
+                href="/flash-sales"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-2 rounded-xl bg-rose-50 px-4.5 py-3 text-xs font-black text-rose-700 transition hover:bg-rose-100 shadow-2xs"
+              >
+                ⚡ Flash Sale
+              </Link>
+              <Link
+                href="/rewards"
                 onClick={() => setDrawerOpen(false)}
                 className="flex items-center gap-2 rounded-xl bg-orange-50 px-4.5 py-3 text-xs font-black text-orange-700 transition hover:bg-orange-100 shadow-2xs"
               >
-                🎁 ໂປຣໂມຊັນແຕ້ມ
+                ⭐ ຂອງລາງວັນ
+              </Link>
+              <Link
+                href="/chat"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-2 rounded-xl bg-blue-50 px-4.5 py-3 text-xs font-black text-blue-700 transition hover:bg-blue-100 shadow-2xs"
+              >
+                💬 ຊ່ວຍເຫຼືອ / ແຊັດ
               </Link>
 
               {/* Category list items */}

@@ -56,3 +56,24 @@ export function verifyToken(token: string): Session | null {
     return null;
   }
 }
+
+// ── Generic short-lived signed payload (e.g. a pending LINE-link identity) ────
+export function signPayload(obj: Record<string, unknown>): string {
+  const payload = Buffer.from(JSON.stringify({ ...obj, t: Date.now() })).toString("base64url");
+  const sig = createHmac("sha256", secret()).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+
+export function verifyPayload<T = Record<string, unknown>>(token: string, maxAgeSec: number): T | null {
+  const [payload, sig] = token.split(".");
+  if (!payload || !sig) return null;
+  const expected = createHmac("sha256", secret()).update(payload).digest("base64url");
+  if (!timingEq(sig, expected)) return null;
+  try {
+    const obj = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    if (typeof obj.t !== "number" || Date.now() - obj.t > maxAgeSec * 1000) return null;
+    return obj as T;
+  } catch {
+    return null;
+  }
+}

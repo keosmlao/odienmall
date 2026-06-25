@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { saveUpload } from "@/lib/storage";
+import { saveUpload, readImageUpload } from "@/lib/storage";
+import { throttle } from "@/lib/rate-limit";
 import { getSession } from "@/lib/auth";
 import { getProductByCode } from "@/lib/catalog";
 import { createReview } from "@/lib/reviews";
@@ -25,6 +26,11 @@ export async function submitReview(
 
   const product = await getProductByCode(productCode);
   if (!product) return { ok: false, error: "ບໍ່ພົບສິນຄ້າ" };
+
+  // Anti-spam: max 5 reviews per customer per 15 min.
+  if (!throttle(`review:${session.code}`, 5, 15 * 60 * 1000)) {
+    return { ok: false, error: "ສົ່ງຣີວິວຫຼາຍເກີນໄປ ກະລຸນາລໍຖ້າ" };
+  }
 
   try {
     await createReview({
@@ -50,13 +56,14 @@ export async function uploadReviewPhoto(formData: FormData): Promise<UploadResul
   const session = await getSession();
   if (!session) return { ok: false, error: "ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ" };
   const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "ກະລຸນາເລືອກຮູບ" };
-  if (!file.type.startsWith("image/")) return { ok: false, error: "ຮອງຮັບສະເພາະຮູບພາບ" };
-  if (file.size > 8 * 1024 * 1024) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 8MB" };
+  if (!(file instanceof File)) return { ok: false, error: "ກະລຸນາເລືອກຮູບ" };
+  if (!throttle(`review-photo:${session.code}`, 10, 15 * 60 * 1000)) {
+    return { ok: false, error: "ອັບໂຫຼດຫຼາຍເກີນໄປ ກະລຸນາລໍຖ້າ" };
+  }
   try {
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const fname = `${randomUUID().slice(0, 12)}.${ext}`;
-    const url = await saveUpload("reviews", fname, Buffer.from(await file.arrayBuffer()));
+    const img = await readImageUpload(file, 8 * 1024 * 1024);
+    const fname = `${randomUUID().slice(0, 12)}.${img.ext}`;
+    const url = await saveUpload("reviews", fname, img.bytes);
     return { ok: true, url };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ອັບໂຫຼດບໍ່ສຳເລັດ" };

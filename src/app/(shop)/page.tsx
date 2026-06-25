@@ -22,8 +22,8 @@ import { getHomeBanners } from "@/lib/banners";
 import { SITE_URL } from "@/lib/config";
 import { listPublicVouchers } from "@/lib/vouchers";
 import VoucherRail from "@/components/VoucherRail";
-import { getActivePointPromotions } from "@/lib/promotions";
-import PromotionRail from "@/components/PromotionRail";
+import { getActiveRewards } from "@/lib/rewards";
+import RewardsRail from "@/components/RewardsRail";
 
 // DB-backed; always render fresh.
 export const dynamic = "force-dynamic";
@@ -68,7 +68,7 @@ export default async function HomePage() {
     listPublicVouchers(6),
     getHomePromotion(),
     getActiveFlashDeals(12),
-    getActivePointPromotions(),
+    getActiveRewards(),
   ]);
 
   // Flatten the group tree into its leaf sub-categories — the same set shown in
@@ -182,11 +182,11 @@ export default async function HomePage() {
 
       {/* Point promotions rail — pinned items only (admin-selected); fallback to first 10 active */}
       {([...pointPromos.all, ...pointPromos.member, ...pointPromos.vip].length > 0) && (
-        <PromotionRail
+        <RewardsRail
           promos={
             pointPromos.pinned.length > 0
               ? pointPromos.pinned
-              : [...pointPromos.all, ...pointPromos.member, ...pointPromos.vip].slice(0, 10)
+              : [...pointPromos.all, ...pointPromos.member, ...pointPromos.vip].slice(0, 6)
           }
         />
       )}

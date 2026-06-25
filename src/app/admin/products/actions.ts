@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { saveUpload, deleteUpload } from "@/lib/storage";
+import { saveUpload, deleteUpload, readImageUpload } from "@/lib/storage";
 import { randomUUID } from "crypto";
 import { isAdmin, getAdminSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -29,12 +29,6 @@ const msg = (e: unknown) => (e instanceof Error ? e.message : "ເກີດຂ�
 
 const MAX_FILES = 8; // images per product
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB each
-const EXT: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 
 // Product codes are alphanumeric+dash, but sanitise before using in a path.
 const safeCode = (code: string) => code.replace(/[^A-Za-z0-9_-]/g, "_");
@@ -65,16 +59,16 @@ export async function uploadProductImages(formData: FormData): Promise<Result> {
     if (existing.length + files.length > MAX_FILES) {
       return { ok: false, error: `ສູງສຸດ ${MAX_FILES} ຮູບຕໍ່ສິນຄ້າ` };
     }
-    // Validate everything before writing anything.
+    // Validate everything by content before writing anything.
+    const validated = [];
     for (const f of files) {
-      if (!EXT[f.type]) return { ok: false, error: "ຮອງຮັບສະເພາະ JPG, PNG, WEBP, GIF" };
-      if (f.size > MAX_SIZE) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 5MB" };
+      validated.push(await readImageUpload(f, MAX_SIZE));
     }
 
     const sc = safeCode(code);
-    for (const f of files) {
-      const name = `${randomUUID()}.${EXT[f.type]}`;
-      const url = await saveUpload(`products/${sc}`, name, Buffer.from(await f.arrayBuffer()));
+    for (const img of validated) {
+      const name = `${randomUUID()}.${img.ext}`;
+      const url = await saveUpload(`products/${sc}`, name, img.bytes);
       await addProductImage(code, url);
     }
     revalidate(code);

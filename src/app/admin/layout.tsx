@@ -4,6 +4,7 @@ import { getTotalUnread } from "@/lib/chat";
 import { countPendingReturns } from "@/lib/returns";
 import { countOpenQuestions } from "@/lib/qna";
 import { getOrderStats } from "@/lib/orders";
+import { countPendingRedemptions } from "@/lib/rewards-admin";
 import AdminNav from "@/components/admin/AdminNav";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +19,12 @@ export default async function AdminLayout({
   }
 
   const admin = await getAdminSession();
-  const [chatUnread, returnsPending, qnaOpen, orderStats] = await Promise.all([
+  const [chatUnread, returnsPending, qnaOpen, orderStats, redemptionsPending] = await Promise.all([
     getTotalUnread().catch(() => 0),
     countPendingReturns().catch(() => 0),
     countOpenQuestions().catch(() => 0),
     getOrderStats().catch(() => null),
+    countPendingRedemptions().catch(() => 0),
   ]);
   const pendingOrders =
     (orderStats?.byStatus.pending ?? 0) +
@@ -31,7 +33,7 @@ export default async function AdminLayout({
 
   return (
     <div className="adm-surface flex min-h-screen flex-col print:bg-white lg:flex-row">
-      <AdminNav adminName={admin?.name} role={admin?.role} chatUnread={chatUnread} returnsPending={returnsPending} qnaOpen={qnaOpen} pendingOrders={pendingOrders} />
+      <AdminNav adminName={admin?.name} role={admin?.role} chatUnread={chatUnread} returnsPending={returnsPending} qnaOpen={qnaOpen} pendingOrders={pendingOrders} redemptionsPending={redemptionsPending} />
       
       <div className="flex min-w-0 flex-1 flex-col lg:pl-56">
         <header className="sticky top-0 z-20 hidden h-14 w-full items-center justify-between border-b border-slate-200 bg-white/85 px-5 backdrop-blur lg:flex print:hidden">

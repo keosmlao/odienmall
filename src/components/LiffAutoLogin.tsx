@@ -46,6 +46,11 @@ export default function LiffAutoLogin({
     if (!liffId || loggedIn || ran.current) return;
     ran.current = true;
 
+    // LIFF only matters inside the LINE in-app browser (its UA contains "Line/").
+    // Skip everywhere else — avoids the "URL not under endpoint URL" warning on
+    // localhost/regular browsers and the cost of loading the SDK for web visitors.
+    if (!/\bLine\//i.test(navigator.userAgent || "")) return;
+
     (async () => {
       try {
         await loadLiffSdk();
@@ -71,13 +76,15 @@ export default function LiffAutoLogin({
         const data = (await res.json().catch(() => null)) as {
           ok?: boolean;
           error?: string;
+          link?: string;
         } | null;
 
         if (data?.ok) {
           router.refresh();
         } else if (data?.error === "line_unlinked") {
-          // Account not linked yet — send to login page to connect
-          router.push("/login?error=line_unlinked");
+          // Account not linked yet — go to the linking page to connect (the API
+          // already stashed the verified LINE identity in a signed cookie).
+          router.push(data.link || "/login/line/link");
         }
       } catch (e) {
         console.error("[LiffAutoLogin]", e);

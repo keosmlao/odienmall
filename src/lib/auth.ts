@@ -224,22 +224,34 @@ interface CustRow {
   password: string | null;
 }
 
-/** Look up a customer by code, phone or email and verify the password. */
+// Normalise a stored/typed phone to comparable digits (drop spaces, dashes, the
+// 856/0 prefix) — used so "020 5427 1451", "02054271451" and "2054271451" all match.
+const PHONE_NORM = `regexp_replace(regexp_replace(coalesce(%COL%,''),'[^0-9]','','g'),'^(856|0)','')`;
+
+/** Look up a customer by code, phone (any format) or email and verify the password. */
 export async function authenticate(
   identifier: string,
   password: string,
 ): Promise<Session | null> {
   const id = identifier.trim();
   if (!id || !password) return null;
+  // A plausible phone → its normalised form for format-insensitive matching.
+  const phoneNorm = phoneToCustomerCode(id);
+  const norm = phoneNorm.length >= 8 ? phoneNorm : null;
   const rows = await query<CustRow>(
     `select code,
             coalesce(nullif(name_1,''), code) as name,
             password
        from public.ar_customer
       where coalesce(password,'') <> ''
-        and (code = $1 or telephone = $1 or sms_phonenumber = $1 or lower(email) = lower($1))
+        and (code = $1 or telephone = $1 or sms_phonenumber = $1 or lower(email) = lower($1)
+             or ($2::text is not null and (
+                   ${PHONE_NORM.replace("%COL%", "telephone")} = $2
+                or ${PHONE_NORM.replace("%COL%", "sms_phonenumber")} = $2
+                or code = $2)))
+      order by case when code = $1 then 0 else 1 end
       limit 1`,
-    [id],
+    [id, norm],
   );
   const c = rows[0];
   if (!c) return null;
@@ -252,6 +264,103 @@ export interface LineCustomerInput {
   displayName?: string | null;
   pictureUrl?: string | null;
   email?: string | null;
+}
+
+/** Normalise a Lao phone to the ar_customer.code convention (digits, no leading
+ *  0 or 856 — e.g. "020 5992 9992" → "2059929992"). */
+export function phoneToCustomerCode(phone: string): string {
+  let d = (phone || "").replace(/\D/g, "");
+  if (d.startsWith("856")) d = d.slice(3);
+  if (d.startsWith("0")) d = d.slice(1);
+  return d;
+}
+
+async function bindLineLink(lineUserId: string, code: string, line: LineCustomerInput): Promise<void> {
+  await query(
+    `insert into odg_ecom.customer_line_accounts
+       (line_user_id, customer_code, display_name, picture_url, email, last_login_at)
+     values ($1,$2,$3,$4,$5,now())
+     on conflict (line_user_id) do update set
+       customer_code = excluded.customer_code,
+       display_name = excluded.display_name,
+       picture_url = excluded.picture_url,
+       email = excluded.email,
+       last_login_at = now()`,
+    [lineUserId, code, line.displayName ?? null, line.pictureUrl ?? null, line.email ?? null],
+  );
+  // Mirror the LINE id onto the ERP record so the POS/ERP also resolves it.
+  await query(`update public.ar_customer set line_id = $1 where code = $2 and coalesce(line_id,'') = ''`, [
+    lineUserId,
+    code,
+  ]).catch(() => {});
+}
+
+/** EXISTING customer (ເຄີຍ): verify by phone + password (default "0000"), then
+ *  bind the LINE id (app link + ERP ar_customer.line_id). Returns the session. */
+export async function linkLineToCustomer(
+  identifier: string,
+  password: string,
+  line: LineCustomerInput,
+): Promise<Session | null> {
+  const sess = await authenticate(identifier, password);
+  if (!sess) return null;
+  const lineUserId = line.lineUserId.trim();
+  if (!lineUserId) return null;
+  await bindLineLink(lineUserId, sess.code, line);
+  return sess;
+}
+
+export type RegisterResult =
+  | { ok: true; session: Session }
+  | { ok: false; error: string };
+
+/** NEW member (ບໍ່ເຄີຍ): INSERT into public.ar_customer (code = phone, ar_type 01,
+ *  default password 0000) and bind the LINE id, then return the session. If the
+ *  phone already exists, treat it as an existing customer and just bind + log in. */
+export async function registerLineCustomer(
+  line: LineCustomerInput,
+  input: { name: string; phone: string },
+): Promise<RegisterResult> {
+  const lineUserId = line.lineUserId.trim();
+  if (!lineUserId) return { ok: false, error: "ບໍ່ພົບຂໍ້ມູນ LINE" };
+  const name = (input.name || "").trim();
+  const code = phoneToCustomerCode(input.phone);
+  if (!name) return { ok: false, error: "ກະລຸນາໃສ່ຊື່" };
+  if (code.length < 8) return { ok: false, error: "ເບີໂທບໍ່ຖືກຕ້ອງ" };
+
+  // Already a customer (by code OR by phone in any stored format, incl. the ~3.7k
+  // whose code is like "01-3430")? → bind + log in, never insert a duplicate.
+  const existing = await query<{ code: string; name: string }>(
+    `select code, coalesce(nullif(name_1,''), code) as name
+       from public.ar_customer
+      where code = $1
+         or ${PHONE_NORM.replace("%COL%", "telephone")} = $1
+         or ${PHONE_NORM.replace("%COL%", "sms_phonenumber")} = $1
+      order by case when code = $1 then 0 else 1 end
+      limit 1`,
+    [code],
+  );
+  if (existing[0]) {
+    await bindLineLink(lineUserId, existing[0].code, line);
+    return { ok: true, session: { code: existing[0].code, name: existing[0].name } };
+  }
+
+  // INSERT a new ERP customer. ar_type='01' (retail) satisfies the check_ar_type
+  // trigger; password '0000' is the ERP default so they can also log in by phone.
+  try {
+    await query(
+      `insert into public.ar_customer
+         (code, name_1, telephone, sms_phonenumber, email, line_id, password,
+          ar_type, status, ar_status, price_level, point_balance, create_code, create_date_time_now)
+       values ($1,$2,$3,$3,$4,$5,'0000','01',1,1,0,0,'web', now())`,
+      [code, name, input.phone.trim(), line.email ?? "", lineUserId],
+    );
+  } catch (e) {
+    console.error("registerLineCustomer insert failed:", e);
+    return { ok: false, error: "ສະໝັກບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່ ຫຼື ຕິດຕໍ່ຮ້ານ" };
+  }
+  await bindLineLink(lineUserId, code, line);
+  return { ok: true, session: { code, name } };
 }
 
 /** Resolve a LINE Login identity to an existing ERP customer. No ERP writes:
@@ -285,18 +394,18 @@ export async function authenticateLineCustomer(input: LineCustomerInput): Promis
     return { code: linked[0].code, name: linked[0].name };
   }
 
-  const email = input.email?.trim().toLowerCase();
-  if (!email) return null;
-  const rows = await query<{
-    code: string;
-    name: string;
-  }>(
+  // Match the ERP-stored LINE id first (public.ar_customer.line_id holds the LINE
+  // userId for customers who registered/bound LINE in the ERP) — then fall back to
+  // email. Either match upserts the app-owned link so next time hits the fast path.
+  const email = input.email?.trim().toLowerCase() || null;
+  const rows = await query<{ code: string; name: string }>(
     `select code, coalesce(nullif(name_1,''), code) as name
        from public.ar_customer
-      where lower(email) = $1
-      order by code
+      where line_id = $1
+         or ($2::text is not null and lower(email) = $2)
+      order by case when line_id = $1 then 0 else 1 end, code
       limit 1`,
-    [email],
+    [lineUserId, email],
   );
   const c = rows[0];
   if (!c) return null;

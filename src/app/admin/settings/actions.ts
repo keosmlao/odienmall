@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { saveUpload, deleteUpload } from "@/lib/storage";
+import { saveUpload, deleteUpload, readImageUpload } from "@/lib/storage";
 import { randomUUID } from "crypto";
 import { isManager, getAdminSession } from "@/lib/auth";
 import {
@@ -277,25 +277,19 @@ export async function saveBankTransfer(input: {
   }
 }
 
-const QR_EXT: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
 const QR_MAX = 3 * 1024 * 1024; // 3MB
 
 /** Upload the bank/BCEL QR image (FormData: `file`). Writes ONLY public/uploads. */
 export async function uploadBankQr(formData: FormData): Promise<Result> {
   if (!(await isManager())) return { ok: false, error: DENIED };
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "ກະລຸນາເລືອກໄຟລ໌ QR" };
-  if (!QR_EXT[file.type]) return { ok: false, error: "ຮອງຮັບສະເພາະ JPG, PNG, WEBP" };
-  if (file.size > QR_MAX) return { ok: false, error: "ໄຟລ໌ໃຫຍ່ເກີນ 3MB" };
+  if (!(file instanceof File)) return { ok: false, error: "ກະລຸນາເລືອກໄຟລ໌ QR" };
 
   try {
+    const img = await readImageUpload(file, QR_MAX);
     const prev = (await getBankTransfer()).qrUrl;
-    const name = `qr-${randomUUID()}.${QR_EXT[file.type]}`;
-    const url = await saveUpload("bank", name, Buffer.from(await file.arrayBuffer()));
+    const name = `qr-${randomUUID()}.${img.ext}`;
+    const url = await saveUpload("bank", name, img.bytes);
 
     await setBankQr(url, (await getAdminSession())?.code);
     await deleteUpload(prev);

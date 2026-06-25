@@ -15,6 +15,8 @@ import { getLocale } from "@/lib/i18n-server";
 import { LocaleProvider } from "@/lib/i18n-context";
 import PageTransitionLoader from "@/components/PageTransitionLoader";
 import LiffAutoLogin from "@/components/LiffAutoLogin";
+import { autoUpgradeTier } from "@/lib/member-tier";
+import { getBalance } from "@/lib/loyalty";
 
 export default async function ShopLayout({
   children,
@@ -24,6 +26,13 @@ export default async function ShopLayout({
     getSession(),
     getLocale(),
   ]);
+
+  const [tierData, points] = session
+    ? await Promise.all([
+        autoUpgradeTier(session.code).catch(() => null),
+        getBalance(session.code).catch(() => 0),
+      ])
+    : [null, 0];
   return (
     <LocaleProvider locale={locale}>
       <PageTransitionLoader />
@@ -32,7 +41,7 @@ export default async function ShopLayout({
           <AnnouncementBar message={ann.message} link={ann.link} />
         )}
         <div className="sticky top-0 z-40 shadow-[0_2px_16px_rgba(15,23,42,0.07)]">
-          <Header />
+          <Header initialTier={tierData} points={points} />
           <GroupMenu />
         </div>
         <main className="shop-main mx-auto w-full max-w-[1400px] flex-1 overflow-x-clip px-3 py-4 pb-24 sm:px-4 sm:py-6 sm:pb-6">

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { getAllPromotions, type AdminPromotion } from "@/lib/promotions-admin";
+import { getAllRewards, type AdminPromotion } from "@/lib/rewards-admin";
 import PromoImageManager from "./PromoImageManager";
 
-export const metadata: Metadata = { title: "ໂປຣໂມຊັນແຕ້ມ" };
+export const metadata: Metadata = { title: "ຂອງລາງວັນ" };
 export const dynamic = "force-dynamic";
 
 const CARD_LABELS: Record<string, string> = {
-  "0": "ທຸກລູກຄ້າ",
-  "1": "ສະມາຊິກ",
-  "2": "VIP",
+  "0": "🎁 ທຸກລູກຄ້າ",
+  "1": "⭐ ສະມາຊິກ",
+  "2": "👑 VIP",
 };
 const CARD_COLORS: Record<string, string> = {
   "0": "bg-blue-50 text-blue-700",
@@ -21,8 +21,8 @@ function fmtDate(d: string) {
   return `${day}/${m}/${y}`;
 }
 
-export default async function AdminPromotionsPage() {
-  const promos = await getAllPromotions();
+export default async function AdminRewardsPage() {
+  const promos = await getAllRewards();
   const active = promos.filter((p) => p.isActive);
   const expired = promos.filter((p) => !p.isActive);
   const withImg = promos.filter((p) => p.imageUrl).length;
@@ -32,12 +32,18 @@ export default async function AdminPromotionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">ໂປຣໂມຊັນແຕ້ມ</h1>
+          <h1 className="text-xl font-bold text-slate-800">ຂອງລາງວັນ</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            ຈັດການຮູບສຳລັບໂປຣໂມຊັນ · {promos.length} ລາຍການ · {withImg} ມີຮູບ
+            ຈັດການຮູບສຳລັບຂອງລາງວັນແຕ້ມ · {promos.length} ລາຍການ · {withImg} ມີຮູບ
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          <a
+            href="/admin/rewards/redemptions"
+            className="rounded-full bg-orange-500 px-3 py-1 font-bold text-white transition hover:bg-orange-600"
+          >
+            ການແລກ (ໃບຂໍເບີກ) ›
+          </a>
           <span className="rounded-full bg-green-50 px-3 py-1 font-semibold text-green-700">
             {active.length} ກຳລັງໃຊ້
           </span>
@@ -47,11 +53,11 @@ export default async function AdminPromotionsPage() {
         </div>
       </div>
 
-      {/* Active promotions */}
+      {/* Active rewards */}
       {active.length > 0 && (
         <section>
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">
-            ກຳລັງໃຊ້ງານ ({active.length})
+            ກຳລັງໃຊ້ງານ / ແລກໄດ້ ({active.length})
           </h2>
           <PromoGrid promos={active} />
         </section>

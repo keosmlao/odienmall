@@ -105,19 +105,19 @@ export default function ProductCard({ product }: { product: Product }) {
                   <span className="text-amber-500 font-bold">{product.rating.toFixed(1)}</span>
                 </>
               ) : (
-                <span className="text-slate-400">ຍັງບໍ່ມີ</span>
+                <span className="text-slate-400">ຍັງບໍ່ມີ ຣີວິວ</span>
               )}
             </span>
-            <div className="flex flex-wrap items-center gap-1 text-[9px] leading-none text-slate-400 sm:text-[10px]">
-              {product.soldCount ? (
+            {product.soldCount ? (
+              <div className="flex flex-wrap items-center gap-1 text-[9px] leading-none text-slate-400 sm:text-[10px]">
                 <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[8px] font-black text-slate-500 sm:text-[9px]">
                   ຂາຍ {product.soldCount.toLocaleString("en-US")}
                 </span>
-              ) : null}
-              {product.unit && (
-                <span className="text-[9px] sm:text-[10px] font-black text-slate-400">/ {product.unit}</span>
-              )}
-            </div>
+                {product.unit && (
+                  <span className="text-[9px] sm:text-[10px] font-black text-slate-400">/ {product.unit}</span>
+                )}
+              </div>
+            ) : null}
           </div>
           <AddToCartButton product={product} />
         </div>

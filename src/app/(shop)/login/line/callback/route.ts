@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateLineCustomer, setSessionCookie } from "@/lib/auth";
+import { signPayload } from "@/lib/session";
+import { lineCallbackUrl } from "@/lib/line-oauth";
 
 export const dynamic = "force-dynamic";
 
 const STATE_COOKIE = "om_line_state";
 const REDIRECT_COOKIE = "om_line_redirect";
+const PENDING_COOKIE = "om_line_pending";
 
 interface TokenResponse {
   access_token?: string;
@@ -51,7 +54,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(loginUrl(req, "line_state"));
   }
 
-  const redirectUri = process.env.LINE_LOGIN_CALLBACK_URL?.trim() || new URL("/login/line/callback", req.url).toString();
+  const redirectUri = lineCallbackUrl(req);
 
   try {
     const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
@@ -98,14 +101,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(loginUrl(req, "line_profile"));
     }
 
-    const sess = await authenticateLineCustomer({
+    const lineIdentity = {
       lineUserId,
       displayName: verified.name || profile.displayName || null,
       pictureUrl: verified.picture || profile.pictureUrl || null,
       email: verified.email || null,
-    });
+    };
+    const sess = await authenticateLineCustomer(lineIdentity);
     if (!sess) {
-      return NextResponse.redirect(loginUrl(req, "line_unlinked"));
+      // First-time / un-matched LINE account → send to the linking page where the
+      // user proves ownership with their normal credentials. Carry the verified
+      // LINE identity in a short-lived signed cookie (can't be forged).
+      const link = NextResponse.redirect(new URL("/login/line/link", req.url));
+      link.cookies.delete(STATE_COOKIE);
+      link.cookies.set(PENDING_COOKIE, signPayload(lineIdentity), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 15 * 60,
+      });
+      return link;
     }
 
     const res = NextResponse.redirect(new URL(redirectTo, req.url));

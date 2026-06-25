@@ -123,10 +123,10 @@ const NAV: NavItem[] = [
     icon: "M3 5h18v14H3zM3 15l5-5 4 4 3-3 6 6M16 9h.01",
   },
   {
-    href: "/admin/promotions",
-    label: "ໂປຣໂມ",
+    href: "/admin/rewards",
+    label: "ຂອງລາງວັນ",
     group: "ສິນຄ້າ",
-    match: (p: string) => p.startsWith("/admin/promotions"),
+    match: (p: string) => p.startsWith("/admin/rewards"),
     icon: "M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z",
   },
   {
@@ -184,6 +184,14 @@ const NAV: NavItem[] = [
     icon: "M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
   },
   {
+    href: "/admin/tier-settings",
+    label: "ຂັ້ນສະມາຊິກ",
+    group: "ລູກຄ້າ",
+    managerOnly: true,
+    match: (p: string) => p.startsWith("/admin/tier-settings"),
+    icon: "M12 2l2.4 5.3 5.6.5-4.1 3.7 1.2 5.5L12 14.3l-5.1 2.7 1.2-5.5L4 7.8l5.6-.5L12 2zM5 21h14",
+  },
+  {
     href: "/admin/settings",
     label: "ຕັ້ງຄ່າ",
     group: "ລາຍງານ ແລະ ລະບົບ",
@@ -208,6 +216,7 @@ export default function AdminNav({
   returnsPending = 0,
   qnaOpen = 0,
   pendingOrders = 0,
+  redemptionsPending = 0,
 }: {
   adminName?: string;
   role?: string;
@@ -215,6 +224,7 @@ export default function AdminNav({
   returnsPending?: number;
   qnaOpen?: number;
   pendingOrders?: number;
+  redemptionsPending?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -270,6 +280,7 @@ export default function AdminNav({
           {n.href === "/admin/chat" && chatUnread > 0 && <Counter value={chatUnread} />}
           {n.href === "/admin/returns" && returnsPending > 0 && <Counter value={returnsPending} />}
           {n.href === "/admin/qna" && qnaOpen > 0 && <Counter value={qnaOpen} />}
+          {n.href === "/admin/rewards" && redemptionsPending > 0 && <Counter value={redemptionsPending} />}
         </Link>
       );
     }
@@ -310,6 +321,7 @@ export default function AdminNav({
         {n.href === "/admin/chat" && chatUnread > 0 && <Counter value={chatUnread} />}
         {n.href === "/admin/returns" && returnsPending > 0 && <Counter value={returnsPending} />}
         {n.href === "/admin/qna" && qnaOpen > 0 && <Counter value={qnaOpen} />}
+        {n.href === "/admin/rewards" && redemptionsPending > 0 && <Counter value={redemptionsPending} />}
       </Link>
     );
   };

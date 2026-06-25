@@ -53,6 +53,13 @@ export default function LineMiniLoginButton({
   async function login() {
     setPending(true);
     onError("");
+    // LIFF only works inside the LINE in-app browser (its UA contains "Line/"),
+    // against the LIFF endpoint (odienmall.com). On a normal browser — desktop or
+    // localhost — use the standard OAuth flow, which works on any registered host.
+    if (!/\bLine\//i.test(navigator.userAgent || "")) {
+      window.location.href = `/login/line?redirect=${encodeURIComponent(redirect)}`;
+      return;
+    }
     try {
       await loadLiff();
       if (!window.liff) throw new Error("LIFF SDK missing");
@@ -88,10 +95,12 @@ export default function LineMiniLoginButton({
       type="button"
       onClick={login}
       disabled={pending}
-      className="mb-4 flex w-full items-center justify-center gap-2 rounded-sm bg-[#06C755] py-3.5 text-sm font-black text-white shadow-md transition hover:bg-[#05b84f] disabled:opacity-60"
+      className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#06C755] py-3.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(6,199,85,0.15)] transition-all duration-300 hover:bg-[#05b84f] hover:shadow-[0_8px_25px_rgba(6,199,85,0.25)] hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:scale-100 disabled:shadow-none cursor-pointer"
     >
-      <span className="grid h-5 w-5 place-items-center rounded bg-white text-[10px] font-black text-[#06C755]">LINE</span>
-      {pending ? "ກຳລັງເຂົ້າຜ່ານ LINE..." : "ເຂົ້າຜ່ານ LINE Mini App"}
+      <span className="grid h-5.5 w-5.5 place-items-center rounded bg-white text-[10px] font-black text-[#06C755] select-none shadow-sm">
+        LINE
+      </span>
+      {pending ? "ກຳລັງເຂົ້າຜ່ານ LINE..." : "ເຂົ້າຜ່ານ LINE"}
     </button>
   );
 }
