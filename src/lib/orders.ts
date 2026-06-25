@@ -103,11 +103,26 @@ const PAY_METHOD_SQL = `(select op.payment_method from odg_ecom.onepay_payments 
 
 // Flag 34 = COD order awaiting delivery, or a paid transfer awaiting confirmation;
 // flag 44 = issued bill. Delivery states come from odg_tms_detail.
+const WMS_EXISTS_SQL = `
+  exists (
+    select 1 from public.odg_wms_trans wt
+     where wt.doc_ref = ic.doc_no
+        or wt.doc_ref in (
+          select nullif(d.ref_doc_no,'') from public.ic_trans_detail d where d.doc_no = ic.doc_no
+        )
+  )
+  or exists (
+    select 1 from public.odg_wms_trans_detail wd
+     where wd.doc_ref = ic.doc_no
+        or wd.doc_ref in (
+          select nullif(d.ref_doc_no,'') from public.ic_trans_detail d where d.doc_no = ic.doc_no
+        )
+  )`;
 const STATUS_EXPR = `
   case
     when coalesce(ic.is_cancel,0) = 1 then 'cancelled'
     when exists (select 1 from public.odg_tms_detail t where t.bill_no = ic.doc_no and t.sent_end is not null) then 'completed'
-    when exists (select 1 from public.odg_tms_detail t where t.bill_no = ic.doc_no) then 'shipping'
+    when exists (select 1 from public.odg_tms_detail t where t.bill_no = ic.doc_no) or ${WMS_EXISTS_SQL} then 'shipping'
     when ic.trans_flag = 34 and ${PAY_METHOD_SQL} = 'cod' then 'cod'
     when ic.trans_flag = 34 then 'awaiting_confirmation'
     else 'paid'
@@ -938,6 +953,74 @@ export interface OrderTms {
   lng: string | null;
 }
 
+async function resolveMaterializedDocNo(orderNo: string): Promise<string | null> {
+  const direct = await queryOne<{ doc_no: string }>(
+    `select doc_no from public.ic_trans where doc_no = $1 limit 1`,
+    [orderNo],
+  );
+  if (direct?.doc_no) return direct.doc_no;
+  const snap = await queryOne<{ sml_doc_no: string | null }>(
+    `select sml_doc_no from odg_ecom.onepay_payments where order_no = $1`,
+    [orderNo],
+  );
+  return snap?.sml_doc_no ?? null;
+}
+
+async function getDocRefs(docNo: string): Promise<string[]> {
+  const rows = await query<{ ref: string | null }>(
+    `select distinct nullif(ref_doc_no,'') as ref
+       from public.ic_trans_detail
+      where doc_no = $1 and nullif(ref_doc_no,'') is not null`,
+    [docNo],
+  );
+  return [docNo, ...rows.map((r) => r.ref).filter((v): v is string => !!v)];
+}
+
+async function getOrderWms(docNo: string): Promise<OrderTms | null> {
+  const refs = await getDocRefs(docNo);
+  const row = await queryOne<{
+    doc_no: string;
+    doc_ref: string | null;
+    wh_code: string | null;
+    status: number | null;
+    trans_flag: number | null;
+    doc_success: string | number | null;
+    create_date_time_now: Date | null;
+  }>(
+    `select doc_no, doc_ref, wh_code, status, trans_flag, doc_success::text as doc_success,
+            create_date_time_now
+       from public.odg_wms_trans
+      where doc_ref = any($1) or doc_no = any($1)
+      union all
+     select doc_no, doc_ref, wh_code, status, trans_flag, null::text as doc_success,
+            create_date_time_now
+       from public.odg_wms_trans_detail
+      where doc_ref = any($1) or doc_no = any($1)
+      order by create_date_time_now desc nulls last
+      limit 1`,
+    [refs],
+  );
+  if (!row) return null;
+  const when = row.create_date_time_now ? new Date(row.create_date_time_now).toISOString() : null;
+  return {
+    car: row.wh_code || null,
+    driverPhone: null,
+    dateLogistic: when,
+    sentStart: when,
+    sentEnd: null,
+    codAmount: null,
+    collectedAmount: null,
+    collectedAt: null,
+    paymentMethod: null,
+    deliveryCondition:
+      row.doc_success != null && Number(row.doc_success) === 1
+        ? "ສິນຄ້າຖືກຢືນຢັນອອກຈາກ WMS ແລ້ວ"
+        : "ສິນຄ້າເຂົ້າລະບົບ WMS ແລະກຳລັງຈັດສົ່ງ/ກະກຽມອອກສົ່ງ",
+    lat: null,
+    lng: null,
+  };
+}
+
 /**
  * Pull the latest TMS tracking record for an order's CAE bill (READ-ONLY,
  * public.odg_tms_detail, keyed by bill_no = doc_no). Returns null if the order
@@ -945,17 +1028,10 @@ export interface OrderTms {
  * base64 image fields (url_img/recipt_img/…).
  */
 export async function getOrderTms(orderNo: string): Promise<OrderTms | null> {
-  // Resolve the CAE doc: a CAE order_no is the bill itself; a temp order_no maps
-  // through the QR snapshot's sml_doc_no.
-  let docNo = orderNo;
-  if (!/^CAE/i.test(orderNo)) {
-    const snap = await queryOne<{ sml_doc_no: string | null }>(
-      `select sml_doc_no from odg_ecom.onepay_payments where order_no = $1`,
-      [orderNo],
-    );
-    if (!snap?.sml_doc_no) return null;
-    docNo = snap.sml_doc_no;
-  }
+  // Resolve the materialised bill: public tracking may receive CAE/CAH* bill
+  // numbers directly, while storefront temp OM numbers map through QR snapshots.
+  const docNo = await resolveMaterializedDocNo(orderNo);
+  if (!docNo) return null;
   const row = await queryOne<{
     car: string | null;
     telephone: string | null;
@@ -979,7 +1055,7 @@ export async function getOrderTms(orderNo: string): Promise<OrderTms | null> {
       limit 1`,
     [docNo],
   );
-  if (!row) return null;
+  if (!row) return getOrderWms(docNo);
   const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
   return {
     car: row.car || null,
@@ -1252,6 +1328,105 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
       unitPrice: i.unit_price == null ? null : Number(i.unit_price),
       qty: i.qty,
       lineTotal: Number(i.line_total),
+    })),
+  };
+}
+
+async function deriveTrackingStatus(docNo: string, transFlag: number, isCancel: number | null): Promise<OrderStatus> {
+  if (Number(isCancel ?? 0) === 1) return "cancelled";
+  const tms = await getOrderTms(docNo).catch(() => null);
+  if (tms?.sentEnd) return "completed";
+  if (tms?.sentStart || tms?.dateLogistic || tms?.deliveryCondition) return "shipping";
+  if (Number(transFlag) === 34) return "awaiting_confirmation";
+  if (Number(transFlag) === 44) return "paid";
+  return "pending";
+}
+
+/**
+ * Public tracking lookup. Prefer the OdienMall web order reader, but also allow
+ * real ERP bill numbers such as CAHPB/CAHCE for guest tracking. Reads only
+ * public.ic_trans + public.ic_trans_detail and uses WMS/TMS helpers for delivery.
+ */
+export async function getTrackOrderByNo(orderNo: string): Promise<OrderRecord | null> {
+  const web = await getOrderByNo(orderNo);
+  if (web) return web;
+
+  const o = await queryOne<{
+    order_no: string;
+    customer_name: string;
+    customer_code: string | null;
+    phone: string;
+    address: string | null;
+    note: string | null;
+    subtotal: string | null;
+    discount: string | null;
+    trans_flag: number;
+    is_cancel: number | null;
+    created_at: Date;
+  }>(
+    `select ic.doc_no as order_no,
+            coalesce(nullif(ic.remark_3,''), ar.name_1, ic.cust_code, '') as customer_name,
+            ic.cust_code as customer_code,
+            coalesce(nullif(ic.point_telephone,''), ar.telephone, '') as phone,
+            nullif(ic.remark_4,'') as address,
+            nullif(ic.remark_2,'') as note,
+            coalesce(ic.total_value_2, ic.total_amount_2, ic.total_value, ic.total_amount, 0)::text as subtotal,
+            coalesce(ic.total_discount_2, ic.total_discount, 0)::text as discount,
+            ic.trans_flag,
+            ic.is_cancel,
+            ic.create_date_time_now as created_at
+       from public.ic_trans ic
+       left join public.ar_customer ar on ar.code = ic.cust_code
+      where ic.doc_no = $1
+      limit 1`,
+    [orderNo],
+  );
+  if (!o) return null;
+
+  const items = await query<{
+    product_code: string;
+    product_name: string;
+    unit: string | null;
+    unit_price: string | null;
+    qty: number;
+    line_total: string | null;
+  }>(
+    `select item_code as product_code, item_name as product_name, unit_code as unit,
+            coalesce(price_2, price)::text as unit_price,
+            qty,
+            coalesce(sum_amount_2, sum_amount, 0)::text as line_total
+       from public.ic_trans_detail
+      where doc_no = $1
+      order by roworder`,
+    [o.order_no],
+  );
+
+  return {
+    orderNo: o.order_no,
+    customerName: o.customer_name,
+    customerCode: o.customer_code,
+    phone: o.phone,
+    address: o.address,
+    note: o.note,
+    subtotal: Number(o.subtotal ?? 0),
+    shippingFee: 0,
+    discount: Number(o.discount ?? 0),
+    status: await deriveTrackingStatus(o.order_no, o.trans_flag, o.is_cancel),
+    paymentMethod: "transfer",
+    shippingMethod: "odien",
+    smlDocNo: o.order_no,
+    saleCode: null,
+    saleName: null,
+    referralCode: null,
+    affiliateName: null,
+    createdAt: (o.created_at instanceof Date ? o.created_at : new Date(o.created_at)).toISOString(),
+    items: items.map((i) => ({
+      productCode: i.product_code,
+      productName: i.product_name,
+      unit: i.unit,
+      unitPrice: i.unit_price == null ? null : Number(i.unit_price),
+      qty: Number(i.qty),
+      lineTotal: Number(i.line_total ?? 0),
     })),
   };
 }

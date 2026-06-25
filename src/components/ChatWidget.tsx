@@ -17,6 +17,7 @@ interface Msg {
 }
 
 const POLL_MS = 4000;
+const LINK_RE = /(https?:\/\/[^\s)]+|\/(?:product|category|brand|group|search|products|cart|checkout|order|track|login|account|help|policy)\/[^\s),.]+|\/(?:products|cart|checkout|track|login|account|help)(?=\s|$))/g;
 
 // Quick-start prompts shown on an empty conversation.
 const SUGGESTIONS = [
@@ -25,6 +26,31 @@ const SUGGESTIONS = [
   "ວິທີຊຳລະເງິນ ແລະ ຈັດສົ່ງ",
   "ນະໂຍບາຍຄືນສິນຄ້າ",
 ];
+
+function MessageText({ text, mine }: { text: string; mine: boolean }) {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(LINK_RE)) {
+    const url = match[0];
+    const index = match.index ?? 0;
+    if (index > last) parts.push(text.slice(last, index));
+    const external = url.startsWith("http://") || url.startsWith("https://");
+    parts.push(
+      <a
+        key={`${url}-${index}`}
+        href={url}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noreferrer" : undefined}
+        className={mine ? "font-semibold underline decoration-white/70 underline-offset-2" : "font-semibold text-brand underline underline-offset-2"}
+      >
+        {url}
+      </a>,
+    );
+    last = index + url.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
 
 export default function ChatWidget() {
   const pathname = usePathname();
@@ -36,14 +62,23 @@ export default function ChatWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [botTyping, setBotTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unseen, setUnseen] = useState(0);
   const lastId = useRef(0);
   const tmpId = useRef(0);
   const scroller = useRef<HTMLDivElement>(null);
+  const botTypingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearBotTyping = useCallback(() => {
+    if (botTypingTimer.current) clearTimeout(botTypingTimer.current);
+    setBotTyping(false);
+  }, []);
 
   const merge = useCallback((incoming: Msg[]) => {
     if (incoming.length === 0) return;
+    // If a bot/admin reply arrived, stop the typing indicator.
+    if (incoming.some((m) => m.sender !== "customer")) clearBotTyping();
     setMsgs((prev) => {
       const seen = new Set(prev.map((m) => m.id));
       const next = [...prev];
@@ -52,7 +87,7 @@ export default function ChatWidget() {
       return next;
     });
     lastId.current = Math.max(lastId.current, ...incoming.map((m) => m.id));
-  }, []);
+  }, [clearBotTyping]);
 
   // Poll while open and closed. The database is authoritative for unread state,
   // so a refresh cannot count old admin messages as new again.
@@ -77,11 +112,23 @@ export default function ChatWidget() {
     if (open && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
   }, [msgs, open]);
 
-  function openPanel() {
+  function openPanel(prefill?: string) {
     setOpen(true);
     setUnseen(0);
     void markChatRead();
+    if (prefill) setDraft(prefill);
   }
+
+  // Listen for chat:ask events from product pages.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const msg = (e as CustomEvent<string>).detail ?? "";
+      openPanel(msg);
+    };
+    window.addEventListener("chat:ask", handler);
+    return () => window.removeEventListener("chat:ask", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function sendText(raw: string) {
     const text = raw.trim();
@@ -99,6 +146,10 @@ export default function ChatWidget() {
     setSending(false);
     if (res.ok) {
       merge([res.message]);
+      // Show bot-typing indicator; auto-clear after 30s as a safety net.
+      setBotTyping(true);
+      if (botTypingTimer.current) clearTimeout(botTypingTimer.current);
+      botTypingTimer.current = setTimeout(() => setBotTyping(false), 30_000);
       // The bot may have replied during the action — pull it immediately.
       const r = await fetchChatMessages(lastId.current, open);
       if (r.messages.length) merge(r.messages);
@@ -118,7 +169,7 @@ export default function ChatWidget() {
       {!open && (
         <button
           type="button"
-          onClick={openPanel}
+          onClick={() => openPanel()}
           aria-label="ແຊັດກັບຮ້ານ"
           className={`fixed right-4 z-40 grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-lg shadow-brand/30 transition hover:bg-brand-dark ${launcherBottom}`}
         >
@@ -185,14 +236,14 @@ export default function ChatWidget() {
                           : "rounded-bl-sm bg-white text-gray-700 shadow-sm ring-1 ring-gray-100"
                     }`}
                   >
-                    {m.body}
+                    <MessageText text={m.body} mine={mine} />
                   </div>
                 </div>
               );
             })}
-            {sending && (
+            {(sending || botTyping) && (
               <div className="flex items-center gap-1.5 pl-1 text-gray-400">
-                <span className="text-[10px] font-bold">🤖 ກຳລັງພິມ</span>
+                <span className="text-[10px] font-bold">🤖 ກຳລັງຕອບ</span>
                 <span className="flex gap-0.5">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-300 [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-300 [animation-delay:-0.1s]" />

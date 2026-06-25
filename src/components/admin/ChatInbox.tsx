@@ -23,6 +23,7 @@ interface Thread {
 
 const THREADS_MS = 6000;
 const MSGS_MS = 4000;
+const LINK_RE = /(https?:\/\/[^\s)]+|\/(?:product|category|brand|group|search|products|cart|checkout|order|track|login|account|help|policy)\/[^\s),.]+|\/(?:products|cart|checkout|track|login|account|help)(?=\s|$))/g;
 
 const AVATAR_COLORS = [
   "bg-gradient-to-br from-orange-500 to-amber-500 text-white",
@@ -46,6 +47,31 @@ function formatChatTime(dateStr: string) {
   } catch {
     return "";
   }
+}
+
+function MessageText({ text, admin }: { text: string; admin: boolean }) {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(LINK_RE)) {
+    const url = match[0];
+    const index = match.index ?? 0;
+    if (index > last) parts.push(text.slice(last, index));
+    const external = url.startsWith("http://") || url.startsWith("https://");
+    parts.push(
+      <a
+        key={`${url}-${index}`}
+        href={url}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noreferrer" : undefined}
+        className={admin ? "underline decoration-white/80 underline-offset-2" : "font-black text-orange-600 underline underline-offset-2"}
+      >
+        {url}
+      </a>,
+    );
+    last = index + url.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
 }
 
 export default function ChatInbox({ initial }: { initial: Thread[] }) {
@@ -321,7 +347,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                               : "rounded-bl-none bg-white text-slate-700 border border-slate-100"
                           }`}
                         >
-                          {m.body}
+                          <MessageText text={m.body} admin={isAdminMsg} />
                         </div>
                         {/* Timestamp bubble */}
                         <span className={`block mt-1 text-[9px] font-bold text-slate-400 ${isAdminMsg ? "text-right" : "text-left"}`}>

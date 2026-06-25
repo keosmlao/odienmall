@@ -1,7 +1,7 @@
 "use server";
 
 import {
-  getOrderByNo,
+  getTrackOrderByNo,
   getOrderNosByPhone,
   getOrderTms,
   STATUS_LABEL,
@@ -89,7 +89,7 @@ export async function trackOrder(queryStr: string): Promise<TrackResult> {
   if (!q) return { ok: false, error: "ກະລຸນາໃສ່ເລກອໍເດີ ຫຼື ເບີໂທ" };
   try {
     // Try as an order number first.
-    const byNo = await getOrderByNo(q);
+    const byNo = await getTrackOrderByNo(q);
     if (byNo) return { ok: true, orders: [await toTracked(byNo)] };
 
     // Else treat as a phone number.
@@ -97,7 +97,7 @@ export async function trackOrder(queryStr: string): Promise<TrackResult> {
     if (digits.length < 6) return { ok: false, error: "ບໍ່ພົບ — ກວດເລກອໍເດີ ຫຼື ໃສ່ເບີໂທໃຫ້ຄົບ" };
     const nos = await getOrderNosByPhone(digits);
     if (nos.length === 0) return { ok: false, error: "ບໍ່ພົບອໍເດີສຳລັບເບີນີ້" };
-    const records = (await Promise.all(nos.map((n) => getOrderByNo(n))))
+    const records = (await Promise.all(nos.map((n) => getTrackOrderByNo(n))))
       .filter((o): o is OrderRecord => o != null);
     const orders = await Promise.all(records.map(toTracked));
     if (orders.length === 0) return { ok: false, error: "ບໍ່ພົບອໍເດີ" };

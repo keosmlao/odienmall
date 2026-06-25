@@ -68,10 +68,9 @@ export async function sendChatMessage(body: string, name?: string): Promise<Send
     });
     const message = await postMessage(threadId, "customer", text);
     if (!message) return { ok: false, error: "ສົ່ງບໍ່ສຳເລັດ" };
-    // AI assistant answers first (best-effort; no-op without an API key, and stays
-    // quiet once a human admin has taken over the thread). Awaited so the reply is
-    // ready by the customer's next poll.
-    await botReply(threadId, text).catch(() => {});
+    // Local models can take a while; do not block the customer send action.
+    // The chat widget poll will show the bot reply when it is posted.
+    botReply(threadId, text).catch(() => {});
     return { ok: true, message };
   } catch (e) {
     console.error("sendChatMessage failed:", e);

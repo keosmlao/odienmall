@@ -48,15 +48,23 @@ export async function adminReply(threadId: number, body: string): Promise<AdminR
 
 export type ResumeBotResult = { ok: true } | { ok: false; error: string };
 
-/** Allow AI to answer a thread again, then try answering the latest customer message. */
+/** Allow AI to answer a thread again. Only fires a bot reply if the latest
+ *  customer message has not yet received a bot response (avoids duplicates). */
 export async function adminResumeBot(threadId: number): Promise<ResumeBotResult> {
   if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
   try {
     await releaseHumanTaken(threadId);
     const msgs = await getThreadMessages(threadId, 0);
-    const latestCustomer = [...msgs].reverse().find((m) => m.sender === "customer");
-    if (latestCustomer) {
-      await botReply(threadId, latestCustomer.body).catch(() => {});
+    // Find the latest customer message index.
+    const lastCustIdx = [...msgs].reverse().findIndex((m) => m.sender === "customer");
+    if (lastCustIdx === -1) return { ok: true };
+    const latestCustomer = [...msgs].reverse()[lastCustIdx];
+    // Check whether a bot reply already exists AFTER that customer message.
+    const msgsAfterCustomer = [...msgs].reverse().slice(0, lastCustIdx);
+    const alreadyAnswered = msgsAfterCustomer.some((m) => m.isBot);
+    if (!alreadyAnswered) {
+      // Only fire the bot if the customer question is unanswered.
+      botReply(threadId, latestCustomer.body).catch(() => {});
     }
     return { ok: true };
   } catch (e) {

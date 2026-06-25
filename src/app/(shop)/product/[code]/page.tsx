@@ -24,6 +24,7 @@ import TrackView from "@/components/TrackView";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import ProductShare from "@/components/ProductShare";
 import CompareButton from "@/components/CompareButton";
+import ChatAskButton from "@/components/ChatAskButton";
 
 export const dynamic = "force-dynamic";
 
@@ -255,6 +256,9 @@ export default async function ProductPage({
             <WishlistButton product={product} variant="full" />
             <CompareButton product={product} variant="full" />
             <ProductShare title={product.name} url={productUrl} />
+          </div>
+          <div className="relative z-10">
+            <ChatAskButton productName={product.name} />
           </div>
           <div className="relative z-10">
             <ProductAlertButton productCode={product.code} />

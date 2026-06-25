@@ -5,7 +5,7 @@ import { testChatBotFromSettings } from "./actions";
 
 type ChatBotTestResult = {
   ok: boolean;
-  provider: "openai" | "anthropic" | "none";
+  provider: "local" | "openai" | "anthropic" | "none";
   model: string | null;
   botEnabled: boolean;
   hasDbContext: boolean;
