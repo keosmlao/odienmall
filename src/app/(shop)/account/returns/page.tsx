@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { listReturnsByCustomer, RETURN_STATUS_LABEL, type ReturnStatus } from "@/lib/returns";
+import { getOrdersByCustomer } from "@/lib/orders";
 import { formatKip } from "@/lib/format";
+import ReturnForm from "./ReturnForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "ຄຳຮ້ອງຄືນສິນຄ້າ" };
@@ -18,7 +20,10 @@ export default async function ReturnsPage() {
   const session = await getSession();
   if (!session) redirect("/login?redirect=/account/returns");
 
-  const returns = await listReturnsByCustomer(session.code);
+  const [returns, orders] = await Promise.all([
+    listReturnsByCustomer(session.code),
+    getOrdersByCustomer(session.code),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
@@ -26,6 +31,8 @@ export default async function ReturnsPage() {
         <h1 className="text-lg font-black text-gray-900">ຄຳຮ້ອງຄືນສິນຄ້າ</h1>
         <Link href="/account" className="text-sm text-brand hover:underline">← ບັນຊີ</Link>
       </div>
+
+      <ReturnForm orders={orders} customerCode={session.code} />
 
       {returns.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center">

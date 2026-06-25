@@ -36,6 +36,7 @@ export default function Footer({ locale = "lo" }: { locale?: Locale }) {
         <div>
           <h4 className="mb-4 border-l-4 border-orange-500 pl-2 text-xs font-bold uppercase tracking-wider text-slate-800">{t("footer.help", locale)}</h4>
           <ul className="space-y-3 text-sm">
+            <li><Link href="/promotions" className="transition hover:text-orange-600">ໂປຣໂມຊັນແຕ້ມ</Link></li>
             <li><Link href="/track" className="transition hover:text-orange-600">{t("footer.track", locale)}</Link></li>
             <li><Link href="/help" className="transition hover:text-orange-600">{t("footer.faq", locale)}</Link></li>
             <li><Link href="/policy/shipping" className="transition hover:text-orange-600">{t("footer.shipping", locale)}</Link></li>

@@ -24,6 +24,14 @@ export default function LanguageSwitcher() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  useEffect(() => {
+    if (pending) {
+      window.dispatchEvent(new Event("routeChangeStart"));
+    } else {
+      window.dispatchEvent(new Event("routeChangeComplete"));
+    }
+  }, [pending]);
+
   const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
 
   function choose(code: string) {

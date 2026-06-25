@@ -123,6 +123,13 @@ const NAV: NavItem[] = [
     icon: "M3 5h18v14H3zM3 15l5-5 4 4 3-3 6 6M16 9h.01",
   },
   {
+    href: "/admin/promotions",
+    label: "ໂປຣໂມ",
+    group: "ສິນຄ້າ",
+    match: (p: string) => p.startsWith("/admin/promotions"),
+    icon: "M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z",
+  },
+  {
     href: "/admin/reviews",
     label: "ຣີວິວ",
     group: "ສິນຄ້າ",

@@ -20,8 +20,13 @@ const ADMIN_WEB = `1=1`;
 /** A web item is "low stock" when it still has stock but ≤ this many units. */
 export const LOW_STOCK_MAX = 5;
 
-const PRICE_SUBQUERY =
-  "(select min(b.price) from public.ic_inventory_barcode b where b.ic_code = i.code and b.price > 0)";
+const PRICE_SUBQUERY = `
+  coalesce(
+    (select min(b.price) from public.ic_inventory_barcode b where b.ic_code = i.code and b.price > 0),
+    (select p.sale_price1 from public.ic_inventory_price p 
+     where p.ic_code = i.code and p.currency_code = '02' and p.price_type = 2 and p.sale_type = 0 and p.sale_price1 > 0
+     order by case when (p.from_date is null or p.from_date <= current_date) and (p.to_date is null or p.to_date >= current_date) then 0 else 1 end asc, p.roworder desc limit 1)
+  )`;
 
 export interface AdminProductRow {
   code: string;

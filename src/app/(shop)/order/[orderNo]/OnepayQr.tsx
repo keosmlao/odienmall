@@ -62,10 +62,17 @@ function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function bcelOneDeepLink(qrString: string): string {
-  // BCEL One universal link — carries the EMVCo QR string so the app can
-  // jump straight to the payment confirm screen without re-scanning.
-  return `https://bcel.com.la/bcelone?qr=${encodeURIComponent(qrString)}`;
+// Open BCEL One app using the official custom URL scheme (bcelone://?qrc=…).
+// Waits 2 s then falls back to the relevant app-store page if the app is not installed.
+function openBcelOne(qrString: string) {
+  window.location.href = `bcelone://?qrc=${encodeURIComponent(qrString)}`;
+  setTimeout(() => {
+    if (document.hidden) return; // app opened → page went to background
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    window.location.href = isIOS
+      ? "https://apps.apple.com/la/app/bcel-one/id1455826426"
+      : "https://play.google.com/store/apps/details?id=la.bcel.bcelone";
+  }, 2000);
 }
 
 // BCEL OnePay payment UI. The QR always shows inside a **modal** overlay.
@@ -371,22 +378,34 @@ export default function OnepayQr({
               return (
                 <div className="flex flex-col items-center gap-2">
                   {mobile && activeQrString ? (
-                    // Mobile: deep-link button to open BCEL One directly
-                    <a
-                      href={bcelOneDeepLink(activeQrString)}
-                      className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#003893] py-5 text-white shadow-lg active:opacity-80"
-                    >
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white">
-                        <svg viewBox="0 0 40 40" className="h-7 w-7" fill="none">
-                          <rect width="40" height="40" rx="8" fill="#003893" />
-                          <text x="20" y="27" textAnchor="middle" fontSize="16" fontWeight="bold" fill="white">B</text>
-                        </svg>
-                      </span>
-                      <div className="text-left">
-                        <div className="text-sm font-black">ເປີດ BCEL One</div>
-                        <div className="text-[11px] text-blue-200">ກົດເພື່ອຊຳລະ {formatKip(displayAmount)}</div>
-                      </div>
-                    </a>
+                    // Mobile: JS deep-link button (bcelone://) → app store fallback after 2s
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openBcelOne(activeQrString)}
+                        className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#003893] py-5 text-white shadow-lg active:opacity-80"
+                      >
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white">
+                          <svg viewBox="0 0 40 40" className="h-7 w-7" fill="none">
+                            <rect width="40" height="40" rx="8" fill="#003893" />
+                            <text x="20" y="27" textAnchor="middle" fontSize="16" fontWeight="bold" fill="white">B</text>
+                          </svg>
+                        </span>
+                        <div className="text-left">
+                          <div className="text-sm font-black">ເປີດ BCEL One</div>
+                          <div className="text-[11px] text-blue-200">ກົດເພື່ອຊຳລະ {formatKip(displayAmount)}</div>
+                        </div>
+                      </button>
+                      {/* QR image below so customer can also scan from another device */}
+                      {activeQrImg && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={activeQrImg}
+                          alt={`QR ຊຳລະເງິນ ${orderNo}`}
+                          className="h-44 w-44 rounded-xl border border-gray-100 bg-white object-contain p-2 opacity-80"
+                        />
+                      )}
+                    </>
                   ) : activeQrImg ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img

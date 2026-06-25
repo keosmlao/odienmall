@@ -94,6 +94,7 @@ export default function FilterSidebar({
     if (pmax != null) sp.set("pmax", String(pmax));
     if (sort && sort !== "newest") sp.set("sort", sort);
     const qs = sp.toString();
+    window.dispatchEvent(new Event("routeChangeStart"));
     router.push(qs ? `${basePath}?${qs}` : basePath);
   }
 

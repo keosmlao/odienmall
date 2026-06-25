@@ -18,6 +18,7 @@ const FEATURED = [
   { href: "/products", label: "ສິນຄ້າທັງໝົດ" },
   { href: "/products?sort=newest", label: "ສິນຄ້າໃໝ່" },
   { href: "/brands", label: "ແບຣນ" },
+  { href: "/promotions", label: "🎁 ໂປຣໂມ" },
 ];
 
 function Icon({ d, className }: { d: string; className?: string }) {
@@ -248,6 +249,13 @@ export default function MegaMenu({ groups }: { groups: GroupMain[] }) {
                 className="block rounded-xl bg-slate-50 px-4.5 py-3 text-xs font-black text-slate-800 transition hover:bg-slate-100 shadow-2xs"
               >
                 ສິນຄ້າທັງໝົດ
+              </Link>
+              <Link
+                href="/promotions"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-2 rounded-xl bg-orange-50 px-4.5 py-3 text-xs font-black text-orange-700 transition hover:bg-orange-100 shadow-2xs"
+              >
+                🎁 ໂປຣໂມຊັນແຕ້ມ
               </Link>
 
               {/* Category list items */}

@@ -75,6 +75,7 @@ export default function ProductListing({
     }
     sp.delete("page");
     const qs = sp.toString();
+    window.dispatchEvent(new Event("routeChangeStart"));
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }
 

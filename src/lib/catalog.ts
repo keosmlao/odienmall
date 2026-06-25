@@ -107,38 +107,54 @@ const WEB_ITEM = `i.group_main between '11' and '14' and ${NOT_HIDDEN}
         and coalesce(i.balance_qty, 0) > 0)
   )`;
 
-// SQL predicate: the product has a real POS price in ic_inventory_barcode.
+// SQL predicate: the product has a real POS price in barcode or price table.
 const HAS_PRICE_SQL =
-  "exists (select 1 from public.ic_inventory_barcode b where b.ic_code = i.code and b.price > 0)";
+  "(exists (select 1 from public.ic_inventory_barcode b where b.ic_code = i.code and b.price > 0) or exists (select 1 from public.ic_inventory_price p where p.ic_code = i.code and p.currency_code = '02' and p.price_type = 2 and p.sale_type = 0 and p.sale_price1 > 0))";
 
-// Correlated subquery for a product's resolved retail price (used in filters,
-// matches the lateral used for display).
-const PRICE_SUBQUERY =
-  "(select min(b.price) from public.ic_inventory_barcode b where b.ic_code = i.code and b.price > 0)";
+// Correlated subquery for a product's resolved retail price.
+const PRICE_SUBQUERY = `
+  coalesce(
+    (select min(b.price) from public.ic_inventory_barcode b where b.ic_code = i.code and b.price > 0),
+    (select p.sale_price1 from public.ic_inventory_price p 
+     where p.ic_code = i.code and p.currency_code = '02' and p.price_type = 2 and p.sale_type = 0 and p.sale_price1 > 0
+     order by case when (p.from_date is null or p.from_date <= current_date) and (p.to_date is null or p.to_date >= current_date) then 0 else 1 end asc, p.roworder desc limit 1)
+  )`;
 
 // ---------------------------------------------------------------------------
 // The storefront reads ONLY these ERP tables, all in the `public` schema:
 //   ic_inventory        - product master   (web items: balance_qty > 0, not hidden)
 //   ic_category         - categories        (web: onweb = 1)
 //   ic_brand            - brands            (web: onweb = 1)
-//   ic_inventory_price  - retail price      (sale_type=0, price_type=2, LAK '01')
+//   ic_inventory_price  - retail price      (sale_type=0, price_type=2, LAK '02')
 // Nothing is ever written.
 // ---------------------------------------------------------------------------
 
-// Resolves ONE retail price (+ unit) per product from the POS price table
-// `ic_inventory_barcode.price` — verified to hold real selling prices in LAK
-// (e.g. 25,990,000 ₭ for a fridge). We take the lowest positive price, i.e. the
-// smallest sellable unit (a single piece), which is what a retail shopper buys.
-// Items without a POS price (~72/202) get a null price and the UI shows
-// "ສອບຖາມລາຄາ" (contact for price) rather than the misleading wholesale-tier value
-// in ic_inventory_price.
+// Resolves ONE retail price (+ unit) per product from the barcode table,
+// falling back to ic_inventory_price if barcode price is null.
 const PRICE_LATERAL = `
   left join lateral (
-    select b.price, b.unit_code
-    from public.ic_inventory_barcode b
-    where b.ic_code = i.code and b.price > 0
-    order by b.price asc
-    limit 1
+    select coalesce(b.price, p.price) as price,
+           coalesce(b.unit_code, p.unit_code) as unit_code
+    from (
+      select b.price, b.unit_code
+      from public.ic_inventory_barcode b
+      where b.ic_code = i.code and b.price > 0
+      order by b.price asc
+      limit 1
+    ) b
+    full outer join (
+      select p.sale_price1 as price, p.unit_code
+      from public.ic_inventory_price p
+      where p.ic_code = i.code
+        and p.currency_code = '02'
+        and p.price_type = 2
+        and p.sale_type = 0
+        and p.sale_price1 > 0
+      order by 
+        case when (p.from_date is null or p.from_date <= current_date) and (p.to_date is null or p.to_date >= current_date) then 0 else 1 end asc,
+        p.roworder desc
+      limit 1
+    ) p on true
   ) pr on true`;
 
 const PRODUCT_SELECT = `

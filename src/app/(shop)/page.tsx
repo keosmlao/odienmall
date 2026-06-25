@@ -22,6 +22,8 @@ import { getHomeBanners } from "@/lib/banners";
 import { SITE_URL } from "@/lib/config";
 import { listPublicVouchers } from "@/lib/vouchers";
 import VoucherRail from "@/components/VoucherRail";
+import { getActivePointPromotions } from "@/lib/promotions";
+import PromotionRail from "@/components/PromotionRail";
 
 // DB-backed; always render fresh.
 export const dynamic = "force-dynamic";
@@ -55,7 +57,7 @@ const SEARCH_LD = {
 
 export default async function HomePage() {
   const renderedAt = new Date().toISOString();
-  const [groups, brands, newItems, promoItems, featured, notice, banners, vouchers, promotion, flash] = await Promise.all([
+  const [groups, brands, newItems, promoItems, featured, notice, banners, vouchers, promotion, flash, pointPromos] = await Promise.all([
     getGroupMenu(),
     getWebBrands(12),
     getNewProducts(10),
@@ -66,6 +68,7 @@ export default async function HomePage() {
     listPublicVouchers(6),
     getHomePromotion(),
     getActiveFlashDeals(12),
+    getActivePointPromotions(),
   ]);
 
   // Flatten the group tree into its leaf sub-categories — the same set shown in
@@ -175,6 +178,17 @@ export default async function HomePage() {
           <SectionHeader title="ສິນຄ້າມາໃໝ່" href="/products?sort=newest" />
           <ProductGrid products={newItems.slice(0, 6)} dense />
         </section>
+      )}
+
+      {/* Point promotions rail — pinned items only (admin-selected); fallback to first 10 active */}
+      {([...pointPromos.all, ...pointPromos.member, ...pointPromos.vip].length > 0) && (
+        <PromotionRail
+          promos={
+            pointPromos.pinned.length > 0
+              ? pointPromos.pinned
+              : [...pointPromos.all, ...pointPromos.member, ...pointPromos.vip].slice(0, 10)
+          }
+        />
       )}
 
       {/* Recommended / featured */}

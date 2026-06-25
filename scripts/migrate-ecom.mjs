@@ -817,6 +817,18 @@ create table if not exists odg_ecom.product_views (
 );
 create index if not exists product_views_code_idx on odg_ecom.product_views(product_code);
 create index if not exists product_views_at_idx   on odg_ecom.product_views(viewed_at);
+
+-- ── Promotion overlay images ──────────────────────────────────────────────────
+-- Stores uploaded images for public.odg_pomotion_point rows (READ-ONLY source).
+-- Keyed by odg_pomotion_point.code (the promotion code, not ic_code).
+create table if not exists odg_ecom.promotion_overlays (
+  promo_code   text        primary key,
+  image_url    text,
+  pinned       boolean     not null default false,
+  updated_at   timestamptz not null default now(),
+  updated_by   text
+);
+alter table odg_ecom.promotion_overlays add column if not exists pinned boolean not null default false;
 `;
 
 const c = new pg.Client({

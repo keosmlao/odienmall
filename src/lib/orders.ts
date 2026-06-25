@@ -175,10 +175,20 @@ export async function priceCart(items: OrderInputItem[]): Promise<{ lines: Order
   const priced = await query<PricedRow>(
     `select i.code,
             coalesce(nullif(i.name_1,''), nullif(i.name_2,''), nullif(i.name_eng_1,''), i.code) as name,
-            (select min(b.price) from public.ic_inventory_barcode b
-               where b.ic_code = i.code and b.price > 0) as price,
-            (select b.unit_code from public.ic_inventory_barcode b
-               where b.ic_code = i.code and b.price > 0 order by b.price asc limit 1) as unit
+            coalesce(
+              (select min(b.price) from public.ic_inventory_barcode b
+                 where b.ic_code = i.code and b.price > 0),
+              (select p.sale_price1 from public.ic_inventory_price p 
+                 where p.ic_code = i.code and p.currency_code = '02' and p.price_type = 2 and p.sale_type = 0 and p.sale_price1 > 0
+                 order by case when (p.from_date is null or p.from_date <= current_date) and (p.to_date is null or p.to_date >= current_date) then 0 else 1 end asc, p.roworder desc limit 1)
+            ) as price,
+            coalesce(
+              (select b.unit_code from public.ic_inventory_barcode b
+                 where b.ic_code = i.code and b.price > 0 order by b.price asc limit 1),
+              (select p.unit_code from public.ic_inventory_price p 
+                 where p.ic_code = i.code and p.currency_code = '02' and p.price_type = 2 and p.sale_type = 0 and p.sale_price1 > 0
+                 order by case when (p.from_date is null or p.from_date <= current_date) and (p.to_date is null or p.to_date >= current_date) then 0 else 1 end asc, p.roworder desc limit 1)
+            ) as unit
        from public.ic_inventory i
       where i.code = any($1)`,
     [codes],

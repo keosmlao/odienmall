@@ -16,6 +16,19 @@ function LoaderState() {
   }, [pathname, searchParams]);
 
   useEffect(() => {
+    const handleStart = () => setIsLoading(true);
+    const handleComplete = () => setIsLoading(false);
+
+    window.addEventListener("routeChangeStart", handleStart);
+    window.addEventListener("routeChangeComplete", handleComplete);
+
+    return () => {
+      window.removeEventListener("routeChangeStart", handleStart);
+      window.removeEventListener("routeChangeComplete", handleComplete);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleAnchorClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const anchor = target.closest("a");

@@ -233,10 +233,13 @@ async function materializeOrder(orderNo: string, paid: boolean): Promise<string 
   sendPushToAdminBroadcast({ title: adminTitle, body: adminBody, link: "/admin" }).catch(() => {});
 
   // Send order confirmation email to customer (best-effort; needs SMTP_HOST + EMAIL_FROM).
-  if (emailConfigured() && snap.customerCode) {
-    queryOne<{ email: string | null }>(
-      `select email from public.ar_customer where code = $1`,
-      [snap.customerCode],
+  if (emailConfigured()) {
+    (snap.customerCode
+      ? queryOne<{ email: string | null }>(
+          `select email from public.ar_customer where code = $1`,
+          [snap.customerCode],
+        )
+      : Promise.resolve({ email: snap.guestEmail ?? null })
     ).then((row) => {
       const email = row?.email?.trim() || "";
       if (!email) return;

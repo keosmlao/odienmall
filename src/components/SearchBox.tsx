@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatKip } from "@/lib/format";
 import { useT } from "@/lib/i18n-context";
@@ -13,6 +13,7 @@ const POPULAR = ["ຕູ້ເຢັນ", "ແອ", "ໂທລະພາບ", "�
 
 export default function SearchBox() {
   const params = useSearchParams();
+  const router = useRouter();
   const t = useT();
   const initial = params.get("q") ?? "";
   const [query, setQuery] = useState(initial);
@@ -80,13 +81,21 @@ export default function SearchBox() {
       ).slice(0, 6)
     : [];
 
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const term = query.trim();
+    if (!term) return;
+    remember(term);
+    setOpen(false);
+    window.dispatchEvent(new Event("routeChangeStart"));
+    router.push(`/search?q=${encodeURIComponent(term)}`);
+  }
+
   return (
     <div ref={root} className="relative w-full">
     <form
-      action="/search"
-      method="get"
+      onSubmit={handleSubmit}
       className="flex w-full items-center"
-      onSubmit={() => remember(query)}
     >
       <div className="flex h-10 sm:h-11 w-full items-center overflow-hidden rounded-lg border-2 border-orange-400 bg-white transition focus-within:border-orange-500 focus-within:shadow-[0_0_0_4px_rgba(249,115,22,0.10)]">
         <input
