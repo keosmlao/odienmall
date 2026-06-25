@@ -377,9 +377,9 @@ export default function OnepayQr({
               const activeQrImg = clientQr ?? qr?.qrDataUrl ?? null;
               return (
                 <div className="flex flex-col items-center gap-2">
-                  {mobile && activeQrString ? (
-                    // Mobile: JS deep-link button (bcelone://) → app store fallback after 2s
-                    <>
+                  {mobile ? (
+                    // Mobile: deep-link button only — no QR image
+                    activeQrString ? (
                       <button
                         type="button"
                         onClick={() => openBcelOne(activeQrString)}
@@ -396,17 +396,13 @@ export default function OnepayQr({
                           <div className="text-[11px] text-blue-200">ກົດເພື່ອຊຳລະ {formatKip(displayAmount)}</div>
                         </div>
                       </button>
-                      {/* QR image below so customer can also scan from another device */}
-                      {activeQrImg && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={activeQrImg}
-                          alt={`QR ຊຳລະເງິນ ${orderNo}`}
-                          className="h-44 w-44 rounded-xl border border-gray-100 bg-white object-contain p-2 opacity-80"
-                        />
-                      )}
-                    </>
+                    ) : (
+                      <div className="grid h-24 w-full place-items-center rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-400">
+                        {busy ? "ກຳລັງສ້າງ..." : "..."}
+                      </div>
+                    )
                   ) : activeQrImg ? (
+                    // Desktop: QR image only — no button
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={activeQrImg}

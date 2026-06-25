@@ -134,9 +134,9 @@ export default async function HomePage() {
       {subTiles.length > 0 && (
         <section className="!mb-4 overflow-hidden rounded-lg bg-white shadow-sm">
           <SectionHeader title="ໝວດໝູ່ສິນຄ້າ" href="/products" />
-          <div className="grid grid-cols-4 gap-1 p-2 sm:grid-cols-6 sm:gap-2 sm:p-3 lg:grid-cols-8">
+          <div className="thin-scroll flex gap-1 overflow-x-auto p-2 sm:gap-2 sm:p-3">
             {subTiles.slice(0, 16).map((s) => (
-              <div key={s.code} className="rounded-xl transition hover:bg-orange-50/60">
+              <div key={s.code} className="w-24 shrink-0 rounded-xl transition hover:bg-orange-50/60 sm:w-28">
                 <GroupTile
                   mainCode={s.mainCode}
                   code={s.code}

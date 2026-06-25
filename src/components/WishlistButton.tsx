@@ -59,7 +59,7 @@ export default function WishlistButton({
         toggle(item);
       }}
       aria-label="ບັນທຶກໃສ່ລາຍການທີ່ມັກ"
-      className={`grid h-8 w-8 place-items-center rounded-full bg-white/90 shadow-sm backdrop-blur transition hover:bg-white ${
+      className={`grid h-7 w-7 place-items-center rounded-full bg-white/95 shadow-sm backdrop-blur transition hover:bg-white sm:h-8 sm:w-8 ${
         active ? "text-price" : "text-gray-400 hover:text-price"
       }`}
     >

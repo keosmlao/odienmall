@@ -411,14 +411,14 @@ export default async function ProductPage({
       {frequentlyBought.length > 0 && (
         <div className="mt-8">
           <SectionHeader title="ມັກຊື້ຄູ່ກັນ" />
-          <ProductGrid products={frequentlyBought} />
+          <ProductGrid products={frequentlyBought} dense />
         </div>
       )}
 
       {related.length > 0 && (
         <div className="mt-8">
           <SectionHeader title="ສິນຄ້າທີ່ກ່ຽວຂ້ອງ" />
-          <ProductGrid products={related} />
+          <ProductGrid products={related} dense />
         </div>
       )}
 

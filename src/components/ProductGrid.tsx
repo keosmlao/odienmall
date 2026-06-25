@@ -4,9 +4,11 @@ import ProductCard from "./ProductCard";
 export default function ProductGrid({
   products,
   dense = false,
+  cols,
 }: {
   products: Product[];
   dense?: boolean;
+  cols?: 5 | 6;
 }) {
   if (products.length === 0) {
     return (
@@ -17,8 +19,8 @@ export default function ProductGrid({
   }
   return (
     <div
-      className={`grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 ${
-        dense ? "xl:grid-cols-6" : "xl:grid-cols-5"
+      className={`grid items-start grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 ${
+        cols === 5 ? "xl:grid-cols-5" : cols === 6 || dense ? "xl:grid-cols-6" : ""
       }`}
     >
       {products.map((p) => (

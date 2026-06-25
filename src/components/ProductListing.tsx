@@ -192,7 +192,7 @@ export default function ProductListing({
           </div>
         </div>
 
-        <ProductGrid products={data.items} dense />
+        <ProductGrid products={data.items} cols={5} />
         <Pagination page={data.page} totalPages={data.totalPages} hrefFor={hrefFor} />
       </div>
     </div>

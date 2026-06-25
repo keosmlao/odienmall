@@ -51,9 +51,9 @@ export default function ProductImage({
         src="/odm.png"
         alt=""
         loading="lazy"
-        className="h-2/5 max-h-20 w-auto max-w-[68%] object-contain opacity-80"
+        className="h-1/3 max-h-14 w-auto max-w-[58%] object-contain opacity-75 sm:h-2/5 sm:max-h-20 sm:max-w-[68%]"
       />
-      <span className="absolute bottom-1.5 right-2 rounded bg-white/85 px-1.5 py-0.5 text-[9px] font-black text-slate-400">
+      <span className="absolute bottom-1 right-1.5 rounded bg-white/85 px-1.5 py-0.5 text-[8px] font-black text-slate-400 sm:bottom-1.5 sm:right-2 sm:text-[9px]">
         {code}
       </span>
     </div>

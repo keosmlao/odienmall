@@ -72,12 +72,12 @@ export default function AddToCartButton({
       }}
       disabled={outOfStock || noPrice}
       aria-label={noPrice ? "ສອບຖາມລາຄາ" : "ເພີ່ມໃສ່ກະຕ່າ"}
-      className="inline-flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm transition hover:scale-110 hover:bg-orange-600 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:scale-100"
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white shadow-sm transition hover:bg-orange-600 active:scale-95 disabled:scale-100 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:h-9 sm:w-9"
     >
       {added ? (
-        <span className="text-sm font-bold animate-pulse">✓</span>
+        <span className="text-xs sm:text-sm font-bold animate-pulse">✓</span>
       ) : (
-        <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2.2}>
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" stroke="currentColor" strokeWidth={2.2}>
           <circle cx="9" cy="20" r="1.4" />
           <circle cx="18" cy="20" r="1.4" />
           <path d="M2 3h2.5l2.2 12.2a1.6 1.6 0 0 0 1.6 1.3h8.4a1.6 1.6 0 0 0 1.6-1.3L21 7H6" strokeLinecap="round" strokeLinejoin="round" />
