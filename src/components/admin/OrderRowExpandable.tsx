@@ -34,10 +34,10 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
 
   return (
     <>
-      <tr className="hover:bg-slate-50/40 transition-colors duration-200">
+      <tr className="transition-colors hover:bg-orange-50/35">
         {/* SML doc + badge */}
         <td className="px-6 py-4 align-top whitespace-nowrap">
-          <Link href={detailHref} className="block font-mono text-sm font-black text-slate-800 transition-colors hover:text-orange-500 hover:underline">
+          <Link href={detailHref} className="block font-mono text-sm font-black text-slate-900 transition-colors hover:text-orange-600 hover:underline">
             {o.smlDocNo || o.orderNo}
           </Link>
           <div className="mt-1.5">
@@ -53,11 +53,11 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
         {/* Customer */}
         <td className="px-6 py-4 align-top whitespace-nowrap">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-800 text-[11px] font-bold uppercase text-white">{initial}</span>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,#f97316,#22c55e)] text-[11px] font-black uppercase text-white">{initial}</span>
             <div className="leading-tight">
               <div className="flex items-center gap-1.5">
                 <span className="block max-w-[150px] truncate text-xs font-bold text-slate-800" title={o.customerName || ""}>{o.customerName}</span>
-                {o.createdBy && <span className="shrink-0 rounded bg-violet-50 px-1.5 py-0.5 text-[8px] font-bold leading-none text-violet-600">ພະນັກງານ</span>}
+                {o.createdBy && <span className="shrink-0 rounded-md bg-cyan-50 px-1.5 py-0.5 text-[8px] font-black leading-none text-cyan-700">ພະນັກງານ</span>}
               </div>
               <a href={`tel:${o.phone}`} className="mt-1 block text-xs font-semibold text-slate-500 hover:text-orange-500">{o.phone || "—"}</a>
             </div>
@@ -70,11 +70,11 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
-              open ? "border-orange-300 bg-orange-50 text-orange-700" : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:text-orange-600"
+            className={`adm-focus inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition ${
+              open ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
             }`}
           >
-            <span className="grid h-4 w-4 place-items-center rounded-full bg-orange-500 text-[9px] font-extrabold text-white">{o.itemCount}</span>
+            <span className={`grid h-4 w-4 place-items-center rounded-md text-[9px] font-extrabold ${open ? "bg-white/15 text-white" : "bg-orange-500 text-white"}`}>{o.itemCount}</span>
             ລາຍການ
             <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
           </button>
@@ -100,7 +100,7 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
         {/* Actions */}
         <td className="px-6 py-4 align-top whitespace-nowrap text-right">
           <div className="flex items-center justify-end gap-1.5">
-            <Link href={detailHref} className="grid h-8.5 w-8.5 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-xs transition hover:border-orange-300 hover:bg-orange-50/20 hover:text-orange-600" aria-label="ເບິ່ງ" title="ເບິ່ງລາຍລະອຽດ">
+            <Link href={detailHref} className="adm-focus grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700" aria-label="ເບິ່ງ" title="ເບິ່ງລາຍລະອຽດ">
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" /></svg>
             </Link>
             <SendOrderLinkButton orderNo={o.orderNo} phone={o.phone} />
@@ -111,8 +111,8 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
 
       {open && (
         <tr>
-          <td colSpan={7} className="bg-slate-50/40 px-6 pb-4 pt-0">
-            <div className="max-w-2xl">
+          <td colSpan={7} className="bg-orange-50/25 px-6 pb-4 pt-0">
+            <div className="max-w-2xl rounded-lg border border-orange-100 bg-white p-3">
               <OrderItemsList items={o.items} itemCount={o.itemCount} />
             </div>
           </td>

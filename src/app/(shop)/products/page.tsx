@@ -1,4 +1,4 @@
-import { getProducts, getWebBrands, getGroupMenu } from "@/lib/catalog";
+import { getProducts, getWebBrands, getGroupMenu, getGroupCategories, getWebCategories } from "@/lib/catalog";
 import { firstParam, parseBool, parseNum, parsePage, parseSort } from "@/lib/params";
 import ProductListing from "@/components/ProductListing";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -14,15 +14,17 @@ export default async function ProductsPage({
   const sort = parseSort(sp.sort);
   const page = parsePage(sp.page);
   const brand = firstParam(sp.brand);
+  const cat = firstParam(sp.cat);
   const group = firstParam(sp.group);
   const inStock = parseBool(sp.instock);
   const priceMin = parseNum(sp.pmin);
   const priceMax = parseNum(sp.pmax);
 
-  const [data, brands, groups] = await Promise.all([
-    getProducts({ sort, page, pageSize: 24, brandCode: brand, groupMain: group, inStock, priceMin, priceMax }),
+  const [data, brands, groups, categories] = await Promise.all([
+    getProducts({ sort, page, pageSize: 24, brandCode: brand, categoryCode: cat, groupMain: group, inStock, priceMin, priceMax }),
     getWebBrands(30),
     getGroupMenu(),
+    group ? getGroupCategories({ groupMain: group }) : getWebCategories(50),
   ]);
 
   return (
@@ -35,6 +37,8 @@ export default async function ProductsPage({
         title="ສິນຄ້າທັງໝົດ"
         brands={brands}
         selectedBrand={brand}
+        categories={categories}
+        selectedCategory={cat}
         groups={groups}
         selectedGroup={group}
         inStock={inStock}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProductByCode, getRelatedProducts, getFrequentlyBought, getSoldCount, getProductImageList } from "@/lib/catalog";
 import { getProductReviews } from "@/lib/reviews";
+import { getProductSpecs } from "@/lib/products-admin";
 import { getProductQuestions } from "@/lib/qna";
 import ProductQna from "@/components/ProductQna";
 import { getSession } from "@/lib/auth";
@@ -60,13 +61,14 @@ export default async function ProductPage({
   const session = await getSession();
   const locale = await getLocale();
   const displayName = localeName(product, locale);
-  const [related, frequentlyBought, soldCount, reviews, galleryImages, questions] = await Promise.all([
+  const [related, frequentlyBought, soldCount, reviews, galleryImages, questions, specs] = await Promise.all([
     getRelatedProducts(product.categoryCode, product.code, 6),
     getFrequentlyBought(product.code, 6),
     getSoldCount(product.code),
     getProductReviews(product.code, session?.code),
     getProductImageList(product.code),
     getProductQuestions(product.code),
+    getProductSpecs(product.code),
   ]);
   const outOfStock = product.stock <= 0;
   const lowStock = !outOfStock && product.stock <= 5;
@@ -249,6 +251,12 @@ export default async function ProductPage({
             </span>
           </div>
 
+          {product.shortDescription && (
+            <p className="text-sm leading-relaxed text-slate-600 border-t border-slate-100 pt-3">
+              {product.shortDescription}
+            </p>
+          )}
+
           <div className="pt-2">
             <ProductBuyBox product={product} />
           </div>
@@ -313,6 +321,22 @@ export default async function ProductPage({
             {product.description}
           </p>
         </div>
+      )}
+
+      {specs.length > 0 && (
+        <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-base font-black text-slate-800">ຂໍ້ມູນສະເພາະ</h2>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-slate-50">
+              {specs.map((s) => (
+                <tr key={s.id}>
+                  <td className="py-2 pr-4 w-40 font-semibold text-slate-600 align-top">{s.label}</td>
+                  <td className="py-2 text-slate-800">{s.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       )}
 
       <ProductReviews

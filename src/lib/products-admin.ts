@@ -14,9 +14,8 @@ import { query, queryOne } from "./db";
 // so staff can manage them. Same base universe as the shop minus those filters.
 // ---------------------------------------------------------------------------
 
-// Web-eligible products (consumer groups, web-enabled). No stock/hidden filter —
-// admin sees everything manageable.
-const ADMIN_WEB = `i.is_eordershow = 1 and i.group_main in (select group_main from odg_ecom.web_groups)`;
+// Admin sees all inventory items (no is_eordershow restriction).
+const ADMIN_WEB = `1=1`;
 
 /** A web item is "low stock" when it still has stock but ≤ this many units. */
 export const LOW_STOCK_MAX = 5;
@@ -37,6 +36,7 @@ export interface AdminProductRow {
   isHidden: boolean;
   isFeatured: boolean;
   description: string | null;
+  shortDescription: string | null;
   erpDescription: string | null;
   updatedAt: string | null;
 }
@@ -59,6 +59,7 @@ const ROW_SELECT = `
     coalesce(ov.is_hidden, false)    as "isHidden",
     coalesce(ov.is_featured, false)  as "isFeatured",
     nullif(ov.description,'')         as description,
+    nullif(ov.short_description,'')   as "shortDescription",
     nullif(i.description,'')          as "erpDescription",
     ov.updated_at as "updatedAt"
   from public.ic_inventory i
@@ -348,4 +349,143 @@ export async function setProductDescription(
            updated_at = now()`,
     [code, description, by ?? null],
   );
+}
+
+/** Set the short description override (null clears it). */
+export async function setProductShortDescription(
+  code: string,
+  shortDescription: string | null,
+  by?: string,
+): Promise<void> {
+  await query(
+    `insert into odg_ecom.product_overlays (product_code, short_description, updated_by, updated_at)
+       values ($1, $2, $3, now())
+     on conflict (product_code) do update
+       set short_description = excluded.short_description,
+           updated_by = excluded.updated_by,
+           updated_at = now()`,
+    [code, shortDescription, by ?? null],
+  );
+}
+
+// --- product specifications (odg_ecom.product_specs) -------------------------
+
+export interface ProductSpec {
+  id: number;
+  productCode: string;
+  label: string;
+  value: string;
+  sortOrder: number;
+}
+
+export async function getProductSpecs(productCode: string): Promise<ProductSpec[]> {
+  const rows = await query<{ id: string; product_code: string; label: string; value: string; sort_order: number }>(
+    `select id, product_code, label, value, sort_order
+       from odg_ecom.product_specs
+      where product_code = $1
+      order by sort_order, id`,
+    [productCode],
+  );
+  return rows.map((r) => ({
+    id: Number(r.id),
+    productCode: r.product_code,
+    label: r.label,
+    value: r.value,
+    sortOrder: r.sort_order,
+  }));
+}
+
+export async function upsertProductSpec(
+  productCode: string,
+  spec: { id?: number; label: string; value: string; sortOrder?: number },
+): Promise<void> {
+  if (spec.id) {
+    await query(
+      `update odg_ecom.product_specs set label=$1, value=$2, sort_order=$3 where id=$4 and product_code=$5`,
+      [spec.label.trim(), spec.value.trim(), spec.sortOrder ?? 0, spec.id, productCode],
+    );
+  } else {
+    await query(
+      `insert into odg_ecom.product_specs (product_code, label, value, sort_order) values ($1,$2,$3,$4)`,
+      [productCode, spec.label.trim(), spec.value.trim(), spec.sortOrder ?? 0],
+    );
+  }
+}
+
+export async function deleteProductSpec(id: number, productCode: string): Promise<void> {
+  await query(`delete from odg_ecom.product_specs where id=$1 and product_code=$2`, [id, productCode]);
+}
+
+// --- AC sets (odg_ecom.ac_sets) ----------------------------------------------
+
+export interface AcSetRow {
+  id: number;
+  codeC: string;
+  nameC: string;
+  priceC: number | null;
+  stockC: number;
+  codeH: string;
+  nameH: string;
+  priceH: number | null;
+  stockH: number;
+}
+
+export async function getAcSets(): Promise<AcSetRow[]> {
+  return query<AcSetRow>(
+    `select s.id,
+            s.code_c as "codeC",
+            coalesce(nullif(ic.name_1,''), s.code_c) as "nameC",
+            (select min(b.price) from public.ic_inventory_barcode b where b.ic_code=s.code_c and b.price>0) as "priceC",
+            coalesce(ic.balance_qty,0)::float8 as "stockC",
+            s.code_h as "codeH",
+            coalesce(nullif(ih.name_1,''), s.code_h) as "nameH",
+            (select min(b.price) from public.ic_inventory_barcode b where b.ic_code=s.code_h and b.price>0) as "priceH",
+            coalesce(ih.balance_qty,0)::float8 as "stockH"
+       from odg_ecom.ac_sets s
+       join public.ic_inventory ic on ic.code = s.code_c
+       join public.ic_inventory ih on ih.code = s.code_h
+      order by s.code_c`,
+  );
+}
+
+export interface AcCandidate {
+  code: string;
+  name: string;
+  stock: number;
+  price: number | null;
+}
+
+/** Search group-12 [C] or [H] items for the pairing UI. */
+export async function searchAcCandidates(suffix: "[C]" | "[H]", q?: string): Promise<AcCandidate[]> {
+  const params: unknown[] = [`%[${suffix === "[C]" ? "C" : "H"}]%`];
+  let cond = `i.group_main='12' and i.name_1 like $1`;
+  if (q?.trim()) {
+    params.push(`%${q.trim()}%`);
+    cond += ` and (i.code ilike $${params.length} or i.name_1 ilike $${params.length})`;
+  }
+  return query<AcCandidate>(
+    `select i.code,
+            coalesce(nullif(i.name_1,''), i.code) as name,
+            coalesce(i.balance_qty,0)::float8 as stock,
+            (select min(b.price) from public.ic_inventory_barcode b where b.ic_code=i.code and b.price>0) as price
+       from public.ic_inventory i
+      where ${cond}
+        and not exists (
+          select 1 from odg_ecom.ac_sets s
+          where s.code_c = i.code or s.code_h = i.code
+        )
+      order by i.code limit 50`,
+    params,
+  );
+}
+
+export async function createAcSet(codeC: string, codeH: string): Promise<void> {
+  await query(
+    `insert into odg_ecom.ac_sets (code_c, code_h) values ($1, $2)`,
+    [codeC, codeH],
+  );
+}
+
+export async function deleteAcSet(id: number): Promise<void> {
+  await query(`delete from odg_ecom.ac_sets where id=$1`, [id]);
 }

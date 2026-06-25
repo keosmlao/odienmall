@@ -88,7 +88,7 @@ export default async function AdminDashboard({
       <OrderFilters status={status} search={q} from={from} to={to} sale={sale} salespeople={salespeople} exportHref={exportHref} />
 
       {/* Status filter chips */}
-      <div className="thin-scroll -mx-1 flex gap-2 overflow-x-auto rounded-2xl border border-slate-200/40 bg-slate-100/50 p-1.5 text-sm sm:mx-0 sm:flex-wrap sm:overflow-visible sm:w-fit">
+          <div className="thin-scroll -mx-1 flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-white p-1.5 text-sm shadow-sm sm:mx-0 sm:w-fit sm:flex-wrap sm:overflow-visible">
         <FilterChip href={chipHref()} label="ທັງໝົດ" count={stats.total} active={!status} />
         {ORDER_STATUSES.map((s) => (
           <FilterChip key={s} href={chipHref(s)} label={STATUS_LABEL[s]} count={stats.byStatus[s] ?? 0} active={status === s} />
@@ -146,7 +146,8 @@ function MobileOrderCard({ o }: { o: OrderRow }) {
   const initial = (o.customerName || "?").trim().slice(0, 1).toUpperCase();
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.03)] transition-all duration-300 hover:border-orange-350 hover:shadow-lg sm:p-5">
+    <article className="relative overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-300 hover:shadow-md sm:p-5">
+      <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#f97316,#22c55e,#06b6d4)]" />
       {/* Header Block */}
       <div className="flex items-center justify-between">
         <div className="min-w-0">
@@ -163,9 +164,9 @@ function MobileOrderCard({ o }: { o: OrderRow }) {
       </div>
 
       {/* Customer Detail Card */}
-      <div className="mt-3.5 flex items-center justify-between bg-slate-50/70 px-3 py-2.5 rounded-xl border border-slate-100">
+      <div className="mt-3.5 flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className="grid h-6.5 w-6.5 shrink-0 place-items-center rounded-lg bg-slate-800 text-[9px] font-bold text-white uppercase">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,#f97316,#22c55e)] text-[9px] font-black uppercase text-white">
             {initial}
           </span>
           <div className="min-w-0 leading-tight">
@@ -209,7 +210,7 @@ function MobileOrderCard({ o }: { o: OrderRow }) {
       <div className="mt-3.5 flex items-center gap-2 pt-2.5 border-t border-slate-100/70">
         <Link
           href={detailHref}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-655 hover:border-slate-350 transition active:scale-97 shadow-xs"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-orange-600"
         >
           ເບິ່ງລາຍລະອຽດ
         </Link>
@@ -224,14 +225,14 @@ function FilterChip({ href, label, count, active }: { href: string; label: strin
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all duration-300 active:scale-95 border ${
+      className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-black transition ${
         active
-          ? "bg-slate-900 border-slate-900 text-white shadow-sm shadow-slate-900/10"
-          : "bg-white border-slate-200 text-slate-655 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900"
+          ? "border-slate-950 bg-slate-950 text-white"
+          : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
       }`}
     >
       {label}
-      <span className={`rounded-lg px-2 py-0.5 text-[10px] font-extrabold ${active ? "bg-white/15 text-white/90" : "bg-slate-100 text-slate-500"}`}>
+      <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${active ? "bg-white/15 text-white/90" : "bg-slate-100 text-slate-500"}`}>
         {count}
       </span>
     </Link>

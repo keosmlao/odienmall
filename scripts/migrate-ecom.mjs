@@ -251,6 +251,7 @@ insert into odg_ecom.home_promotion (id) values (1) on conflict (id) do nothing;
 
 -- ── Product description overlay: app-owned override for the sparse ERP text ───
 alter table odg_ecom.product_overlays add column if not exists description text;
+alter table odg_ecom.product_overlays add column if not exists short_description text;
 
 -- ── Editable bank-transfer details ─────────────────────────────────────────
 create table if not exists odg_ecom.bank_transfer (
@@ -701,6 +702,26 @@ create table if not exists odg_ecom.visit_pings (
   last_seen  timestamptz not null default now()
 );
 create index if not exists visit_pings_seen_idx on odg_ecom.visit_pings(last_seen);
+
+-- ── Product specifications: admin-managed label/value pairs per product ────────
+create table if not exists odg_ecom.product_specs (
+  id           bigint      generated always as identity primary key,
+  product_code text        not null,
+  label        text        not null,
+  value        text        not null,
+  sort_order   int         not null default 0,
+  created_at   timestamptz not null default now()
+);
+create index if not exists product_specs_code_idx on odg_ecom.product_specs(product_code, sort_order, id);
+
+-- ── AC sets: pairs an indoor [C] code with its outdoor [H] code ─────────────
+-- Storefront shows only [C] items for group 12, with combined price & stock.
+create table if not exists odg_ecom.ac_sets (
+  id       bigint generated always as identity primary key,
+  code_c   text not null unique,  -- indoor unit code
+  code_h   text not null unique,  -- outdoor unit code
+  created_at timestamptz not null default now()
+);
 `;
 
 const c = new pg.Client({

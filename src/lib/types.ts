@@ -36,6 +36,7 @@ export interface Product {
   name: string; // Lao (name_1), falls back to other name fields
   nameThai: string | null; // name_eng_1 (holds Thai)
   description: string | null;
+  shortDescription: string | null; // app-owned short buy-box description (1-3 lines, shown near price)
   categoryCode: string | null;
   categoryName: string | null;
   brandCode: string | null;

@@ -9,11 +9,14 @@ import {
   setProductHidden,
   setProductFeatured,
   setProductDescription,
+  setProductShortDescription,
   bulkSetFlag,
   addProductImage,
   deleteProductImage,
   setPrimaryImage,
   getProductImages,
+  upsertProductSpec,
+  deleteProductSpec,
 } from "@/lib/products-admin";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -152,6 +155,24 @@ export async function saveProductDescription(code: string, description: string):
   }
 }
 
+/** Save the app-owned short description (shown in the buy box, near price). */
+export async function saveShortDescription(
+  code: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const session = await getAdminSession();
+    await setProductShortDescription(code, text.trim() || null, session?.code);
+    await logAudit({ action: "product.short_description", entity: code, detail: text.slice(0, 80) });
+    revalidatePath(`/product/${code}`);
+    revalidatePath(`/admin/products/${code}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
 /** Apply one flag change to many selected products at once. */
 export async function bulkUpdateProducts(
   codes: string[],
@@ -202,5 +223,38 @@ export async function toggleProductFeatured(code: string, featured: boolean): Pr
     return { ok: true };
   } catch (e) {
     return { ok: false, error: msg(e) };
+  }
+}
+
+// --- product specifications --------------------------------------------------
+
+export async function saveProductSpec(
+  productCode: string,
+  spec: { id?: number; label: string; value: string; sortOrder?: number },
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  if (!spec.label?.trim() || !spec.value?.trim()) return { ok: false, error: "ກະລຸນາໃສ່ຂໍ້ມູນ" };
+  try {
+    await upsertProductSpec(productCode, spec);
+    revalidatePath(`/product/${productCode}`);
+    revalidatePath(`/admin/products/${productCode}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+export async function removeProductSpec(
+  productCode: string,
+  specId: number,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await deleteProductSpec(specId, productCode);
+    revalidatePath(`/product/${productCode}`);
+    revalidatePath(`/admin/products/${productCode}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
   }
 }

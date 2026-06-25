@@ -127,7 +127,6 @@ export default function ChatWidget() {
     };
     window.addEventListener("chat:ask", handler);
     return () => window.removeEventListener("chat:ask", handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function sendText(raw: string) {

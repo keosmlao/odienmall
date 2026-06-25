@@ -23,6 +23,7 @@ export default function RecentlyViewed({
     name: w.name,
     nameThai: null,
     description: null,
+    shortDescription: null,
     categoryCode: null,
     categoryName: null,
     brandCode: null,

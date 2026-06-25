@@ -1,9 +1,11 @@
 import { redirect, notFound } from "next/navigation";
 import { isAdmin } from "@/lib/auth";
-import { getAdminProduct, getProductImages } from "@/lib/products-admin";
+import { getAdminProduct, getProductImages, getProductSpecs } from "@/lib/products-admin";
 import { formatKip, htmlToText } from "@/lib/format";
 import { PageHeader, Card, CardTitle, Badge } from "@/components/admin/ui";
 import ProductEditForm from "./ProductEditForm";
+import ShortDescriptionForm from "./ShortDescriptionForm";
+import ProductSpecsEditor from "@/components/admin/ProductSpecsEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,10 @@ export default async function AdminProductDetail({
   const decoded = decodeURIComponent(code);
   const product = await getAdminProduct(decoded);
   if (!product) notFound();
-  const images = await getProductImages(product.code);
+  const [images, specs] = await Promise.all([
+    getProductImages(product.code),
+    getProductSpecs(product.code),
+  ]);
 
   return (
     <div>
@@ -65,6 +70,19 @@ export default async function AdminProductDetail({
           erpDescription={htmlToText(product.erpDescription)}
         />
       </div>
+
+      {/* Short description */}
+      <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-black text-slate-800">ຄຳອະທິບາຍຫຍໍ້</h2>
+        <p className="mb-3 text-xs text-slate-500">ສະແດງໃນ buy box ໃກ້ລາຄາ — ສັ້ນ 1-3 ແຖວ</p>
+        <ShortDescriptionForm code={product.code} initial={product.shortDescription ?? null} />
+      </section>
+
+      {/* Specifications */}
+      <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-black text-slate-800">ຂໍ້ມູນສະເພາະ (Specifications)</h2>
+        <ProductSpecsEditor productCode={product.code} initial={specs} />
+      </section>
     </div>
   );
 }

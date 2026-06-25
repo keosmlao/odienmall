@@ -80,12 +80,12 @@ export default function ProductCard({ product }: { product: Product }) {
 
         {/* Member / affiliate badges */}
         {(product.memberPct || product.commissionKip) && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-col gap-0.5">
             {product.memberPct ? (
-              <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-600">ສະມາຊິກ −{product.memberPct}%</span>
+              <span className="w-fit rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-600">ສະມາຊິກ −{product.memberPct}%</span>
             ) : null}
             {product.commissionKip ? (
-              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600">
+              <span className="w-fit rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600">
                 ນາຍໜ້າ +{formatKip(product.commissionKip)}
               </span>
             ) : null}

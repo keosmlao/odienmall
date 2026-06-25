@@ -68,20 +68,44 @@ async function priceProducts<T extends Product>(items: T[]): Promise<T[]> {
   return priced;
 }
 
-// Storefront products are web-enabled ERP items restricted to the consumer
-// product groups a manager has opened for the web (odg_ecom.web_groups; defaults
-// 11–14). This excludes stray items in internal groups (e.g. 96/99). Out-of-stock
-// items (balance_qty <= 0) are hidden everywhere too — they must not appear in
-// listings, counts, the menu, the sitemap, or as reachable product pages.
-// Centralised here so the rule lives in exactly one place; assumes the `i` alias
-// on public.ic_inventory. Using a subquery keeps WEB_ITEM a static string while
-// the enabled set stays editable from /admin/settings.
-const PRODUCT_GROUPS = "(select group_main from odg_ecom.web_groups)";
+// Out-of-stock items (balance_qty <= 0) are hidden everywhere — listings, counts,
+// menu, sitemap, product pages. Centralised here; assumes the `i` alias on ic_inventory.
 // App-owned overlay can hide an item from the shop (odg_ecom.product_overlays). The
 // subquery is correlated on the `i` alias, so this hides the item everywhere
 // WEB_ITEM is used (listings, counts, facets, menu) with no extra join needed.
 const NOT_HIDDEN = `not exists (select 1 from odg_ecom.product_overlays ov where ov.product_code = i.code and ov.is_hidden)`;
-const WEB_ITEM = `i.is_eordershow = 1 and i.group_main in ${PRODUCT_GROUPS} and coalesce(i.balance_qty, 0) > 0 and ${NOT_HIDDEN}`;
+// AC (group 12) ERP convention:
+//   [SET] code X  – has set price (unit_code='ຊຸດ') in barcode, stock=0
+//   [C]   code X+1 – indoor unit, carries the real stock
+//   [H]   code X+2 – outdoor unit
+// Storefront shows [SET] items (price from ERP barcode, stock borrowed from [C]).
+// [C] / [H] items are hidden; orphan [C] items (no [SET] at code-1) show as fallback.
+const _AC_NEXT_CODE = `left(i.code, length(i.code)-length(substring(i.code from '[0-9]+$')))
+    || lpad((substring(i.code from '[0-9]+$')::int+1)::text,
+            length(substring(i.code from '[0-9]+$')),'0')`;
+const _AC_PREV_CODE = `left(i.code, length(i.code)-length(substring(i.code from '[0-9]+$')))
+    || lpad(greatest(0,substring(i.code from '[0-9]+$')::int-1)::text,
+            length(substring(i.code from '[0-9]+$')),'0')`;
+
+const WEB_ITEM = `i.group_main between '11' and '14' and ${NOT_HIDDEN}
+  -- hide all AC [H] items (outdoor units are never shown directly)
+  and not (i.group_main = '12' and i.name_1 like '%[H]%')
+  -- hide AC [C] items that already have a [SET] counterpart at code-1
+  and not (i.group_main = '12' and i.name_1 like '%[C]%' and exists (
+    select 1 from public.ic_inventory s
+    where s.group_main='12' and s.name_1 like '%[SET]%'
+      and s.code = ${_AC_PREV_CODE}
+  ))
+  -- stock check: [SET] borrows stock from [C] at code+1; everything else owns its stock
+  and (
+    (i.group_main = '12' and i.name_1 like '%[SET]%' and exists (
+      select 1 from public.ic_inventory ic
+      where ic.code = ${_AC_NEXT_CODE}
+        and coalesce(ic.balance_qty, 0) > 0
+    ))
+    or (not (i.group_main = '12' and i.name_1 like '%[SET]%')
+        and coalesce(i.balance_qty, 0) > 0)
+  )`;
 
 // SQL predicate: the product has a real POS price in ic_inventory_barcode.
 const HAS_PRICE_SQL =
@@ -94,7 +118,7 @@ const PRICE_SUBQUERY =
 
 // ---------------------------------------------------------------------------
 // The storefront reads ONLY these ERP tables, all in the `public` schema:
-//   ic_inventory        - product master   (web items: is_eordershow = 1)
+//   ic_inventory        - product master   (web items: balance_qty > 0, not hidden)
 //   ic_category         - categories        (web: onweb = 1)
 //   ic_brand            - brands            (web: onweb = 1)
 //   ic_inventory_price  - retail price      (sale_type=0, price_type=2, LAK '01')
@@ -120,18 +144,36 @@ const PRICE_LATERAL = `
 const PRODUCT_SELECT = `
   select
     i.code,
-    coalesce(nullif(i.name_1,''), nullif(i.name_2,''), nullif(i.name_eng_1,''), i.code) as name,
+    -- AC [SET] items: strip " [SET]..." suffix; orphan [C]: strip "[C]"
+    case
+      when i.group_main = '12' and i.name_1 like '%[SET]%'
+      then trim(regexp_replace(coalesce(nullif(i.name_1,''), i.code), '\\s*\\[SET\\].*', ''))
+      when i.group_main = '12' and i.name_1 like '%[C]%'
+      then trim(regexp_replace(coalesce(nullif(i.name_1,''), i.code), '\\s*\\[C\\]', '', 'g'))
+      else coalesce(nullif(i.name_1,''), nullif(i.name_2,''), nullif(i.name_eng_1,''), i.code)
+    end as name,
     nullif(i.name_eng_1,'') as "nameThai",
     coalesce(nullif(ov.description,''), nullif(i.description,'')) as description,
+    nullif(ov.short_description,'') as "shortDescription",
     i.item_category as "categoryCode",
     nullif(c.name_1,'') as "categoryName",
     i.item_brand as "brandCode",
     nullif(b.name_1,'') as "brandName",
-    coalesce(i.balance_qty, 0)::float8 as stock,
+    -- AC [SET]: real stock lives on the [C] item at code+1
+    case
+      when i.group_main = '12' and i.name_1 like '%[SET]%'
+      then coalesce(ac_set.c_stock, 0)
+      else coalesce(i.balance_qty, 0)
+    end::float8 as stock,
     (i.is_new_item = 1)  as "isNew",
     (i.item_promote = 1) as "isPromo",
+    -- AC [SET] price comes from ic_inventory_barcode (unit_code='ຊຸດ') — already correct
     pr.price::float8 as price,
-    nullif(pr.unit_code,'') as unit,
+    -- AC [SET] unit already 'ຊຸດ' from barcode; orphan [C] items override to 'ຊຸດ'
+    case
+      when i.group_main = '12' and i.name_1 like '%[C]%' then 'ຊຸດ'
+      else nullif(pr.unit_code,'')
+    end as unit,
     rt.rating::float8 as rating,
     coalesce(rt.review_count, 0)::int as "reviewCount",
     coalesce(nullif(img.url,''), nullif(ov.image_url,'')) as "imageUrl",
@@ -149,7 +191,14 @@ const PRODUCT_SELECT = `
   left join lateral (
     select avg(rv.rating)::numeric(3,2) as rating, count(*)::int as review_count
     from odg_ecom.reviews rv where rv.product_code = i.code and not rv.is_hidden
-  ) rt on true`;
+  ) rt on true
+  left join lateral (
+    select coalesce(ic.balance_qty, 0) as c_stock
+    from public.ic_inventory ic
+    where i.group_main = '12' and i.name_1 like '%[SET]%'
+      and ic.code = ${_AC_NEXT_CODE}
+    limit 1
+  ) ac_set on true`;
 
 const ORDER_BY: Record<SortKey, string> = {
   newest: "i.is_new_item desc nulls last, i.code desc",
@@ -463,9 +512,7 @@ export async function getProducts(q: ProductQuery): Promise<ProductPage> {
 export async function getAllWebProductCodes(): Promise<string[]> {
   const rows = await query<{ code: string }>(
     `select code from public.ic_inventory i
-      where is_eordershow = 1 and group_main in ${PRODUCT_GROUPS}
-        and coalesce(balance_qty, 0) > 0
-        and ${NOT_HIDDEN}
+      where ${WEB_ITEM}
       order by code`,
   );
   return rows.map((r) => r.code);
