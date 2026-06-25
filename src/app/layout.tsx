@@ -17,6 +17,7 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: "ODIENMALL",
+  manifest: "/manifest.json",
   title: {
     default: "ODIENMALL",
     template: "%s | ODIENMALL",

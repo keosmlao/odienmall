@@ -1,0 +1,26 @@
+{
+  "name": "OdienMall",
+  "short_name": "OdienMall",
+  "description": "ສູນລວມເຄື່ອງໃຊ້ໄຟຟ້າ ແລະ ສິນຄ້າຄຸນນະພາບ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/odm.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping"],
+  "lang": "lo"
+}

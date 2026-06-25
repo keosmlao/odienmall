@@ -6,6 +6,7 @@ import { getReviewedCodes } from "@/lib/reviews";
 import { getBankTransfer, bankConfigured } from "@/lib/settings";
 import { onepayEnabled, onepayMerchantConfigured } from "@/lib/onepay";
 import { getOrderPayment } from "@/lib/onepay-store";
+import { getOrderShipping } from "@/lib/order-shipping";
 import { formatKip } from "@/lib/format";
 import { PAYMENT_LABEL, type PaymentMethod } from "@/lib/payment-constants";
 import { SHIPPING_LABEL, type ShippingMethod } from "@/lib/shipping-constants";
@@ -48,6 +49,7 @@ export default async function OrderConfirmationPage({
   const payment = order.paymentMethod === "transfer" ? await getOrderPayment(order.orderNo) : null;
   const payRef = payment?.fccRef || payment?.ticket || null;
   const bank = awaitingPayment && !showOnepay ? await getBankTransfer() : null;
+  const shipping = ["shipping", "completed"].includes(order.status) ? await getOrderShipping(order.orderNo) : null;
   const cancelled = order.status === "cancelled";
 
   const isCod = order.paymentMethod === "cod";
@@ -203,6 +205,9 @@ export default async function OrderConfirmationPage({
           {payRef && <Row k="ເລກໃບໂອນ" v={payRef} />}
           {payment?.payerName && <Row k="ຜູ້ໂອນ" v={payment.payerName} />}
           {order.note && <Row k="ໝາຍເຫດ" v={order.note} />}
+          {shipping?.trackingNo && (
+            <Row k="ເລກພັດສະດຸ" v={`${shipping.carrier ? shipping.carrier + " — " : ""}${shipping.trackingNo}`} />
+          )}
         </dl>
       </div>
 

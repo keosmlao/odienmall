@@ -27,6 +27,7 @@ import {
 } from "@/lib/sml-sale-order";
 import { logAudit } from "@/lib/audit";
 import { checkRateLimit, recordFailure, recordSuccess, LOCKOUT_MINUTES } from "@/lib/rate-limit";
+import { setOrderShipping } from "@/lib/order-shipping";
 
 export type AdminLoginResult = { ok: true } | { ok: false; error: string };
 
@@ -248,5 +249,23 @@ export async function bulkCancelOrders(
     return { ok: false, error: `ຍົກເລີກລົ້ມເຫລວ: ${errors.join(", ")}` };
   }
   return { ok: true };
+}
+
+/** Save tracking number and carrier for an order (visible to customer). */
+export async function setTrackingNumber(
+  orderNo: string,
+  trackingNo: string,
+  carrier: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await setOrderShipping(orderNo, trackingNo || null, carrier || null);
+    await logAudit({ action: "order.tracking", entity: orderNo, detail: `${carrier} ${trackingNo}`.trim() });
+    revalidatePath(`/admin/orders/${encodeURIComponent(orderNo)}`);
+    revalidatePath(`/order/${encodeURIComponent(orderNo)}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
 }
 

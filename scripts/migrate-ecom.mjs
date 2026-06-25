@@ -747,6 +747,14 @@ alter table odg_ecom.onepay_payments add column if not exists reminded_at timest
 -- ── Product price_note override (per-product "ສອບຖາມລາຄາ" text) ────────────
 alter table odg_ecom.product_overlays add column if not exists price_note text;
 
+-- ── Order shipping / tracking number ─────────────────────────────────────────
+create table if not exists odg_ecom.order_shipping (
+  order_no    text        primary key,
+  tracking_no text,
+  carrier     text,
+  updated_at  timestamptz not null default now()
+);
+
 -- ── Product page views ────────────────────────────────────────────────────────
 -- One row per page load (client fires POST /api/views on mount).
 -- Used for the "most viewed products" stat in /admin/report.

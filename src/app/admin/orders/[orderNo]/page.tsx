@@ -14,8 +14,10 @@ import OrderWarehouseControl from "@/components/OrderWarehouseControl";
 import DeleteOrderAdminButton from "@/components/DeleteOrderAdminButton";
 import PendingPaymentControl from "@/components/PendingPaymentControl";
 import SaleCodeControl from "@/components/SaleCodeControl";
+import TrackingControl from "@/components/TrackingControl";
 import StatusBadge from "@/components/StatusBadge";
 import { BTN_SECONDARY, Card } from "@/components/admin/ui";
+import { getOrderShipping } from "@/lib/order-shipping";
 
 export const dynamic = "force-dynamic";
 
@@ -50,11 +52,12 @@ export default async function AdminOrderDetail({
   if (!scope.all && order.saleCode !== scope.saleCode) redirect("/admin");
 
   const inDelivery = order.status === "shipping" || order.status === "completed";
-  const [warehouseOptions, payment, tms, salespeople] = await Promise.all([
+  const [warehouseOptions, payment, tms, salespeople, shipping] = await Promise.all([
     getOrderWarehouseOptions(order.orderNo),
     getOrderPayment(order.orderNo),
     inDelivery ? getOrderTms(order.orderNo) : Promise.resolve(null),
     scope.all ? listSalespeople() : Promise.resolve([]),
+    getOrderShipping(order.orderNo),
   ]);
   const grandTotal = Math.max(0, order.subtotal + order.shippingFee - order.discount);
   const FLOW = order.paymentMethod === "cod" ? COD_FLOW : TRANSFER_FLOW;
@@ -339,6 +342,17 @@ export default async function AdminOrderDetail({
               orderNo={order.orderNo}
               current={order.status}
               warehouseReady={warehouseReady}
+            />
+          </Card>
+
+          <Card>
+            <SectionTitle
+              title="ເລກພັດສະດຸ"
+              subtitle="ສະແດງໃຫ້ລູກຄ້າເຫັນໃນໜ້າ order"
+            />
+            <TrackingControl
+              orderNo={order.orderNo}
+              initial={shipping}
             />
           </Card>
 
