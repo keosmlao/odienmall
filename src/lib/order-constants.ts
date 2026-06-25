@@ -25,7 +25,7 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "ລໍຖ້າຊຳລະ",
   cod: "COD ລໍຖ້າຈັດສົ່ງ",
-  awaiting_confirmation: "ຊຳລະແລ້ວ ລໍຖ້າຢືນຢັນ",
+  awaiting_confirmation: "ຊຳລະແລ້ວ — ລໍຖ້າ ອອກບິນ",
   paid: "ລໍຖ້າຈັດສົ່ງ",
   shipping: "ກຳລັງຈັດສົ່ງ",
   completed: "ຈັດສົ່ງສຳເລັດ",

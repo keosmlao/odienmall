@@ -203,6 +203,8 @@ export default async function ProductPage({
                     <span className={`rounded px-2 py-0.5 text-xs font-bold ${cls}`}>{label}</span>
                   </div>
                 </>
+              ) : product.price == null ? (
+                <div className="text-xl font-bold text-slate-500">{product.priceNote ?? "ສອບຖາມລາຄາ"}</div>
               ) : (
                 <div className="text-3xl font-black tracking-tight text-orange-600">{formatKip(product.price)}</div>
               );

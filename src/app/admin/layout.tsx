@@ -3,6 +3,7 @@ import { isAdmin, getAdminSession } from "@/lib/auth";
 import { getTotalUnread } from "@/lib/chat";
 import { countPendingReturns } from "@/lib/returns";
 import { countOpenQuestions } from "@/lib/qna";
+import { getOrderStats } from "@/lib/orders";
 import AdminNav from "@/components/admin/AdminNav";
 
 export const dynamic = "force-dynamic";
@@ -17,17 +18,22 @@ export default async function AdminLayout({
   }
 
   const admin = await getAdminSession();
-  const [chatUnread, returnsPending, qnaOpen] = await Promise.all([
+  const [chatUnread, returnsPending, qnaOpen, orderStats] = await Promise.all([
     getTotalUnread().catch(() => 0),
     countPendingReturns().catch(() => 0),
     countOpenQuestions().catch(() => 0),
+    getOrderStats().catch(() => null),
   ]);
+  const pendingOrders =
+    (orderStats?.byStatus.pending ?? 0) +
+    (orderStats?.byStatus.awaiting_confirmation ?? 0) +
+    (orderStats?.byStatus.cod ?? 0);
 
   return (
     <div className="adm-surface flex min-h-screen flex-col print:bg-white lg:flex-row">
-      <AdminNav adminName={admin?.name} role={admin?.role} chatUnread={chatUnread} returnsPending={returnsPending} qnaOpen={qnaOpen} />
+      <AdminNav adminName={admin?.name} role={admin?.role} chatUnread={chatUnread} returnsPending={returnsPending} qnaOpen={qnaOpen} pendingOrders={pendingOrders} />
       
-      <div className="flex min-w-0 flex-1 flex-col lg:pl-64">
+      <div className="flex min-w-0 flex-1 flex-col lg:pl-56">
         <header className="sticky top-0 z-20 hidden h-14 w-full items-center justify-between border-b border-slate-200 bg-white/85 px-5 backdrop-blur lg:flex print:hidden">
           <div className="absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,#f97316,#22c55e,#06b6d4,#e11d48)]" />
           <div className="flex items-center gap-2.5">

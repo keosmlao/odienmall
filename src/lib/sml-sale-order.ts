@@ -1,5 +1,6 @@
 import "server-only";
 import { pool, query } from "./db";
+import { lineNotifyAdmin } from "./line-notify";
 import {
   adminTransportLabel,
   toAdminTransportCode,
@@ -397,6 +398,22 @@ export async function confirmSmlSaleOrder(
     );
 
     await client.query("commit");
+
+    // Best-effort: check stock after commit and LINE-notify admin on low-stock items.
+    query<{ item_code: string; item_name: string; balance_qty: number }>(
+      `select d.item_code, coalesce(nullif(i.name_1,''), d.item_code) as item_name,
+              coalesce(i.balance_qty, 0) as balance_qty
+         from public.ic_trans_detail d
+         join public.ic_inventory i on i.code = d.item_code
+        where d.doc_no = $1 and d.trans_flag = 44
+          and coalesce(i.balance_qty, 0) <= 3`,
+      [docNo],
+    ).then((rows) => {
+      if (rows.length === 0) return;
+      const lines = rows.map((r) => `  • ${r.item_name}: ເຄົງ ${r.balance_qty} ຊິ້ນ`).join("\n");
+      lineNotifyAdmin(`\n[OdienMall] ⚠️ ສ້ອຍໃກ້ໝົດ\nບິນ ${docNo}\n${lines}`).catch(() => {});
+    }).catch(() => {});
+
     return docNo;
   } catch (e) {
     await client.query("rollback").catch(() => {});

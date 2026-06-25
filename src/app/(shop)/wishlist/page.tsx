@@ -53,6 +53,7 @@ export default function WishlistPage() {
     reviewCount: 0,
     imageUrl: w.imageUrl ?? null,
     isFeatured: false,
+    priceNote: null,
   }));
 
   return (

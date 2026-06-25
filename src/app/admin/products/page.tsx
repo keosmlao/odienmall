@@ -64,6 +64,24 @@ export default async function AdminProductsPage({
       <PageHeader
         title="ຈັດການຂໍ້ມູນສິນຄ້າ"
         subtitle="ເພີ່ມຮູບ, ເຊື່ອງ/ສະແດງ ແລະ ໝາຍສິນຄ້າແນະນຳ — ຂໍ້ມູນຫຼັກ (ຊື່/ລາຄາ/ສະຕັອກ) ມາຈາກ ERP ອ່ານຢ່າງດຽວ"
+        actions={
+          <div className="flex items-center gap-2">
+            <a
+              href="/admin/products/stock-export?low=1"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 text-xs font-black text-amber-700 transition hover:bg-amber-100"
+            >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+              ສ້ອຍໜ້ອຍ CSV
+            </a>
+            <a
+              href="/admin/products/stock-export"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+            >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+              ສ້ອຍທັງໝົດ CSV
+            </a>
+          </div>
+        }
       />
 
       {/* KPI cards */}

@@ -177,7 +177,8 @@ const PRODUCT_SELECT = `
     rt.rating::float8 as rating,
     coalesce(rt.review_count, 0)::int as "reviewCount",
     coalesce(nullif(img.url,''), nullif(ov.image_url,'')) as "imageUrl",
-    coalesce(ov.is_featured, false) as "isFeatured"
+    coalesce(ov.is_featured, false) as "isFeatured",
+    nullif(ov.price_note,'') as "priceNote"
   from public.ic_inventory i
   left join public.ic_category c on c.code = i.item_category
   left join public.ic_brand b on b.code = i.item_brand

@@ -76,6 +76,7 @@ function MessageText({ text, admin }: { text: string; admin: boolean }) {
 
 export default function ChatInbox({ initial }: { initial: Thread[] }) {
   const [threads, setThreads] = useState<Thread[]>(initial);
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
   const [active, setActive] = useState<number | null>(initial[0]?.id ?? null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
@@ -99,6 +100,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
       clearInterval(i);
     };
   }, [search]);
+
 
   const mergeMsgs = useCallback((incoming: Msg[]) => {
     if (!incoming.length) return;
@@ -170,11 +172,18 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
 
   const activeThread = threads.find((t) => t.id === active);
 
+  const unreadCount = threads.filter((t) => t.unread > 0).length;
+  const filteredThreads = threads.filter((t) => {
+    if (filter === "unread") return t.unread > 0;
+    if (filter === "read") return t.unread === 0;
+    return true;
+  });
+
   return (
     <div className="flex h-[calc(100dvh-8.5rem)] min-h-[30rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] lg:h-[calc(100vh-14rem)] lg:min-h-[32rem] lg:flex-row">
       {/* Threads Sidebar */}
-      <aside className="flex max-h-56 shrink-0 flex-col border-b border-slate-100 bg-slate-50/20 lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
-        <div className="border-b border-slate-100 bg-white p-3 lg:p-4">
+      <aside className="flex max-h-72 shrink-0 flex-col border-b border-slate-100 bg-slate-50/20 lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
+        <div className="border-b border-slate-100 bg-white p-3 lg:p-4 space-y-3">
           <div className="relative rounded-xl shadow-xs">
             <input
               type="search"
@@ -189,11 +198,50 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
               </svg>
             </span>
           </div>
+
+          {/* Read / Unread Tabs */}
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-[11px]">
+            <button
+              onClick={() => setFilter("all")}
+              className={`flex-1 rounded-md py-1.5 text-center font-bold transition-all duration-200 cursor-pointer ${
+                filter === "all"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              ທັງໝົດ
+            </button>
+            <button
+              onClick={() => setFilter("unread")}
+              className={`flex-1 rounded-md py-1.5 text-center font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1 ${
+                filter === "unread"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              ຍັງບໍ່ອ່ານ
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[8.5px] font-black text-white shadow-sm shadow-rose-500/20 leading-none">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setFilter("read")}
+              className={`flex-1 rounded-md py-1.5 text-center font-bold transition-all duration-200 cursor-pointer ${
+                filter === "read"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              ອ່ານແລ້ວ
+            </button>
+          </div>
         </div>
 
         {/* Thread List */}
         <div className="thin-scroll flex-1 space-y-1 overflow-y-auto p-2">
-          {threads.length === 0 ? (
+          {filteredThreads.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <svg viewBox="0 0 24 24" className="mx-auto h-8 w-8 text-slate-300 mb-2" fill="none" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -201,7 +249,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
               <p className="text-xs font-bold">ຍັງບໍ່ມີແຊັດ</p>
             </div>
           ) : (
-            threads.map((t) => {
+            filteredThreads.map((t) => {
               const activeColor = AVATAR_COLORS[t.id % AVATAR_COLORS.length];
               const isSelected = active === t.id;
               return (
@@ -210,11 +258,14 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                   onClick={() => {
                     setBotNotice(null);
                     setActive(t.id);
+                    setThreads((prev) =>
+                      prev.map((thread) => (thread.id === t.id ? { ...thread, unread: 0 } : thread))
+                    );
                   }}
                   className={`relative flex items-center gap-3.5 w-full rounded-xl p-3 text-left transition-all duration-350 border ${
                     isSelected
                       ? "bg-white border-slate-200/80 shadow-xs"
-                      : "hover:bg-slate-55 border-transparent"
+                      : "hover:bg-slate-55 border-transparent cursor-pointer"
                   }`}
                 >
                   {/* Left accent bar on active */}

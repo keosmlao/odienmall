@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { hashHue, placeholderLabel, productImageUrl } from "@/lib/format";
+import { productImageUrl } from "@/lib/format";
 
 // Product image with graceful fallback. If a real image URL is configured (see
 // productImageUrl / NEXT_PUBLIC_PRODUCT_IMAGE_* env vars) it loads that and falls
-// back to a deterministic gradient placeholder on error. With nothing configured
-// it renders the placeholder directly.
+// back to the OdienMall logo on error. With nothing configured it renders the
+// logo directly.
 export default function ProductImage({
   code,
   name,
-  brand,
   imageUrl,
   className = "",
   rounded = "rounded-t-lg",
@@ -42,26 +41,19 @@ export default function ProductImage({
     );
   }
 
-  const hue = hashHue(code);
-  const label = placeholderLabel(brand ?? null, name);
   return (
     <div
-      className={`relative flex items-center justify-center overflow-hidden ${rounded} ${className}`}
-      style={{
-        backgroundImage: `linear-gradient(135deg, hsl(${hue} 70% 92%), hsl(${(hue + 40) % 360} 65% 82%))`,
-      }}
-      aria-hidden
+      className={`relative flex items-center justify-center overflow-hidden bg-slate-50 ${rounded} ${className}`}
+      aria-label={name}
     >
-      <span
-        className="select-none text-4xl font-extrabold tracking-tight opacity-70"
-        style={{ color: `hsl(${hue} 55% 35%)` }}
-      >
-        {label}
-      </span>
-      <span
-        className="absolute bottom-1 right-2 text-[10px] font-medium opacity-50"
-        style={{ color: `hsl(${hue} 45% 30%)` }}
-      >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/odm.png"
+        alt=""
+        loading="lazy"
+        className="h-2/5 max-h-20 w-auto max-w-[68%] object-contain opacity-80"
+      />
+      <span className="absolute bottom-1.5 right-2 rounded bg-white/85 px-1.5 py-0.5 text-[9px] font-black text-slate-400">
         {code}
       </span>
     </div>

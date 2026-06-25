@@ -32,6 +32,16 @@ export async function saveCart(customerCode: string, items: SavedCartItem[]): Pr
   );
 }
 
+/** Read a customer's saved cart items. Returns empty array if none. */
+export async function getSavedCart(customerCode: string): Promise<SavedCartItem[]> {
+  if (!customerCode) return [];
+  const rows = await query<{ items: SavedCartItem[] }>(
+    `select items from odg_ecom.saved_cart where customer_code = $1 limit 1`,
+    [customerCode],
+  ).catch(() => []);
+  return rows[0]?.items ?? [];
+}
+
 export async function clearSavedCart(customerCode: string): Promise<void> {
   if (!customerCode) return;
   await query(`delete from odg_ecom.saved_cart where customer_code = $1`, [customerCode]).catch(() => {});

@@ -115,6 +115,37 @@ export default function OrderWarehouseControl({
           </option>
         ))}
       </select>
+
+      {chosen && chosen.lines.length > 0 && (
+        <div className="mt-2 overflow-hidden rounded-lg border border-gray-200 text-xs">
+          <table className="w-full">
+            <thead className="border-b bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-gray-500">ສິນຄ້າ</th>
+                <th className="px-3 py-2 text-right font-medium text-gray-500">ຕ້ອງການ</th>
+                <th className="px-3 py-2 text-right font-medium text-gray-500">ເຄົງ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {chosen.lines.map((line) => (
+                <tr key={line.orderItemId} className={line.ok ? "" : "bg-rose-50"}>
+                  <td className="px-3 py-2 leading-4">
+                    <div className="font-medium text-gray-800">{line.productName}</div>
+                    {line.shelfName && (
+                      <div className="text-gray-400">ຊ້ານ: {line.shelfName}</div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right text-gray-600">{line.qty}</td>
+                  <td className={`px-3 py-2 text-right font-bold ${line.ok ? "text-emerald-600" : "text-rose-600"}`}>
+                    {line.available}
+                    {!line.ok && <div className="text-[10px] font-normal text-rose-500">ສິນຄ້າບໍ່ພໍ</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <label className="mb-1.5 mt-4 block text-sm font-medium text-gray-700">
         ຂົນສົ່ງ
       </label>

@@ -7,6 +7,7 @@ import ChatWidget from "@/components/ChatWidget";
 import BackToTop from "@/components/BackToTop";
 import CartAddedToast from "@/components/CartAddedToast";
 import CartSync from "@/components/CartSync";
+import CartSyncClient from "@/components/CartSyncClient";
 import VisitTracker from "@/components/VisitTracker";
 import { getAnnouncement } from "@/lib/settings";
 import { getSession } from "@/lib/auth";
@@ -38,6 +39,7 @@ export default async function ShopLayout({
         <BackToTop />
         <CartAddedToast />
         <CartSync enabled={!!session} />
+        {session && <CartSyncClient customerCode={session.code} />}
         <VisitTracker />
       </div>
     </LocaleProvider>

@@ -10,6 +10,7 @@ import {
   setProductFeatured,
   setProductDescription,
   setProductShortDescription,
+  setProductPriceNote,
   bulkSetFlag,
   addProductImage,
   deleteProductImage,
@@ -165,6 +166,23 @@ export async function saveShortDescription(
     const session = await getAdminSession();
     await setProductShortDescription(code, text.trim() || null, session?.code);
     await logAudit({ action: "product.short_description", entity: code, detail: text.slice(0, 80) });
+    revalidatePath(`/product/${code}`);
+    revalidatePath(`/admin/products/${code}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+/** Save the price note shown instead of generic "ສອບຖາມລາຄາ" for no-price items. */
+export async function savePriceNote(
+  code: string,
+  text: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const session = await getAdminSession();
+    await setProductPriceNote(code, text.trim() || null, session?.code);
     revalidatePath(`/product/${code}`);
     revalidatePath(`/admin/products/${code}`);
     return { ok: true };

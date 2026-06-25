@@ -4,6 +4,7 @@ import { syncDeliveryNotifications } from "@/lib/orders";
 import { checkAbandonedCarts } from "@/lib/cart-recovery";
 import { syncAffiliateCommissions } from "@/lib/affiliates";
 import { deleteAiLogsOlderThan } from "@/lib/ai-logs";
+import { remindUnpaidQr } from "@/lib/onepay-store";
 
 export const dynamic = "force-dynamic";
 
@@ -24,14 +25,15 @@ export async function GET(req: Request) {
     if (got !== token) return NextResponse.json({ ok: false }, { status: 401 });
   }
   try {
-    const [alerts, delivery, carts, commissions, aiLogsDeleted] = await Promise.all([
+    const [alerts, delivery, carts, qrReminders, commissions, aiLogsDeleted] = await Promise.all([
       checkAlerts(),
       syncDeliveryNotifications(),
       checkAbandonedCarts(),
+      remindUnpaidQr(120),
       syncAffiliateCommissions(),
       deleteAiLogsOlderThan(30),
     ]);
-    return NextResponse.json({ ok: true, alerts, delivery, carts, commissions, aiLogsDeleted });
+    return NextResponse.json({ ok: true, alerts, delivery, carts, qrReminders, commissions, aiLogsDeleted });
   } catch (e) {
     console.error("cron failed:", e);
     return NextResponse.json({ ok: false, error: "cron failed" }, { status: 500 });

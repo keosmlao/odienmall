@@ -320,6 +320,24 @@ create table if not exists odg_ecom.customer_addresses (
 create index if not exists customer_addresses_code_idx
   on odg_ecom.customer_addresses(customer_code, is_default desc, id desc);
 
+-- LINE Login account links for storefront customers. The ERP customer table
+-- remains read-only; this table only maps a LINE user id to an existing
+-- public.ar_customer.code after email match / prior link.
+create table if not exists odg_ecom.customer_line_accounts (
+  line_user_id text primary key,
+  customer_code text not null unique,
+  display_name text,
+  picture_url text,
+  email text,
+  linked_at timestamptz not null default now(),
+  last_login_at timestamptz
+);
+create index if not exists customer_line_accounts_customer_idx
+  on odg_ecom.customer_line_accounts(customer_code);
+create index if not exists customer_line_accounts_email_idx
+  on odg_ecom.customer_line_accounts(lower(email))
+  where email is not null;
+
 -- BCEL OnePay dynamic QR + payment status per order (one QR per order).
 create table if not exists odg_ecom.onepay_payments (
   id          bigint      generated always as identity primary key,
@@ -722,6 +740,23 @@ create table if not exists odg_ecom.ac_sets (
   code_h   text not null unique,  -- outdoor unit code
   created_at timestamptz not null default now()
 );
+
+-- ── Abandoned QR reminder tracking ──────────────────────────────────────────
+alter table odg_ecom.onepay_payments add column if not exists reminded_at timestamptz;
+
+-- ── Product price_note override (per-product "ສອບຖາມລາຄາ" text) ────────────
+alter table odg_ecom.product_overlays add column if not exists price_note text;
+
+-- ── Product page views ────────────────────────────────────────────────────────
+-- One row per page load (client fires POST /api/views on mount).
+-- Used for the "most viewed products" stat in /admin/report.
+create table if not exists odg_ecom.product_views (
+  id           bigint generated always as identity primary key,
+  product_code text        not null,
+  viewed_at    timestamptz not null default now()
+);
+create index if not exists product_views_code_idx on odg_ecom.product_views(product_code);
+create index if not exists product_views_at_idx   on odg_ecom.product_views(viewed_at);
 `;
 
 const c = new pg.Client({

@@ -99,6 +99,22 @@ export function clearCart() {
   emit();
 }
 
+/**
+ * Merge server-saved cart items into the local cart without overwriting existing
+ * items. Used once per session after login to restore the customer's saved cart.
+ */
+export function mergeItems(incoming: Array<{ code: string; name: string; qty: number }>) {
+  if (!incoming.length) return;
+  let changed = false;
+  for (const inc of incoming) {
+    if (!items.find((i) => i.code === inc.code)) {
+      items = [...items, { code: inc.code, name: inc.name, price: null, unit: null, brandName: null, qty: inc.qty }];
+      changed = true;
+    }
+  }
+  if (changed) { persist(); emit(); }
+}
+
 // ---- hooks -----------------------------------------------------------------
 
 /** True only after client hydration — avoids SSR/markup mismatches. */

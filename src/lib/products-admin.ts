@@ -37,6 +37,7 @@ export interface AdminProductRow {
   isFeatured: boolean;
   description: string | null;
   shortDescription: string | null;
+  priceNote: string | null;
   erpDescription: string | null;
   updatedAt: string | null;
 }
@@ -60,6 +61,7 @@ const ROW_SELECT = `
     coalesce(ov.is_featured, false)  as "isFeatured",
     nullif(ov.description,'')         as description,
     nullif(ov.short_description,'')   as "shortDescription",
+    nullif(ov.price_note,'')          as "priceNote",
     nullif(i.description,'')          as "erpDescription",
     ov.updated_at as "updatedAt"
   from public.ic_inventory i
@@ -365,6 +367,23 @@ export async function setProductShortDescription(
            updated_by = excluded.updated_by,
            updated_at = now()`,
     [code, shortDescription, by ?? null],
+  );
+}
+
+/** Set the price_note override — shown instead of generic "ສອບຖາມລາຄາ" when null price. */
+export async function setProductPriceNote(
+  code: string,
+  priceNote: string | null,
+  by?: string,
+): Promise<void> {
+  await query(
+    `insert into odg_ecom.product_overlays (product_code, price_note, updated_by, updated_at)
+       values ($1, $2, $3, now())
+     on conflict (product_code) do update
+       set price_note = excluded.price_note,
+           updated_by = excluded.updated_by,
+           updated_at = now()`,
+    [code, priceNote || null, by ?? null],
   );
 }
 

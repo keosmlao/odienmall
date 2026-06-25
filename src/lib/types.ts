@@ -56,6 +56,7 @@ export interface Product {
   reviewCount: number;
   imageUrl: string | null; // app-owned overlay image (odg_ecom.product_overlays); null → placeholder/env image
   isFeatured: boolean; // app-owned overlay flag (odg_ecom.product_overlays)
+  priceNote: string | null; // custom text shown instead of generic "ສອບຖາມລາຄາ" for no-price items
 }
 
 export type SortKey = "newest" | "price_asc" | "price_desc" | "name" | "rating";

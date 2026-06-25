@@ -5,11 +5,32 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { login } from "./actions";
+import LineMiniLoginButton from "./LineMiniLoginButton";
 
-export default function LoginForm({ redirect }: { redirect: string }) {
+const LINE_ERRORS: Record<string, string> = {
+  line_config: "ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ LINE Login",
+  line_state: "LINE Login ໝົດອາຍຸ ຫຼື state ບໍ່ຖືກຕ້ອງ — ລອງໃໝ່ອີກຄັ້ງ",
+  line_token: "ຮັບ token ຈາກ LINE ບໍ່ສຳເລັດ",
+  line_profile: "ອ່ານ profile LINE ບໍ່ສຳເລັດ",
+  line_unlinked: "LINE account ນີ້ຍັງບໍ່ກົງກັບບັນຊີລູກຄ້າ OdienMall. ກະລຸນາ login ດ້ວຍເບີ/ອີເມວກ່ອນ ຫຼືໃຊ້ LINE ທີ່ມີ email ກົງກັບບັນຊີ.",
+  line_failed: "LINE Login ຂັດຂ້ອງ — ກະລຸນາລອງໃໝ່",
+};
+
+export default function LoginForm({
+  redirect,
+  lineEnabled,
+  lineLiffId,
+  lineError,
+}: {
+  redirect: string;
+  lineEnabled: boolean;
+  lineLiffId: string;
+  lineError?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [lineLocalError, setLineLocalError] = useState("");
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
 
@@ -47,6 +68,31 @@ export default function LoginForm({ redirect }: { redirect: string }) {
         <p className="mb-6 text-xs font-semibold text-slate-400">
           ໃຊ້ເບີໂທ, ອີເມວ ຫຼື ລະຫັດລູກຄ້າ ຂອງທ່ານ
         </p>
+        {(lineLocalError || lineError) && LINE_ERRORS[lineLocalError || lineError || ""] && (
+          <p className="mb-4 rounded-sm border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold leading-5 text-red-600">
+            {LINE_ERRORS[lineLocalError || lineError || ""]}
+          </p>
+        )}
+        {(lineEnabled || lineLiffId) && (
+          <>
+            {lineLiffId ? (
+              <LineMiniLoginButton liffId={lineLiffId} redirect={redirect} onError={setLineLocalError} />
+            ) : (
+              <Link
+                href={`/login/line?redirect=${encodeURIComponent(redirect)}`}
+                className="mb-4 flex w-full items-center justify-center gap-2 rounded-sm bg-[#06C755] py-3.5 text-sm font-black text-white shadow-md transition hover:bg-[#05b84f]"
+              >
+                <span className="grid h-5 w-5 place-items-center rounded bg-white text-[10px] font-black text-[#06C755]">LINE</span>
+                ເຂົ້າລະບົບຜ່ານ LINE
+              </Link>
+            )}
+            <div className="mb-4 flex items-center gap-3">
+              <span className="h-px flex-1 bg-slate-100" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">or</span>
+              <span className="h-px flex-1 bg-slate-100" />
+            </div>
+          </>
+        )}
         <form onSubmit={submit} className="space-y-5">
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-600">ເບີໂທ / ອີເມວ / ລະຫັດ</span>

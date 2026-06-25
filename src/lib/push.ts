@@ -71,4 +71,14 @@ export async function sendPushToCustomer(
   );
 }
 
+/**
+ * Send a push notification to all admin subscribers.
+ * Admin subs use the special customer_key `__admin__`.
+ */
+export async function sendPushToAdminBroadcast(
+  payload: { title: string; body: string; link?: string },
+): Promise<void> {
+  return sendPushToCustomer("__admin__", payload);
+}
+
 export const VAPID_PUBLIC_KEY = PUBLIC;

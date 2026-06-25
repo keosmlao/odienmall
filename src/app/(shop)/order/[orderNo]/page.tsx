@@ -213,6 +213,13 @@ export default async function OrderConfirmationPage({
         {isOwner && order.status === "cod" && (
           <CancelOrderButton orderNo={order.orderNo} variant="full" />
         )}
+        <Link
+          href={`/order/${encodeURIComponent(order.orderNo)}/print`}
+          target="_blank"
+          className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-brand hover:text-brand-dark"
+        >
+          ພິມໃບບິນ
+        </Link>
         <Link href="/account" className="rounded-full border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-600 transition hover:border-brand hover:text-brand-dark">
           ຄຳສັ່ງຊື້ຂອງຂ້ອຍ
         </Link>

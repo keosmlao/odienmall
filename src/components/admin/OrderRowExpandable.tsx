@@ -27,7 +27,15 @@ export interface OrderRowData {
 
 // Desktop order row with the product details tucked behind an expand toggle, so
 // the table stays compact. Clicking "N ລາຍການ" reveals a full-width panel below.
-export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
+export default function OrderRowExpandable({
+  o,
+  checked,
+  onCheck,
+}: {
+  o: OrderRowData;
+  checked?: boolean;
+  onCheck?: (checked: boolean) => void;
+}) {
   const [open, setOpen] = useState(false);
   const detailHref = `/admin/orders/${encodeURIComponent(o.orderNo)}`;
   const initial = (o.customerName || "?").trim().slice(0, 1).toUpperCase();
@@ -35,6 +43,19 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
   return (
     <>
       <tr className="transition-colors hover:bg-orange-50/35">
+        {/* Checkbox (only rendered when onCheck is provided) */}
+        {onCheck !== undefined && (
+          <td className="pl-4 pr-2 py-4 align-top">
+            <input
+              type="checkbox"
+              checked={!!checked}
+              onChange={(e) => onCheck(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+              aria-label={`ເລືອກ ${o.orderNo}`}
+            />
+          </td>
+        )}
+        {onCheck === undefined && <td className="pl-4 pr-2 py-4 align-top" />}
         {/* SML doc + badge */}
         <td className="px-6 py-4 align-top whitespace-nowrap">
           <Link href={detailHref} className="block font-mono text-sm font-black text-slate-900 transition-colors hover:text-orange-600 hover:underline">
@@ -111,7 +132,7 @@ export default function OrderRowExpandable({ o }: { o: OrderRowData }) {
 
       {open && (
         <tr>
-          <td colSpan={7} className="bg-orange-50/25 px-6 pb-4 pt-0">
+          <td colSpan={8} className="bg-orange-50/25 px-6 pb-4 pt-0">
             <div className="max-w-2xl rounded-lg border border-orange-100 bg-white p-3">
               <OrderItemsList items={o.items} itemCount={o.itemCount} />
             </div>

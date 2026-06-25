@@ -15,6 +15,9 @@ import { createCaeOrder, smlDirectWriteEnabled, type CaeOrderInput } from "./sml
 import { redeemVoucher } from "./vouchers";
 import { redeemPoints, earnPoints, POINT_VALUE } from "./loyalty";
 import { notify } from "./notifications";
+import { lineNotifyAdmin } from "./line-notify";
+import { sendPushToAdminBroadcast } from "./push";
+import { sendOrderConfirmationEmail, emailConfigured } from "./email";
 
 // Persistence + orchestration for per-order OnePay QR codes (odg_ecom.onepay_payments).
 // This table also holds the PENDING-ORDER snapshot until the customer pays — the
@@ -205,6 +208,38 @@ async function materializeOrder(orderNo: string, paid: boolean): Promise<string 
       }).catch(() => {});
     }
   }
+
+  // Notify admin via LINE and web-push.
+  const adminTitle = paid ? "ຊຳລະ QR ສຳເລັດ 💰" : "ອໍເດີ COD ໃໝ່ 📦";
+  const adminBody = `${docNo} — ${snap.name} — ${snap.subtotal.toLocaleString()} ₭`;
+  const lineMsg = paid
+    ? `\n[OdienMall] ຊຳລະ QR ສຳເລັດ\nບິນ: ${docNo}\nລູກຄ້າ: ${snap.name} ${snap.phone ?? ""}\nຍອດ: ${snap.subtotal.toLocaleString()} ₭`
+    : `\n[OdienMall] ອໍເດີໃໝ່ (COD)\nບິນ: ${docNo}\nລູກຄ້າ: ${snap.name} ${snap.phone ?? ""}\nຍອດ: ${snap.subtotal.toLocaleString()} ₭`;
+  lineNotifyAdmin(lineMsg).catch(() => {});
+  sendPushToAdminBroadcast({ title: adminTitle, body: adminBody, link: "/admin" }).catch(() => {});
+
+  // Send order confirmation email to customer (best-effort; needs SMTP_HOST + EMAIL_FROM).
+  if (emailConfigured() && snap.customerCode) {
+    queryOne<{ email: string | null }>(
+      `select email from public.ar_customer where code = $1`,
+      [snap.customerCode],
+    ).then((row) => {
+      const email = row?.email?.trim() || "";
+      if (!email) return;
+      const trackUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://odienmall.com"}/order/${snap.orderNo ?? docNo}`;
+      return sendOrderConfirmationEmail({
+        orderNo: docNo,
+        customerName: snap.name,
+        customerEmail: email,
+        items: snap.lines.map((l) => ({ name: l.productName, qty: l.qty, price: l.unitPrice * l.qty })),
+        subtotal: snap.subtotal,
+        shippingFee: snap.shippingFee,
+        paymentMethod: paid ? "transfer" : "cod",
+        trackUrl,
+      });
+    }).catch(() => {});
+  }
+
   return docNo;
 }
 
@@ -535,6 +570,50 @@ export async function refreshPaymentStatus(orderNo: string): Promise<OnepayPayme
     console.error("OnePay status check failed:", e);
   }
   return getOrderPayment(orderNo);
+}
+
+/**
+ * Remind customers who placed a QR/transfer order but haven't paid after
+ * `idleMinutes` (default 120 min = 2 hours). Sends a push notification via
+ * the customer's saved subscriptions and a LINE admin note. Run from cron.
+ * Returns how many reminders were sent.
+ */
+export async function remindUnpaidQr(idleMinutes = 120): Promise<number> {
+  const rows = await query<{
+    order_no: string;
+    cust_code: string | null;
+    cust_name: string;
+    amount: string;
+    reminded_at: Date | null;
+  }>(
+    `select order_no, cust_code, cust_name, amount::text, reminded_at
+       from odg_ecom.onepay_payments
+      where status = 'pending'
+        and qrc is not null
+        and created_at < now() - ($1 || ' minutes')::interval
+        and (reminded_at is null or reminded_at < now() - interval '24 hours')
+      limit 20`,
+    [String(idleMinutes)],
+  );
+
+  let sent = 0;
+  for (const r of rows) {
+    const amt = Math.round(Number(r.amount)).toLocaleString();
+    if (r.cust_code) {
+      await notify(r.cust_code, {
+        type: "order",
+        title: "ອໍເດີຂອງທ່ານລໍຖ້າການຊຳລະ ⏰",
+        body: `ອໍເດີ ${r.order_no} ຍອດ ${amt} ₭ — ກົດເພື່ອຊຳລະ QR`,
+        link: `/order/${r.order_no}`,
+      }).catch(() => {});
+    }
+    await query(
+      `update odg_ecom.onepay_payments set reminded_at = now() where order_no = $1`,
+      [r.order_no],
+    ).catch(() => {});
+    sent++;
+  }
+  return sent;
 }
 
 export { QR_EXPIRE_MINUTES };

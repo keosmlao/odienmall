@@ -167,6 +167,14 @@ export async function deleteOrderAdmin(orderNo: string): Promise<ChangeStatusRes
   }
 }
 
+/** Lightweight poll: return current payment status for a pending order (no BCEL API call). */
+export async function pollOrderPaymentStatus(orderNo: string): Promise<{ status: string }> {
+  if (!(await isAdmin())) return { status: "unauthorized" };
+  const { getOrderPayment } = await import("@/lib/onepay-store");
+  const rec = await getOrderPayment(orderNo);
+  return { status: rec?.status ?? "notfound" };
+}
+
 /** Admin: confirm a pending TRANSFER order is paid → mark paid + materialise to SML. */
 export async function adminConfirmPayment(orderNo: string): Promise<ChangeStatusResult> {
   if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
@@ -209,5 +217,36 @@ export async function adminSearchProducts(q: string) {
   const { searchOrderProducts } = await import("@/lib/order-builder");
   if (!(await isAdmin())) return [];
   return searchOrderProducts(q);
+}
+
+/** Bulk cancel multiple orders at once (only cancellable statuses). */
+export async function bulkCancelOrders(
+  orderNos: string[],
+): Promise<ChangeStatusResult> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  if (!orderNos || orderNos.length === 0) return { ok: false, error: "ບໍ່ໄດ້ເລືອກອໍເດີ" };
+  const session = await getAdminSession();
+  const errors: string[] = [];
+  for (const orderNo of orderNos) {
+    try {
+      const ok = await updateOrderStatus(orderNo, "cancelled");
+      if (ok) {
+        await logAudit({
+          action: "order.status",
+          entity: orderNo,
+          detail: `bulk cancelled by ${session?.code ?? "admin"}`,
+        });
+      } else {
+        errors.push(orderNo);
+      }
+    } catch {
+      errors.push(orderNo);
+    }
+  }
+  revalidatePath("/admin");
+  if (errors.length > 0) {
+    return { ok: false, error: `ຍົກເລີກລົ້ມເຫລວ: ${errors.join(", ")}` };
+  }
+  return { ok: true };
 }
 

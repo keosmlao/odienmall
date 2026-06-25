@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { adminConfirmPayment } from "@/app/admin/actions";
+import { useState, useTransition, useEffect, useRef } from "react";
+import { adminConfirmPayment, pollOrderPaymentStatus } from "@/app/admin/actions";
 import { adminUploadSlip } from "@/app/admin/orders/new/actions";
 
 // Admin order-detail control for a PENDING transfer order: attach the customer's
@@ -13,6 +13,21 @@ export default function PendingPaymentControl({ orderNo, initialSlip }: { orderN
   const [slipUrl, setSlipUrl] = useState<string | null>(initialSlip ?? null);
   const [slipUploading, setSlipUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-detect when BCEL callback arrives and updates the DB — refresh the page
+  // so the admin sees the new status without needing to manually reload.
+  const refreshedRef = useRef(false);
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (refreshedRef.current) return;
+      const res = await pollOrderPaymentStatus(orderNo);
+      if (res.status === "paid") {
+        refreshedRef.current = true;
+        router.refresh();
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [orderNo, router]);
 
   async function onSlip(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

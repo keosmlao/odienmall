@@ -16,7 +16,7 @@ import StatCard from "@/components/admin/StatCard";
 import SmlBackfillBanner from "@/components/admin/SmlBackfillBanner";
 import DeleteOrderAdminButton from "@/components/DeleteOrderAdminButton";
 import SendOrderLinkButton from "@/components/SendOrderLinkButton";
-import OrderRowExpandable from "@/components/admin/OrderRowExpandable";
+import OrderBulkTable from "@/components/admin/OrderBulkTable";
 import OrderItemsList from "@/components/admin/OrderItemsList";
 import { Badge, PageHeader, EmptyState, ButtonLink, Card } from "@/components/admin/ui";
 import OrderFilters from "./OrderFilters";
@@ -110,28 +110,9 @@ export default async function AdminDashboard({
             ))}
           </div>
 
-          {/* Desktop View (Unified SaaS Table) */}
+          {/* Desktop View (Unified SaaS Table with bulk select) */}
           <div className="hidden lg:block">
-            <Card padded={false} className="overflow-hidden">
-              <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200/60 bg-slate-50/70 text-slate-400 text-[10px] font-black uppercase tracking-wider">
-                    <th className="px-6 py-4 font-black">ເລກບິນ SML / ໃບ SML</th>
-                    <th className="px-6 py-4 font-black">ລູກຄ້າ</th>
-                    <th className="px-6 py-4 font-black">ລາຍລະອຽດສິນຄ້າ</th>
-                    <th className="px-6 py-4 font-black text-right">ລວມ</th>
-                    <th className="px-6 py-4 font-black">ພະນັກງານຂາຍ</th>
-                    <th className="px-6 py-4 font-black">ສະຖານະ / ວັນທີ</th>
-                    <th className="px-6 py-4 font-black text-right">ຈັດການ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {orders.map((o) => (
-                    <OrderRowExpandable key={o.orderNo} o={o} />
-                  ))}
-                </tbody>
-              </table>
-            </Card>
+            <OrderBulkTable orders={orders} />
           </div>
         </>
       )}

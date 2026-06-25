@@ -953,3 +953,25 @@ export async function payAffiliate(code: string, note?: string): Promise<number>
     client.release();
   }
 }
+
+export interface AffiliateSummary {
+  active: number;
+  pending: number;
+  unpaidAmount: number;
+}
+
+/** Lightweight summary for the admin dashboard (active count + unpaid commission). */
+export async function getAffiliateSummary(): Promise<AffiliateSummary> {
+  const row = await queryOne<{ active: number; pending: number; unpaid: string }>(
+    `select
+       count(*) filter (where a.status = 'active')::int as active,
+       count(*) filter (where a.status = 'pending')::int as pending,
+       coalesce((select sum(c.amount) from odg_ecom.commissions c where c.paid_at is null), 0)::text as unpaid
+     from odg_ecom.affiliates a`,
+  );
+  return {
+    active: row?.active ?? 0,
+    pending: row?.pending ?? 0,
+    unpaidAmount: Number(row?.unpaid ?? 0),
+  };
+}

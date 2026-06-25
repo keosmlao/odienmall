@@ -10,7 +10,10 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
   const redirect = firstParam(sp.redirect);
+  const error = firstParam(sp.error);
   // Only allow internal redirects.
   const safe = redirect && redirect.startsWith("/") ? redirect : "/account";
-  return <LoginForm redirect={safe} />;
+  const lineEnabled = !!(process.env.LINE_LOGIN_CHANNEL_ID?.trim() && process.env.LINE_LOGIN_CHANNEL_SECRET?.trim());
+  const lineLiffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID?.trim() || "";
+  return <LoginForm redirect={safe} lineEnabled={lineEnabled} lineLiffId={lineLiffId} lineError={error} />;
 }

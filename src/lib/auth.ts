@@ -247,6 +247,75 @@ export async function authenticate(
   return { code: c.code, name: c.name };
 }
 
+export interface LineCustomerInput {
+  lineUserId: string;
+  displayName?: string | null;
+  pictureUrl?: string | null;
+  email?: string | null;
+}
+
+/** Resolve a LINE Login identity to an existing ERP customer. No ERP writes:
+ *  a LINE id can log in if it was linked before, or if LINE email matches
+ *  public.ar_customer.email exactly. The app-owned link is then upserted. */
+export async function authenticateLineCustomer(input: LineCustomerInput): Promise<Session | null> {
+  const lineUserId = input.lineUserId.trim();
+  if (!lineUserId) return null;
+
+  const linked = await query<{
+    code: string;
+    name: string;
+  }>(
+    `select c.code, coalesce(nullif(c.name_1,''), c.code) as name
+       from odg_ecom.customer_line_accounts l
+       join public.ar_customer c on c.code = l.customer_code
+      where l.line_user_id = $1
+      limit 1`,
+    [lineUserId],
+  );
+  if (linked[0]) {
+    await query(
+      `update odg_ecom.customer_line_accounts
+          set display_name = coalesce($2, display_name),
+              picture_url = coalesce($3, picture_url),
+              email = coalesce($4, email),
+              last_login_at = now()
+        where line_user_id = $1`,
+      [lineUserId, input.displayName ?? null, input.pictureUrl ?? null, input.email ?? null],
+    ).catch(() => {});
+    return { code: linked[0].code, name: linked[0].name };
+  }
+
+  const email = input.email?.trim().toLowerCase();
+  if (!email) return null;
+  const rows = await query<{
+    code: string;
+    name: string;
+  }>(
+    `select code, coalesce(nullif(name_1,''), code) as name
+       from public.ar_customer
+      where lower(email) = $1
+      order by code
+      limit 1`,
+    [email],
+  );
+  const c = rows[0];
+  if (!c) return null;
+
+  await query(
+    `insert into odg_ecom.customer_line_accounts
+       (line_user_id, customer_code, display_name, picture_url, email, last_login_at)
+     values ($1,$2,$3,$4,$5,now())
+     on conflict (line_user_id) do update set
+       customer_code = excluded.customer_code,
+       display_name = excluded.display_name,
+       picture_url = excluded.picture_url,
+       email = excluded.email,
+       last_login_at = now()`,
+    [lineUserId, c.code, input.displayName ?? null, input.pictureUrl ?? null, email],
+  );
+  return { code: c.code, name: c.name };
+}
+
 // ---- profile ---------------------------------------------------------------
 
 export interface CustomerProfile {

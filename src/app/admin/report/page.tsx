@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, isManager } from "@/lib/auth";
 import { getSalesReport } from "@/lib/orders";
+import { getMostViewedProducts } from "@/lib/analytics";
 import { STATUS_LABEL, ORDER_STATUSES } from "@/lib/order-constants";
 import { formatKip } from "@/lib/format";
 import StatCard from "@/components/admin/StatCard";
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
 export default async function SalesReportPage() {
   if (!(await isAdmin())) redirect("/admin/login");
   if (!(await isManager())) redirect("/admin");
-  const r = await getSalesReport();
+  const [r, mostViewed] = await Promise.all([
+    getSalesReport(),
+    getMostViewedProducts(10, 30),
+  ]);
   const maxRev = Math.max(1, ...r.daily.map((d) => d.revenue));
 
   return (
@@ -100,6 +104,34 @@ export default async function SalesReportPage() {
                 <span className="shrink-0 text-gray-400">{p.qty} ໜ່ວຍ</span>
                 <span className="w-28 shrink-0 text-right font-semibold text-price">
                   {formatKip(p.revenue)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Most-viewed products */}
+      <Card className="mt-6">
+        <CardTitle hint="30 ວັນຫຼ້າສຸດ">ສິນຄ້າທີ່ເບິ່ງຫຼາຍສຸດ</CardTitle>
+        {mostViewed.length === 0 ? (
+          <EmptyState title="ຍັງບໍ່ມີຂໍ້ມູນ" hint="ຂໍ້ມູນຈະສະສົມຫຼັງຈາກລູກຄ້າເຂົ້າເບິ່ງໜ້າສິນຄ້າ" />
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {mostViewed.map((p, i) => (
+              <div key={p.productCode} className="flex items-center gap-3 py-2.5 text-sm">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">
+                  {i + 1}
+                </span>
+                <Link
+                  href={`/product/${encodeURIComponent(p.productCode)}`}
+                  className="line-clamp-1 flex-1 text-gray-700 transition hover:text-brand-dark"
+                >
+                  {p.name}
+                </Link>
+                <span className="shrink-0 font-mono text-[10px] text-gray-400">{p.productCode}</span>
+                <span className="w-20 shrink-0 text-right font-semibold text-sky-600">
+                  {p.views.toLocaleString()} ຄັ້ງ
                 </span>
               </div>
             ))}

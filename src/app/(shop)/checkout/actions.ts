@@ -1,10 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import QRCode from "qrcode";
 import { createOrder, priceCart, OrderError } from "@/lib/orders";
 import type { OrderInputItem } from "@/lib/orders";
 import { getSession } from "@/lib/auth";
+import { checkRateLimit, recordFailure, recordSuccess } from "@/lib/rate-limit";
 import { getCustomerAddress, createCustomerAddress } from "@/lib/addresses";
 import { composeAddress } from "@/lib/lao-locations";
 import { getOrCreateOrderQr, materializeCodOrder } from "@/lib/onepay-store";
@@ -138,6 +139,14 @@ export type PlaceOrderResult =
 export async function placeOrder(
   input: PlaceOrderInput,
 ): Promise<PlaceOrderResult> {
+  // Rate-limit by IP: max 5 orders per 15 min window (guards against spam/abuse).
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  const rl = checkRateLimit(`checkout:${ip}`);
+  if (!rl.allowed) {
+    return { ok: false, error: `ສ້າງອໍເດີຫຼາຍເກີນໄປ ກະລຸນາລໍຖ້າ ${Math.ceil(rl.retryAfterSec / 60)} ນາທີ` };
+  }
+
   try {
     // customer_code (session) + referral code (cookie) are resolved server-side
     // — never trusted from the client.
@@ -243,9 +252,11 @@ export async function placeOrder(
         };
       }
     }
+    recordSuccess(`checkout:${ip}`);
     return { ok: true, orderNo };
   } catch (e) {
     if (e instanceof OrderError) return { ok: false, error: e.message };
+    recordFailure(`checkout:${ip}`);
     console.error("placeOrder failed:", e);
     return { ok: false, error: "ເກີດຂໍ້ຜິດພາດ ກະລຸນາລອງໃໝ່" };
   }

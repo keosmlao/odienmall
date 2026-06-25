@@ -37,6 +37,7 @@ export default function RecentlyViewed({
     reviewCount: w.reviewCount,
     imageUrl: w.imageUrl ?? null,
     isFeatured: false,
+    priceNote: null,
   }));
 
   return (

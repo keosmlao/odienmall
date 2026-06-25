@@ -108,13 +108,6 @@ const NAV: NavItem[] = [
     icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10",
   },
   {
-    href: "/admin/ac-sets",
-    label: "ຊຸດແອ",
-    group: "ສິນຄ້າ",
-    match: (p: string) => p.startsWith("/admin/ac-sets"),
-    icon: "M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2",
-  },
-  {
     href: "/admin/brands",
     label: "Logo Brand",
     group: "ສິນຄ້າ",
@@ -207,12 +200,14 @@ export default function AdminNav({
   chatUnread = 0,
   returnsPending = 0,
   qnaOpen = 0,
+  pendingOrders = 0,
 }: {
   adminName?: string;
   role?: string;
   chatUnread?: number;
   returnsPending?: number;
   qnaOpen?: number;
+  pendingOrders?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -264,6 +259,7 @@ export default function AdminNav({
             <path d={n.icon} />
           </svg>
           <span>{n.label}</span>
+          {n.href === "/admin" && pendingOrders > 0 && <Counter value={pendingOrders} />}
           {n.href === "/admin/chat" && chatUnread > 0 && <Counter value={chatUnread} />}
           {n.href === "/admin/returns" && returnsPending > 0 && <Counter value={returnsPending} />}
           {n.href === "/admin/qna" && qnaOpen > 0 && <Counter value={qnaOpen} />}
@@ -303,6 +299,7 @@ export default function AdminNav({
           </svg>
         </span>
         <span className="flex-1">{n.label}</span>
+        {n.href === "/admin" && pendingOrders > 0 && <Counter value={pendingOrders} />}
         {n.href === "/admin/chat" && chatUnread > 0 && <Counter value={chatUnread} />}
         {n.href === "/admin/returns" && returnsPending > 0 && <Counter value={returnsPending} />}
         {n.href === "/admin/qna" && qnaOpen > 0 && <Counter value={qnaOpen} />}
@@ -313,7 +310,7 @@ export default function AdminNav({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col overflow-hidden border-r border-slate-900 bg-slate-950 text-slate-100 lg:flex print:!hidden shadow-2xl">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col overflow-hidden border-r border-slate-900 bg-slate-950 text-slate-100 lg:flex print:!hidden shadow-2xl">
         <div className="border-b border-slate-900 p-4">
           <Link
             href="/admin/dashboard"

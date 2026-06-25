@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useCart } from "@/lib/cart-context";
+import { cartCrossSell } from "@/app/(shop)/cart/actions";
 import type { Product } from "@/lib/types";
+
+const UpsellModal = dynamic(() => import("./UpsellModal"), { ssr: false });
 
 export default function AddToCartButton({
   product,
@@ -13,9 +17,12 @@ export default function AddToCartButton({
 }) {
   const { add } = useCart();
   const [added, setAdded] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const outOfStock = product.stock <= 0;
+  const noPrice = product.price == null;
 
-  function handleAdd() {
+  async function handleAdd() {
     add({
       code: product.code,
       name: product.name,
@@ -26,17 +33,33 @@ export default function AddToCartButton({
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
+
+    // Only show upsell modal on the full (product detail) button.
+    if (variant === "full") {
+      const recs = await cartCrossSell([product.code]).catch(() => []);
+      setSuggestions(recs);
+      setModal(true);
+    }
   }
 
   if (variant === "full") {
     return (
-      <button
-        onClick={handleAdd}
-        disabled={outOfStock}
-        className="flex h-12 flex-1 items-center justify-center gap-2 rounded-sm bg-gradient-to-r from-orange-500 to-rose-500 px-6 text-sm font-bold text-white shadow-sm transition hover:from-orange-600 hover:to-rose-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-      >
-        {outOfStock ? "ສິນຄ້າໝົດ" : added ? "✓ ເພີ່ມໃສ່ກະຕ່າແລ້ວ" : "ເພີ່ມໃສ່ກະຕ່າ"}
-      </button>
+      <>
+        <button
+          onClick={handleAdd}
+          disabled={outOfStock || noPrice}
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-sm bg-gradient-to-r from-orange-500 to-rose-500 px-6 text-sm font-bold text-white shadow-sm transition hover:from-orange-600 hover:to-rose-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+        >
+          {outOfStock ? "ສິນຄ້າໝົດ" : noPrice ? "ສອບຖາມລາຄາ" : added ? "✓ ເພີ່ມໃສ່ກະຕ່າແລ້ວ" : "ເພີ່ມໃສ່ກະຕ່າ"}
+        </button>
+        {modal && (
+          <UpsellModal
+            addedProduct={{ name: product.name, imageUrl: product.imageUrl }}
+            suggestions={suggestions}
+            onClose={() => setModal(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -47,8 +70,8 @@ export default function AddToCartButton({
         e.stopPropagation();
         handleAdd();
       }}
-      disabled={outOfStock}
-      aria-label="ເພີ່ມໃສ່ກະຕ່າ"
+      disabled={outOfStock || noPrice}
+      aria-label={noPrice ? "ສອບຖາມລາຄາ" : "ເພີ່ມໃສ່ກະຕ່າ"}
       className="inline-flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm transition hover:scale-110 hover:bg-orange-600 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:scale-100"
     >
       {added ? (

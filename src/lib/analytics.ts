@@ -55,6 +55,31 @@ export interface VisitStats {
   monthly: VisitBucket[]; // last 12 months
 }
 
+export interface MostViewedProduct {
+  productCode: string;
+  name: string;
+  views: number;
+}
+
+export async function getMostViewedProducts(
+  limit = 10,
+  days = 30,
+): Promise<MostViewedProduct[]> {
+  return query<MostViewedProduct>(
+    `select
+       pv.product_code as "productCode",
+       coalesce(nullif(i.name_1,''), nullif(i.name_2,''), pv.product_code) as name,
+       count(*)::int as views
+     from odg_ecom.product_views pv
+     left join public.ic_inventory i on i.code = pv.product_code
+     where pv.viewed_at >= now() - ($2 || ' days')::interval
+     group by pv.product_code, i.name_1, i.name_2
+     order by views desc
+     limit $1`,
+    [limit, days],
+  );
+}
+
 export async function getVisitStats(): Promise<VisitStats> {
   const [online, today, month, total, daily, monthly] = await Promise.all([
     getOnlineCount(),

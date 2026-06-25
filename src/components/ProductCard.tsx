@@ -70,8 +70,10 @@ export default function ProductCard({ product }: { product: Product }) {
 
         {/* Price */}
         <div className="flex flex-wrap items-baseline gap-x-1.5">
-          <span className="whitespace-nowrap text-base font-black tracking-tight text-orange-600">
-            {formatKip(hasDeal ? deal! : product.price)}
+          <span className={`whitespace-nowrap text-base font-black tracking-tight ${product.price == null ? "text-slate-500" : "text-orange-600"}`}>
+            {product.price == null
+              ? (product.priceNote ?? "ສອບຖາມລາຄາ")
+              : formatKip(hasDeal ? deal! : product.price)}
           </span>
           {hasDeal && (
             <span className="whitespace-nowrap text-[11px] font-medium text-slate-400 line-through">{formatKip(product.price)}</span>

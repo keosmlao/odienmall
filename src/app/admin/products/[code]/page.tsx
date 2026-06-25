@@ -5,6 +5,7 @@ import { formatKip, htmlToText } from "@/lib/format";
 import { PageHeader, Card, CardTitle, Badge } from "@/components/admin/ui";
 import ProductEditForm from "./ProductEditForm";
 import ShortDescriptionForm from "./ShortDescriptionForm";
+import PriceNoteForm from "./PriceNoteForm";
 import ProductSpecsEditor from "@/components/admin/ProductSpecsEditor";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,17 @@ export default async function AdminProductDetail({
         <p className="mb-3 text-xs text-slate-500">ສະແດງໃນ buy box ໃກ້ລາຄາ — ສັ້ນ 1-3 ແຖວ</p>
         <ShortDescriptionForm code={product.code} initial={product.shortDescription ?? null} />
       </section>
+
+      {/* Price note (shown for no-price items) */}
+      {product.price == null && (
+        <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <h2 className="mb-1 text-sm font-black text-slate-800">ໂນດລາຄາ (Price note)</h2>
+          <p className="mb-3 text-xs text-slate-500">
+            ສິນຄ້ານີ້ບໍ່ມີລາຄາ POS — ຂໍ້ຄວາມນີ້ຈະສະແດງແທນ "ສອບຖາມລາຄາ" ທົ່ວໄປ
+          </p>
+          <PriceNoteForm code={product.code} initial={product.priceNote ?? null} />
+        </section>
+      )}
 
       {/* Specifications */}
       <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">

@@ -89,6 +89,7 @@ import { getMemberDiscountPct } from "./member-tier";
 import { activeFlashMap } from "./flash";
 import { clearSavedCart } from "./cart-recovery";
 import { notify } from "./notifications";
+import { lineNotifyAdmin } from "./line-notify";
 export { ORDER_STATUSES, STATUS_LABEL, type OrderStatus };
 
 export class OrderError extends Error {}
@@ -173,7 +174,7 @@ export async function priceCart(items: OrderInputItem[]): Promise<{ lines: Order
             (select b.unit_code from public.ic_inventory_barcode b
                where b.ic_code = i.code and b.price > 0 order by b.price asc limit 1) as unit
        from public.ic_inventory i
-      where i.is_eordershow = 1 and i.code = any($1)`,
+      where i.code = any($1)`,
     [codes],
   );
   const byCode = new Map(priced.map((r) => [r.code, r]));
@@ -196,6 +197,32 @@ export async function priceCart(items: OrderInputItem[]): Promise<{ lines: Order
   if (unpriced.length > 0) {
     throw new OrderError(`ບາງລາຍການບໍ່ມີລາຄາ ກະລຸນາລຶບອອກກ່ອນສັ່ງຊື້: ${unpriced.join(", ")}`);
   }
+
+  // Oversell guard: subtract qty already held in pending/active orders from balance_qty.
+  // Reads onepay_payments.items (JSONB) for web-pending + ic_trans_detail for SML-committed.
+  const stockRows = await query<{ code: string; balance: string; pending: string }>(
+    `select i.code,
+            coalesce(i.balance_qty, 0)::text as balance,
+            coalesce((
+              select sum((item->>'qty')::numeric)
+                from odg_ecom.onepay_payments p,
+                     jsonb_array_elements(p.items) as item
+               where p.status in ('pending','paid')
+                 and (item->>'code') = i.code
+            ), 0)::text as pending
+       from public.ic_inventory i
+      where i.code = any($1)`,
+    [codes],
+  );
+  const byStockCode = new Map(stockRows.map((r) => [r.code, { balance: Number(r.balance), pending: Number(r.pending) }]));
+  for (const l of lines) {
+    const s = byStockCode.get(l.productCode);
+    const available = (s?.balance ?? 0) - (s?.pending ?? 0);
+    if (available < l.qty) {
+      throw new OrderError(`ສິນຄ້າ "${l.productName}" ມີເຄົງ ${Math.max(0, Math.floor(available))} ຊິ້ນ ກະລຸນາຫຼຸດຈຳນວນ`);
+    }
+  }
+
   const subtotal = lines.reduce((s, l) => s + l.lineTotal, 0);
   return { lines, subtotal };
 }
@@ -294,6 +321,13 @@ export async function createOrder(
     subtotal,
     shippingFee,
   });
+
+  // For QR/transfer orders, notify admin LINE that a new order is pending payment.
+  if (customer.paymentMethod !== "cod") {
+    lineNotifyAdmin(
+      `\n[OdienMall] ອໍເດີໃໝ່ (ລໍຖ້າຊຳລະ QR)\nເລກ: ${orderNo}\nລູກຄ້າ: ${name} ${phone}\nຍອດ: ${subtotal.toLocaleString()} ₭`,
+    ).catch(() => {});
+  }
 
   // The customer just ordered — drop their abandoned-cart snapshot (best-effort).
   if (customer.customerCode) clearSavedCart(customer.customerCode).catch(() => {});
