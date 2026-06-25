@@ -31,8 +31,10 @@ export default async function ShopLayout({
         {ann.enabled && ann.message && (
           <AnnouncementBar message={ann.message} link={ann.link} />
         )}
-        <Header />
-        <GroupMenu />
+        <div className="sticky top-0 z-40 shadow-[0_2px_16px_rgba(15,23,42,0.07)]">
+          <Header />
+          <GroupMenu />
+        </div>
         <main className="shop-main mx-auto w-full max-w-[1400px] flex-1 overflow-x-clip px-3 py-4 pb-24 sm:px-4 sm:py-6 sm:pb-6">
           {children}
         </main>

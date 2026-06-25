@@ -51,10 +51,22 @@ function loadOnepayLib(): Promise<void> {
 
 type QrData = {
   qrDataUrl: string;
+  qrString?: string;
   amount?: number;
   expiresAt: string | null;
   status: string;
 };
+
+function isMobile() {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function bcelOneDeepLink(qrString: string): string {
+  // BCEL One universal link — carries the EMVCo QR string so the app can
+  // jump straight to the payment confirm screen without re-scanning.
+  return `https://bcel.com.la/bcelone?qr=${encodeURIComponent(qrString)}`;
+}
 
 // BCEL OnePay payment UI. The QR always shows inside a **modal** overlay.
 //  - variant "page": renders an inline "ລໍຖ້າຊຳລະ + ຊຳລະເງິນ" card; the Pay
@@ -90,6 +102,8 @@ export default function OnepayQr({
   const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [clientQr, setClientQr] = useState<string | null>(null);
+  const [clientQrString, setClientQrString] = useState<string | null>(null);
+  const [mobile] = useState(() => isMobile());
   const triesRef = useRef(0);
   const paidFiredRef = useRef(false);
 
@@ -110,6 +124,7 @@ export default function OnepayQr({
       if (res.ok) {
         setQr({
           qrDataUrl: res.qrDataUrl,
+          qrString: res.qrString,
           amount: res.amount,
           expiresAt: res.expiresAt,
           status: res.status,
@@ -250,6 +265,7 @@ export default function OnepayQr({
           },
           async (qrStr) => {
             if (cancelled) return;
+            if (!cancelled) setClientQrString(qrStr);
             const QR = (await import("qrcode")).default;
             const url = await QR.toDataURL(qrStr, { width: 280, margin: 1 });
             if (!cancelled) setClientQr(url);
@@ -286,6 +302,7 @@ export default function OnepayQr({
         /* ignore */
       }
       setClientQr(null);
+      setClientQrString(null);
     };
   }, [open, paid, submitted, qr, expired, orderNo, displayAmount, tracked]);
 
@@ -341,33 +358,59 @@ export default function OnepayQr({
               )}
             </div>
             <p className="mb-3 text-xs text-gray-500">
-              ສະແກນດ້ວຍແອັບ <span className="font-medium">BCEL One</span> — ຍອດເງິນຖືກກຳນົດໃຫ້ອັດຕະໂນມັດ.
+              {mobile
+                ? "ກົດປຸ່ມດ້ານລຸ່ມເພື່ອເປີດ BCEL One ແລະຊຳລະໄດ້ທັນທີ."
+                : <>ສະແກນດ້ວຍແອັບ <span className="font-medium">BCEL One</span> — ຍອດເງິນຖືກກຳນົດໃຫ້ອັດຕະໂນມັດ.</>
+              }
               {expiresAt && " QR ໝົດອາຍຸໃນ 3 ນາທີ."}
             </p>
 
-            <div className="flex flex-col items-center gap-2">
-              {clientQr ?? qr?.qrDataUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={clientQr ?? qr?.qrDataUrl}
-                  alt={`QR ຊຳລະເງິນ ${orderNo}`}
-                  className="h-60 w-60 rounded-xl border border-gray-100 bg-white object-contain p-2"
-                />
-              ) : (
-                <div className="grid h-60 w-60 place-items-center rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-400">
-                  {busy ? "ກຳລັງສ້າງ QR..." : "..."}
-                </div>
-              )}
-              <div className="text-center">
-                <div className="text-xs text-gray-400">ຍອດທີ່ຕ້ອງຊຳລະ</div>
-                <div className="text-xl font-extrabold text-price">{formatKip(displayAmount)}</div>
-                {displayAmount !== amount && (
-                  <div className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                    TEST · ຍອດອໍເດີຈິງ {formatKip(amount)}
+            {(() => {
+              const activeQrString = clientQrString ?? qr?.qrString ?? null;
+              const activeQrImg = clientQr ?? qr?.qrDataUrl ?? null;
+              return (
+                <div className="flex flex-col items-center gap-2">
+                  {mobile && activeQrString ? (
+                    // Mobile: deep-link button to open BCEL One directly
+                    <a
+                      href={bcelOneDeepLink(activeQrString)}
+                      className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#003893] py-5 text-white shadow-lg active:opacity-80"
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white">
+                        <svg viewBox="0 0 40 40" className="h-7 w-7" fill="none">
+                          <rect width="40" height="40" rx="8" fill="#003893" />
+                          <text x="20" y="27" textAnchor="middle" fontSize="16" fontWeight="bold" fill="white">B</text>
+                        </svg>
+                      </span>
+                      <div className="text-left">
+                        <div className="text-sm font-black">ເປີດ BCEL One</div>
+                        <div className="text-[11px] text-blue-200">ກົດເພື່ອຊຳລະ {formatKip(displayAmount)}</div>
+                      </div>
+                    </a>
+                  ) : activeQrImg ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={activeQrImg}
+                      alt={`QR ຊຳລະເງິນ ${orderNo}`}
+                      className="h-60 w-60 rounded-xl border border-gray-100 bg-white object-contain p-2"
+                    />
+                  ) : (
+                    <div className="grid h-60 w-60 place-items-center rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-400">
+                      {busy ? "ກຳລັງສ້າງ QR..." : "..."}
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">ຍອດທີ່ຕ້ອງຊຳລະ</div>
+                    <div className="text-xl font-extrabold text-price">{formatKip(displayAmount)}</div>
+                    {displayAmount !== amount && (
+                      <div className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                        TEST · ຍອດອໍເດີຈິງ {formatKip(amount)}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              );
+            })()}
 
             {tracked ? (
               <>

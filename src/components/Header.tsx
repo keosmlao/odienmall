@@ -16,7 +16,7 @@ export default function Header() {
   const t = useT();
 
   return (
-    <header className="sticky top-0 z-40 bg-white text-slate-800 shadow-[0_2px_16px_rgba(15,23,42,0.07)]">
+    <header className="bg-white text-slate-800">
       <div className="hidden border-b border-orange-100 bg-orange-50/70 sm:block">
         <div className="mx-auto flex h-8 max-w-[1400px] items-center justify-end gap-5 px-4 text-[11px] font-medium text-slate-500">
           <Link href="/track" className="transition hover:text-orange-600">{t("nav.track")}</Link>
