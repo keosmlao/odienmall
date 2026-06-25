@@ -60,10 +60,11 @@ export default function LiffAutoLogin({
         // Only auto-login when running inside the LINE Mini App client
         if (!window.liff.isInClient()) return;
 
-        if (!window.liff.isLoggedIn()) {
-          window.liff.login({ redirectUri: window.location.href });
-          return;
-        }
+        // In-app the user is already signed into LINE, so isLoggedIn() is true and
+        // we read the id token directly. If somehow not logged in, do NOT call
+        // liff.login() (its redirect_uri must be whitelisted and often 400s) — the
+        // user can tap the LINE button, which uses the OAuth flow.
+        if (!window.liff.isLoggedIn()) return;
 
         const idToken = window.liff.getIDToken();
         if (!idToken) return;

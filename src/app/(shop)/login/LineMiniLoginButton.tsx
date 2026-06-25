@@ -65,7 +65,10 @@ export default function LineMiniLoginButton({
       if (!window.liff) throw new Error("LIFF SDK missing");
       await window.liff.init({ liffId });
       if (!window.liff.isLoggedIn()) {
-        window.liff.login({ redirectUri: window.location.href });
+        // Don't use liff.login() — its redirect_uri must be separately whitelisted
+        // and often fails ("Invalid redirect_uri value"). The OAuth flow works in
+        // the LINE in-app browser too.
+        window.location.href = `/login/line?redirect=${encodeURIComponent(redirect)}`;
         return;
       }
       const idToken = window.liff.getIDToken();
