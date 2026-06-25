@@ -16,6 +16,8 @@ import {
   setWebGroups,
   setChatBotEnabled,
   setAiKnowledge,
+  setDeliveryConfig,
+  type DeliveryConfig,
 } from "@/lib/settings";
 import { logAudit } from "@/lib/audit";
 import { testChatBot, type ChatBotTestResult } from "@/lib/chatbot";
@@ -192,11 +194,13 @@ export async function saveAnnouncement(input: {
   enabled: boolean;
   message: string;
   link: string;
+  scheduledAt?: string | null;
+  expiresAt?: string | null;
 }): Promise<Result> {
   if (!(await isManager())) return { ok: false, error: DENIED };
 
   const message = input.message.trim();
-  const link = input.link.trim();
+  const link = input.link?.trim() ?? "";
   if (input.enabled && !message) return { ok: false, error: "ກະລຸນາໃສ່ຂໍ້ຄວາມ" };
   if (link && !link.startsWith("/")) {
     return { ok: false, error: "ລິ້ງຕ້ອງເປັນເສັ້ນທາງພາຍໃນ (ຂຶ້ນຕົ້ນດ້ວຍ /)" };
@@ -204,7 +208,7 @@ export async function saveAnnouncement(input: {
 
   try {
     const by = (await getAdminSession())?.code;
-    await setAnnouncement({ enabled: input.enabled, message, link }, by);
+    await setAnnouncement({ enabled: input.enabled, message, link, scheduledAt: input.scheduledAt, expiresAt: input.expiresAt }, by);
     await logAudit({ action: "settings.announcement", detail: input.enabled ? "enabled" : "disabled" });
     // Bar shows site-wide → revalidate the storefront layout broadly.
     revalidatePath("/", "layout");
@@ -311,6 +315,19 @@ export async function removeBankQr(): Promise<Result> {
     await setBankQr(null, (await getAdminSession())?.code);
     await deleteUpload(prev);
     await logAudit({ action: "settings.bankQr", detail: "removed" });
+    revalidatePath("/admin/settings");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: errMsg(e) };
+  }
+}
+
+export async function saveDeliveryConfig(input: DeliveryConfig): Promise<Result> {
+  if (!(await isManager())) return { ok: false, error: DENIED };
+  try {
+    const by = (await getAdminSession())?.code;
+    await setDeliveryConfig(input, by);
+    await logAudit({ action: "settings.delivery", detail: `odien:${input.odienEstimate} thanjai:${input.thanjaiEstimate}` });
     revalidatePath("/admin/settings");
     return { ok: true };
   } catch (e) {

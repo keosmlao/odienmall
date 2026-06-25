@@ -45,7 +45,10 @@ export default function CheckoutForm({
     name: initialName,
     phone: initialPhone,
     note: "",
+    giftMessage: "",
+    guestEmail: "",
   });
+  const [showGift, setShowGift] = useState(false);
 
   // On-behalf customer lookup (search existing customer from DB, or type new).
   const [custQuery, setCustQuery] = useState("");
@@ -276,6 +279,8 @@ export default function CheckoutForm({
         shippingMethod: shipping,
         voucherCode: voucher?.code ?? null,
         pointsToUse: onBehalf ? 0 : points?.points ?? 0,
+        giftMessage: showGift && form.giftMessage.trim() ? form.giftMessage.trim() : null,
+        guestEmail: !loggedIn && form.guestEmail.trim() ? form.guestEmail.trim() : null,
         onBehalf,
         items: items.map((i) => ({ code: i.code, qty: i.qty })),
       });
@@ -468,6 +473,41 @@ export default function CheckoutForm({
           <Field label="ໝາຍເຫດ">
             <input value={form.note} onChange={set("note")} className="inp" placeholder="ຂໍ້ມູນເພີ່ມເຕີມ (ຖ້າມີ)" />
           </Field>
+
+          {/* Gift message toggle */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowGift((v) => !v)}
+              className="flex items-center gap-1.5 text-sm text-orange-600 hover:text-orange-700"
+            >
+              <span className="text-base">{showGift ? "✕" : "🎁"}</span>
+              {showGift ? "ລຶບຂໍ້ຄວາມຂອງຂວັນ" : "ເພີ່ມຂໍ້ຄວາມຂອງຂວັນ"}
+            </button>
+            {showGift && (
+              <textarea
+                value={form.giftMessage}
+                onChange={set("giftMessage")}
+                className="inp mt-2 min-h-[72px] resize-y"
+                maxLength={200}
+                placeholder="ຂໍ້ຄວາມທີ່ຕ້ອງການພິມໃສ່ ໃນໃບຝາກ ຫຼືການ໌ດຂອງຂວັນ..."
+              />
+            )}
+          </div>
+
+          {/* Guest email — only for non-logged-in users */}
+          {!loggedIn && (
+            <Field label="ອີເມລ (ຖ້ານຳ)">
+              <input
+                type="email"
+                value={form.guestEmail}
+                onChange={set("guestEmail")}
+                className="inp"
+                placeholder="ຮັບໃບຢືນຢັນຜ່ານ email (ຖ້າຕ້ອງການ)"
+              />
+            </Field>
+          )}
+
           {error && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
           )}

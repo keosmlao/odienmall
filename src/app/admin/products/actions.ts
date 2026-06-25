@@ -18,6 +18,8 @@ import {
   getProductImages,
   upsertProductSpec,
   deleteProductSpec,
+  clearProductSpecs,
+  bulkReplaceSpecs,
 } from "@/lib/products-admin";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -272,6 +274,61 @@ export async function removeProductSpec(
     revalidatePath(`/product/${productCode}`);
     revalidatePath(`/admin/products/${productCode}`);
     return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+export async function clearProductSpecsAction(
+  productCode: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await clearProductSpecs(productCode);
+    revalidatePath(`/product/${productCode}`);
+    revalidatePath(`/admin/products/${productCode}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+export async function bulkImportSpecsAction(
+  productCode: string,
+  rows: { label: string; value: string }[],
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await bulkReplaceSpecs(productCode, rows);
+    revalidatePath(`/product/${productCode}`);
+    revalidatePath(`/admin/products/${productCode}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+import { setProductTags, createTag, type Tag } from "@/lib/product-tags";
+
+export async function saveProductTags(productCode: string, tagIds: number[]): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    await setProductTags(productCode, tagIds);
+    await logAudit({ action: "product.tags", entity: productCode, detail: tagIds.join(",") || "(clear)" });
+    revalidatePath(`/admin/products/${encodeURIComponent(productCode)}`);
+    revalidatePath(`/product/${encodeURIComponent(productCode)}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+export async function createProductTag(slug: string, name: string): Promise<{ ok: boolean; tag?: Tag; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const tag = await createTag(slug, name);
+    revalidatePath("/admin/products");
+    return { ok: true, tag };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
   }

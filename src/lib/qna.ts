@@ -70,6 +70,17 @@ export async function askQuestion(input: {
   return { ok: true };
 }
 
+/** All questions by a customer (for their account history), newest first. */
+export async function listQuestionsByCustomer(customerCode: string): Promise<ProductQuestion[]> {
+  const rows = await query<Row>(
+    `select ${COLS} from odg_ecom.product_questions
+      where customer_code = $1
+      order by id desc limit 100`,
+    [customerCode],
+  );
+  return rows.map(toQ);
+}
+
 // ── Admin ───────────────────────────────────────────────────────────────────
 
 export async function listQuestions(onlyOpen = false): Promise<ProductQuestion[]> {

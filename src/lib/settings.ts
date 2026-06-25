@@ -76,6 +76,10 @@ export interface Announcement {
   message: string;
   /** Optional internal link the bar points to (e.g. /products). */
   link: string | null;
+  /** ISO string — bar is hidden before this time even if enabled=true. */
+  scheduledAt: string | null;
+  /** ISO string — bar auto-hides after this time. */
+  expiresAt: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -84,19 +88,50 @@ const ANNOUNCEMENT_DEFAULT: Announcement = {
   enabled: false,
   message: "",
   link: null,
+  scheduledAt: null,
+  expiresAt: null,
   updatedAt: null,
   updatedBy: null,
 };
 
-/** Read the announcement bar. Never throws — OFF default if the table is absent. */
+/**
+ * Read the announcement bar. Returns the row only when:
+ * - enabled = true
+ * - now >= scheduled_at (or scheduled_at is null)
+ * - now < expires_at (or expires_at is null)
+ * Never throws — OFF default if the table is absent.
+ */
 export async function getAnnouncement(): Promise<Announcement> {
   try {
-    const row = await queryOne<Announcement>(
+    const row = await queryOne<{
+      enabled: boolean;
+      message: string;
+      link: string | null;
+      scheduledAt: Date | null;
+      expiresAt: Date | null;
+      updatedAt: Date | null;
+      updatedBy: string | null;
+    }>(
       `select enabled, message, nullif(link,'') as link,
+              scheduled_at as "scheduledAt", expires_at as "expiresAt",
               updated_at as "updatedAt", updated_by as "updatedBy"
          from odg_ecom.announcement where id = 1`,
     );
-    return row ?? ANNOUNCEMENT_DEFAULT;
+    if (!row) return ANNOUNCEMENT_DEFAULT;
+    const now = new Date();
+    const active =
+      row.enabled &&
+      (!row.scheduledAt || now >= row.scheduledAt) &&
+      (!row.expiresAt || now < row.expiresAt);
+    return {
+      enabled: active,
+      message: row.message,
+      link: row.link,
+      scheduledAt: row.scheduledAt?.toISOString() ?? null,
+      expiresAt: row.expiresAt?.toISOString() ?? null,
+      updatedAt: row.updatedAt?.toISOString() ?? null,
+      updatedBy: row.updatedBy,
+    };
   } catch {
     return ANNOUNCEMENT_DEFAULT;
   }
@@ -104,19 +139,34 @@ export async function getAnnouncement(): Promise<Announcement> {
 
 /** Upsert the singleton announcement row (admin only — caller re-checks). */
 export async function setAnnouncement(
-  next: { enabled: boolean; message: string; link?: string | null },
+  next: {
+    enabled: boolean;
+    message: string;
+    link?: string | null;
+    scheduledAt?: string | null;
+    expiresAt?: string | null;
+  },
   by?: string,
 ): Promise<void> {
   await query(
-    `insert into odg_ecom.announcement (id, enabled, message, link, updated_by, updated_at)
-       values (1, $1, $2, $3, $4, now())
+    `insert into odg_ecom.announcement (id, enabled, message, link, scheduled_at, expires_at, updated_by, updated_at)
+       values (1, $1, $2, $3, $4, $5, $6, now())
      on conflict (id) do update
-       set enabled    = excluded.enabled,
-           message    = excluded.message,
-           link       = excluded.link,
-           updated_by = excluded.updated_by,
-           updated_at = now()`,
-    [next.enabled, next.message, next.link?.trim() || null, by ?? null],
+       set enabled      = excluded.enabled,
+           message      = excluded.message,
+           link         = excluded.link,
+           scheduled_at = excluded.scheduled_at,
+           expires_at   = excluded.expires_at,
+           updated_by   = excluded.updated_by,
+           updated_at   = now()`,
+    [
+      next.enabled,
+      next.message,
+      next.link?.trim() || null,
+      next.scheduledAt || null,
+      next.expiresAt || null,
+      by ?? null,
+    ],
   );
 }
 
@@ -469,5 +519,44 @@ export async function setAiKnowledge(next: { enabled: boolean; content: string }
            updated_by = excluded.updated_by,
            updated_at = now()`,
     [next.enabled, next.content.trim(), by ?? null],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Delivery estimate config — singleton row (id=1) in odg_ecom.delivery_config.
+// ---------------------------------------------------------------------------
+
+export interface DeliveryConfig {
+  odienEstimate: string;
+  thanjaiEstimate: string;
+}
+
+const DELIVERY_CONFIG_DEFAULT: DeliveryConfig = {
+  odienEstimate: "2-3 ວັນ",
+  thanjaiEstimate: "1 ວັນ",
+};
+
+export async function getDeliveryConfig(): Promise<DeliveryConfig> {
+  try {
+    const row = await queryOne<{ odienEstimate: string; thanjaiEstimate: string }>(
+      `select odien_estimate as "odienEstimate", thanjai_estimate as "thanjaiEstimate"
+         from odg_ecom.delivery_config where id = 1`,
+    );
+    return row ?? DELIVERY_CONFIG_DEFAULT;
+  } catch {
+    return DELIVERY_CONFIG_DEFAULT;
+  }
+}
+
+export async function setDeliveryConfig(next: DeliveryConfig, by?: string): Promise<void> {
+  await query(
+    `insert into odg_ecom.delivery_config (id, odien_estimate, thanjai_estimate, updated_by, updated_at)
+       values (1, $1, $2, $3, now())
+     on conflict (id) do update
+       set odien_estimate   = excluded.odien_estimate,
+           thanjai_estimate = excluded.thanjai_estimate,
+           updated_by       = excluded.updated_by,
+           updated_at       = now()`,
+    [next.odienEstimate || "2-3 ວັນ", next.thanjaiEstimate || "1 ວັນ", by ?? null],
   );
 }

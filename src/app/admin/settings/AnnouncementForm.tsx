@@ -6,6 +6,15 @@ import type { Announcement } from "@/lib/settings";
 import { BTN_PRIMARY } from "@/components/admin/ui";
 import { saveAnnouncement } from "./actions";
 
+function toDatetimeLocal(iso: string | null | undefined): string {
+  if (!iso) return "";
+  // Convert ISO → datetime-local value (local time, no seconds)
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function AnnouncementForm({ initial }: { initial: Announcement }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -15,13 +24,21 @@ export default function AnnouncementForm({ initial }: { initial: Announcement })
   const [enabled, setEnabled] = useState(initial.enabled);
   const [message, setMessage] = useState(initial.message);
   const [link, setLink] = useState(initial.link ?? "");
+  const [scheduledAt, setScheduledAt] = useState(toDatetimeLocal(initial.scheduledAt));
+  const [expiresAt, setExpiresAt] = useState(toDatetimeLocal(initial.expiresAt));
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const res = await saveAnnouncement({ enabled, message, link });
+      const res = await saveAnnouncement({
+        enabled,
+        message,
+        link,
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      });
       if (res.ok) {
         setSaved(true);
         router.refresh();
@@ -76,6 +93,27 @@ export default function AnnouncementForm({ initial }: { initial: Announcement })
           placeholder="/products"
         />
       </label>
+
+      <div className="grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-gray-600">ເລີ່ມສະແດງ (ທາງເລືອກ)</span>
+          <input
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            className="inp w-full"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-gray-600">ໝົດອາຍຸ (ທາງເລືອກ)</span>
+          <input
+            type="datetime-local"
+            value={expiresAt}
+            onChange={(e) => setExpiresAt(e.target.value)}
+            className="inp w-full"
+          />
+        </label>
+      </div>
 
       <div className="flex items-center gap-3">
         <button type="submit" disabled={pending} className={BTN_PRIMARY}>

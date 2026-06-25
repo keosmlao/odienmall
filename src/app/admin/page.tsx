@@ -9,6 +9,7 @@ import {
   STATUS_LABEL,
   type OrderStatus,
 } from "@/lib/orders";
+import { getMonthlyKpi, currentMonth } from "@/lib/sales-link";
 import { firstParam } from "@/lib/params";
 import { formatKip } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
@@ -39,11 +40,12 @@ export default async function AdminDashboard({
   // Staff see only their own sales; managers see everything (and may filter).
   const scope = await getSalesScope();
   const sale = scope.all ? firstParam(sp.sale) || "" : scope.saleCode || "";
-  const [orders, stats, missingSml, salespeople] = await Promise.all([
+  const [orders, stats, missingSml, salespeople, monthlyKpi] = await Promise.all([
     getAllOrders({ status, search: q, from, to, saleCode: sale }),
     getOrderStats(sale || undefined),
     getOrdersMissingSmlDoc(),
     scope.all ? listSalespeople() : Promise.resolve([]),
+    scope.all ? getMonthlyKpi() : Promise.resolve(null),
   ]);
 
   // Status chips preserve the search/date filters; export uses everything.
@@ -83,6 +85,32 @@ export default async function AdminDashboard({
         <StatCard label="ລໍຖ້າດຳເນີນການ" value={(stats.byStatus.pending ?? 0).toLocaleString()} tone="amber" icon="M12 7v5l3 2M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z" />
         <StatCard label="ສຳເລັດແລ້ວ" value={(stats.byStatus.completed ?? 0).toLocaleString()} tone="blue" icon="M20 6L9 17l-5-5" />
       </div>
+
+      {/* Monthly revenue KPI gauge (managers only, when targets are set) */}
+      {monthlyKpi && monthlyKpi.target > 0 && (
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="font-semibold text-gray-700">
+              ລາຍຮັບປະຈຳເດືອນ{" "}
+              <span className="font-normal text-gray-400">{monthlyKpi.month}</span>
+            </span>
+            <span className="font-bold text-gray-900">
+              {formatKip(monthlyKpi.revenue)}{" "}
+              <span className="font-normal text-gray-400">/ {formatKip(monthlyKpi.target)}</span>
+            </span>
+          </div>
+          <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all"
+              style={{ width: `${Math.min(100, Math.round((monthlyKpi.revenue / monthlyKpi.target) * 100))}%` }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between text-xs text-gray-400">
+            <span>{Math.round((monthlyKpi.revenue / monthlyKpi.target) * 100)}% ຂອງເປົ້າໝາຍ</span>
+            <a href="/admin/sales-targets" className="text-brand hover:underline">ຕັ້ງເປົ້າໝາຍ →</a>
+          </div>
+        </div>
+      )}
 
       {/* Search + date range + salesperson + CSV export */}
       <OrderFilters status={status} search={q} from={from} to={to} sale={sale} salespeople={salespeople} exportHref={exportHref} />

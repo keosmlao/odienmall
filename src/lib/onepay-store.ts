@@ -38,6 +38,10 @@ export interface PendingOrderInput extends CaeOrderInput {
   createdBy?: string | null;
   /** SML transport branch code chosen at creation (admin assisted orders). */
   transportCode?: string | null;
+  /** Optional gift message printed on the invoice. */
+  giftMessage?: string | null;
+  /** Guest (non-logged-in) email for order confirmation. */
+  guestEmail?: string | null;
 }
 
 /** Hold a not-yet-paid order as a snapshot on its QR row (keyed by temp order_no).
@@ -53,8 +57,9 @@ export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
     `insert into odg_ecom.onepay_payments
        (order_no, uuid, amount, qrc, status, cust_code, cust_name, phone, address, note,
         referral_code, items, subtotal, shipping_fee, voucher_code, discount, points_used,
-        member_discount, payment_method, shipping_method, created_by, transport_code, sale_code)
-     values ($1, $1, $2, '', 'pending', $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        member_discount, payment_method, shipping_method, created_by, transport_code, sale_code,
+        gift_message, guest_email)
+     values ($1, $1, $2, '', 'pending', $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
      on conflict (order_no) do update set
         cust_code = excluded.cust_code, cust_name = excluded.cust_name,
         phone = excluded.phone, address = excluded.address, note = excluded.note,
@@ -65,12 +70,14 @@ export async function storePendingOrder(o: PendingOrderInput): Promise<void> {
         payment_method = excluded.payment_method,
         shipping_method = excluded.shipping_method, amount = excluded.amount,
         created_by = excluded.created_by, transport_code = excluded.transport_code,
-        sale_code = excluded.sale_code`,
+        sale_code = excluded.sale_code,
+        gift_message = excluded.gift_message, guest_email = excluded.guest_email`,
     [
       o.orderNo, net, o.customerCode, o.name, o.phone,
       o.address, o.note, o.referralCode, JSON.stringify(o.lines), o.subtotal, o.shippingFee,
       o.voucherCode?.trim() || null, discount, points, memberDiscount, payMethod, shipMethod,
       o.createdBy ?? null, o.transportCode?.trim() || null, o.saleCode?.trim() || null,
+      o.giftMessage?.trim() || null, o.guestEmail?.trim() || null,
     ],
   );
 }
@@ -94,6 +101,8 @@ type SnapshotRow = {
   sale_code: string | null;
   sml_doc_no: string | null;
   status: string;
+  gift_message: string | null;
+  guest_email: string | null;
 };
 
 /** The pending-order snapshot for a temp order_no (null if none). */
@@ -118,13 +127,16 @@ export async function getPendingOrder(orderNo: string): Promise<
       lines: CaeOrderInput["lines"];
       subtotal: number;
       shippingFee: number;
+      giftMessage: string | null;
+      guestEmail: string | null;
     }
   | null
 > {
   const r = await queryOne<SnapshotRow>(
     `select cust_code, cust_name, phone, address, note, referral_code, items,
             subtotal, shipping_fee, voucher_code, discount, points_used, member_discount,
-            payment_method, shipping_method, sale_code, sml_doc_no, status
+            payment_method, shipping_method, sale_code, sml_doc_no, status,
+            gift_message, guest_email
        from odg_ecom.onepay_payments where order_no = $1`,
     [orderNo],
   );
@@ -149,6 +161,8 @@ export async function getPendingOrder(orderNo: string): Promise<
     lines: r.items,
     subtotal: Number(r.subtotal ?? 0),
     shippingFee: Number(r.shipping_fee ?? 0),
+    giftMessage: r.gift_message,
+    guestEmail: r.guest_email,
   };
 }
 

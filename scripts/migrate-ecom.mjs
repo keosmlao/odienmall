@@ -755,6 +755,58 @@ create table if not exists odg_ecom.order_shipping (
   updated_at  timestamptz not null default now()
 );
 
+-- ── Admin internal order notes ────────────────────────────────────────────────
+create table if not exists odg_ecom.order_notes (
+  id          bigint generated always as identity primary key,
+  order_no    text        not null,
+  content     text        not null,
+  created_by  text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists order_notes_order_no_idx on odg_ecom.order_notes(order_no);
+
+-- ── Guest email + gift message on pending orders ──────────────────────────────
+alter table odg_ecom.onepay_payments add column if not exists guest_email text;
+alter table odg_ecom.onepay_payments add column if not exists gift_message text;
+
+-- ── Customer admin notes / flags ──────────────────────────────────────────────
+create table if not exists odg_ecom.customer_notes (
+  id            bigint generated always as identity primary key,
+  customer_code text        not null,
+  content       text        not null,
+  flag          text,
+  created_by    text,
+  created_at    timestamptz not null default now()
+);
+create index if not exists customer_notes_code_idx on odg_ecom.customer_notes(customer_code);
+
+-- ── Product tag system ────────────────────────────────────────────────────────
+create table if not exists odg_ecom.tags (
+  id    bigint generated always as identity primary key,
+  slug  text not null unique,
+  name  text not null
+);
+create table if not exists odg_ecom.product_tags (
+  product_code text   not null,
+  tag_id       bigint not null references odg_ecom.tags(id) on delete cascade,
+  primary key  (product_code, tag_id)
+);
+
+-- ── Scheduled / expiring announcements ───────────────────────────────────────
+alter table odg_ecom.announcement add column if not exists scheduled_at timestamptz;
+alter table odg_ecom.announcement add column if not exists expires_at timestamptz;
+
+-- ── Delivery estimate config ──────────────────────────────────────────────────
+-- Singleton (id=1): free-text estimate per shipping method shown on order confirmation.
+create table if not exists odg_ecom.delivery_config (
+  id               int primary key default 1,
+  odien_estimate   text not null default '2-3 ວັນ',
+  thanjai_estimate text not null default '1 ວັນ',
+  updated_at       timestamptz,
+  updated_by       text
+);
+insert into odg_ecom.delivery_config (id) values (1) on conflict do nothing;
+
 -- ── Product page views ────────────────────────────────────────────────────────
 -- One row per page load (client fires POST /api/views on mount).
 -- Used for the "most viewed products" stat in /admin/report.

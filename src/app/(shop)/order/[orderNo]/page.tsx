@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getOrderByNo } from "@/lib/orders";
 import { getSession } from "@/lib/auth";
 import { getReviewedCodes } from "@/lib/reviews";
-import { getBankTransfer, bankConfigured } from "@/lib/settings";
+import { getBankTransfer, bankConfigured, getDeliveryConfig } from "@/lib/settings";
 import { onepayEnabled, onepayMerchantConfigured } from "@/lib/onepay";
 import { getOrderPayment } from "@/lib/onepay-store";
 import { getOrderShipping } from "@/lib/order-shipping";
@@ -50,6 +50,9 @@ export default async function OrderConfirmationPage({
   const payRef = payment?.fccRef || payment?.ticket || null;
   const bank = awaitingPayment && !showOnepay ? await getBankTransfer() : null;
   const shipping = ["shipping", "completed"].includes(order.status) ? await getOrderShipping(order.orderNo) : null;
+  const deliveryConfig = !["shipping", "completed", "cancelled"].includes(order.status)
+    ? await getDeliveryConfig()
+    : null;
   const cancelled = order.status === "cancelled";
 
   const isCod = order.paymentMethod === "cod";
@@ -205,6 +208,15 @@ export default async function OrderConfirmationPage({
           {payRef && <Row k="ເລກໃບໂອນ" v={payRef} />}
           {payment?.payerName && <Row k="ຜູ້ໂອນ" v={payment.payerName} />}
           {order.note && <Row k="ໝາຍເຫດ" v={order.note} />}
+          {order.giftMessage && <Row k="ຂໍ້ຄວາມຂອງຂວັນ 🎁" v={order.giftMessage} />}
+          {deliveryConfig && (
+            <Row
+              k="ຄາດການຈັດສົ່ງ"
+              v={order.shippingMethod === "thanjai"
+                ? deliveryConfig.thanjaiEstimate
+                : deliveryConfig.odienEstimate}
+            />
+          )}
           {shipping?.trackingNo && (
             <Row k="ເລກພັດສະດຸ" v={`${shipping.carrier ? shipping.carrier + " — " : ""}${shipping.trackingNo}`} />
           )}

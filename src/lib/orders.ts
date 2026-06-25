@@ -32,6 +32,10 @@ export interface OrderCustomer {
   /** Salesperson (ພະນັກງານຂາຍ) — employee code; resolved & validated server-side.
    *  From the /s/<code> sales link, or chosen/defaulted by an admin who saves it. */
   saleCode?: string | null;
+  /** Optional gift message printed on the invoice (max 200 chars). */
+  giftMessage?: string | null;
+  /** Guest checkout email for order confirmation (not stored in ERP). */
+  guestEmail?: string | null;
 }
 
 export interface PlacedOrder {
@@ -77,6 +81,8 @@ export interface OrderRecord {
   affiliateName: string | null;
   createdAt: string;
   items: OrderLine[];
+  giftMessage: string | null;
+  guestEmail: string | null;
 }
 
 import { ORDER_STATUSES, STATUS_LABEL, type OrderStatus } from "./order-constants";
@@ -317,6 +323,8 @@ export async function createOrder(
     shippingMethod,
     createdBy: customer.createdBy ?? null,
     transportCode: customer.transportCode ?? null,
+    giftMessage: customer.giftMessage?.trim().slice(0, 200) || null,
+    guestEmail: customer.guestEmail?.trim() || null,
     lines: lines.map((l) => ({ ...l, unitPrice: l.unitPrice ?? 0 })),
     subtotal,
     shippingFee,
@@ -1274,6 +1282,8 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
         referralCode: pend.referralCode,
         affiliateName: pend.referralCode ? (await getAffiliateByCode(pend.referralCode))?.name ?? null : null,
         createdAt: new Date().toISOString(),
+        giftMessage: pend.giftMessage ?? null,
+        guestEmail: pend.guestEmail ?? null,
         items: pend.lines.map((l) => ({
           productCode: l.productCode,
           productName: l.productName,
@@ -1302,13 +1312,17 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
     payment_method: string;
     status: string;
     created_at: Date;
+    gift_message: string | null;
+    guest_email: string | null;
   }>(
     `select ${ORDER_HEAD},
             coalesce(ic.total_value_2,0) as gross,
             coalesce(ic.total_discount_2,0) as discount,
             nullif(ic.sale_code,'') as sale_code,
             coalesce(nullif(emp.fullname_lo,''), nullif(emp.fullname_en,''), nullif(ic.sale_code,'')) as sale_name,
-            nullif(ic.remark,'') as referral_code
+            nullif(ic.remark,'') as referral_code,
+            (select op.gift_message from odg_ecom.onepay_payments op where op.sml_doc_no = ic.doc_no limit 1) as gift_message,
+            (select op.guest_email  from odg_ecom.onepay_payments op where op.sml_doc_no = ic.doc_no limit 1) as guest_email
        from public.ic_trans ic
        left join public.ar_customer ar on ar.code = ic.cust_code
        left join public.odg_employee emp on emp.employee_code = ic.sale_code
@@ -1355,6 +1369,8 @@ export async function getOrderByNo(orderNo: string): Promise<OrderRecord | null>
     referralCode: o.referral_code,
     affiliateName: o.referral_code ? (await getAffiliateByCode(o.referral_code))?.name ?? null : null,
     createdAt: (o.created_at instanceof Date ? o.created_at : new Date(o.created_at)).toISOString(),
+    giftMessage: o.gift_message ?? null,
+    guestEmail: o.guest_email ?? null,
     items: items.map((i) => ({
       productCode: i.product_code,
       productName: i.product_name,
@@ -1454,6 +1470,8 @@ export async function getTrackOrderByNo(orderNo: string): Promise<OrderRecord | 
     referralCode: null,
     affiliateName: null,
     createdAt: (o.created_at instanceof Date ? o.created_at : new Date(o.created_at)).toISOString(),
+    giftMessage: null,
+    guestEmail: null,
     items: items.map((i) => ({
       productCode: i.product_code,
       productName: i.product_name,

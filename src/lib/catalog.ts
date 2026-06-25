@@ -689,3 +689,26 @@ export async function getFrequentlyBoughtForCart(
     [codes, limit],
   ));
 }
+
+/** Products for a tag slug (storefront — hidden excluded, in-stock only by default). */
+export async function getProductsByTagSlug(
+  slug: string,
+  opts: { inStock?: boolean } = {},
+): Promise<{ products: Product[]; tagName: string | null }> {
+  const tagRow = await queryOne<{ name: string }>(
+    `select name from odg_ecom.tags where slug = $1 limit 1`,
+    [slug],
+  );
+  if (!tagRow) return { products: [], tagName: null };
+  const inStockCond = opts.inStock !== false ? "and coalesce(i.balance_qty,0) > 0" : "";
+  const items = await query<Product>(
+    `${PRODUCT_SELECT}
+       join odg_ecom.product_tags pt on pt.product_code = i.code
+       join odg_ecom.tags t on t.id = pt.tag_id
+      where ${WEB_ITEM} ${inStockCond}
+        and t.slug = $1
+      order by i.name_1`,
+    [slug],
+  );
+  return { products: await priceProducts(items), tagName: tagRow.name };
+}

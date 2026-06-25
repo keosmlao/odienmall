@@ -435,6 +435,24 @@ export async function deleteProductSpec(id: number, productCode: string): Promis
   await query(`delete from odg_ecom.product_specs where id=$1 and product_code=$2`, [id, productCode]);
 }
 
+export async function clearProductSpecs(productCode: string): Promise<void> {
+  await query(`delete from odg_ecom.product_specs where product_code = $1`, [productCode]);
+}
+
+export async function bulkReplaceSpecs(
+  productCode: string,
+  rows: { label: string; value: string }[],
+): Promise<void> {
+  await query(`delete from odg_ecom.product_specs where product_code = $1`, [productCode]);
+  const valid = rows.filter((r) => r.value.trim());
+  for (let i = 0; i < valid.length; i++) {
+    await query(
+      `insert into odg_ecom.product_specs (product_code, label, value, sort_order) values ($1,$2,$3,$4)`,
+      [productCode, valid[i].label.trim(), valid[i].value.trim(), i],
+    );
+  }
+}
+
 // --- AC sets (odg_ecom.ac_sets) ----------------------------------------------
 
 export interface AcSetRow {
@@ -507,4 +525,26 @@ export async function createAcSet(codeC: string, codeH: string): Promise<void> {
 
 export async function deleteAcSet(id: number): Promise<void> {
   await query(`delete from odg_ecom.ac_sets where id=$1`, [id]);
+}
+
+/** Returns the AC set that includes this product (as C or H unit), or null. */
+export async function getAcSetForProduct(productCode: string): Promise<AcSetRow | null> {
+  const rows = await query<AcSetRow>(
+    `select s.id,
+            s.code_c as "codeC",
+            coalesce(nullif(ic.name_1,''), s.code_c) as "nameC",
+            (select min(b.price) from public.ic_inventory_barcode b where b.ic_code=s.code_c and b.price>0) as "priceC",
+            coalesce(ic.balance_qty,0)::float8 as "stockC",
+            s.code_h as "codeH",
+            coalesce(nullif(ih.name_1,''), s.code_h) as "nameH",
+            (select min(b.price) from public.ic_inventory_barcode b where b.ic_code=s.code_h and b.price>0) as "priceH",
+            coalesce(ih.balance_qty,0)::float8 as "stockH"
+       from odg_ecom.ac_sets s
+       join public.ic_inventory ic on ic.code = s.code_c
+       join public.ic_inventory ih on ih.code = s.code_h
+      where s.code_c = $1 or s.code_h = $1
+      limit 1`,
+    [productCode],
+  );
+  return rows[0] ?? null;
 }

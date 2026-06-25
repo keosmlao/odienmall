@@ -138,6 +138,11 @@ export default async function CustomerOrderPrintPage({
           <span style={{ fontWeight: 600 }}>ວິທີຊຳລະ:</span>{" "}
           {order.paymentMethod === "cod" ? "ເກັບເງິນປາຍທາງ (COD)" : "ໂອນຜ່ານທະນາຄານ / QR BCEL"}
         </div>
+        {order.giftMessage && (
+          <div style={{ fontSize: 12, marginTop: 6, padding: "6px 10px", border: "1px dashed #f97316", borderRadius: 6, color: "#555" }}>
+            <span style={{ fontWeight: 600 }}>🎁 ຂໍ້ຄວາມຂອງຂວັນ:</span> {order.giftMessage}
+          </div>
+        )}
 
         <footer>
           <div>OdienMall · odienmall.com · +856 20 5992 9992</div>

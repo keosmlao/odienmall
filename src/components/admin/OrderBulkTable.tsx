@@ -46,6 +46,17 @@ export default function OrderBulkTable({ orders }: { orders: OrderRowData[] }) {
     });
   }
 
+  function whatsappBlast() {
+    const msg = encodeURIComponent("ສະບາຍດີ! ຄຳສັ່ງຊື້ຂອງທ່ານຈາກ OdienMall ກຳລັງດຳເນີນການ. ຂອບໃຈທີ່ໃຊ້ບໍລິການ 🙏");
+    const selectedOrders = orders.filter((o) => selected.has(o.orderNo));
+    for (const o of selectedOrders) {
+      if (o.phone) {
+        const phone = o.phone.replace(/\D/g, "");
+        window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+      }
+    }
+  }
+
   const allSelected = cancellable.length > 0 && cancellable.every((o) => selected.has(o.orderNo));
   const someSelected = selected.size > 0;
 
@@ -66,6 +77,13 @@ export default function OrderBulkTable({ orders }: { orders: OrderRowData[] }) {
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
             >
               ຍົກເລີກການເລືອກ
+            </button>
+            <button
+              type="button"
+              onClick={whatsappBlast}
+              className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700"
+            >
+              📲 WhatsApp {selected.size} ຄົນ
             </button>
             <button
               type="button"

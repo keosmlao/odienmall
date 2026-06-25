@@ -356,3 +356,34 @@ export async function getSalespersonStats(saleCode: string): Promise<Salesperson
     monthlyTarget: target,
   };
 }
+
+/** Aggregate KPI for the current month: total web revenue vs sum of all sales targets. */
+export async function getMonthlyKpi(month?: string): Promise<{ revenue: number; target: number; month: string }> {
+  const m = (month || "").trim() || currentMonth();
+  const monthStart = `${m}-01`;
+  const [revRow, pendRow, targetRow] = await Promise.all([
+    queryOne<{ rev: string }>(
+      `select coalesce(sum(ic.total_amount_2),0)::text as rev
+         from public.ic_trans ic
+        where ${WEB_ORDER} and coalesce(ic.is_cancel,0)=0
+          and date_trunc('month', ic.create_date_time_now) = date_trunc('month', $1::date)`,
+      [monthStart],
+    ),
+    queryOne<{ rev: string }>(
+      `select coalesce(sum(op.amount),0)::text as rev
+         from odg_ecom.onepay_payments op
+        where op.sml_doc_no is null
+          and date_trunc('month', op.created_at) = date_trunc('month', $1::date)`,
+      [monthStart],
+    ),
+    queryOne<{ total: string }>(
+      `select coalesce(sum(monthly_target),0)::text as total from odg_ecom.sales_targets where month = $1`,
+      [m],
+    ),
+  ]);
+  return {
+    revenue: Number(revRow?.rev ?? 0) + Number(pendRow?.rev ?? 0),
+    target: Number(targetRow?.total ?? 0),
+    month: m,
+  };
+}

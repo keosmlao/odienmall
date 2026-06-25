@@ -15,9 +15,11 @@ import DeleteOrderAdminButton from "@/components/DeleteOrderAdminButton";
 import PendingPaymentControl from "@/components/PendingPaymentControl";
 import SaleCodeControl from "@/components/SaleCodeControl";
 import TrackingControl from "@/components/TrackingControl";
+import OrderNotesPanel from "@/components/OrderNotesPanel";
 import StatusBadge from "@/components/StatusBadge";
 import { BTN_SECONDARY, Card } from "@/components/admin/ui";
 import { getOrderShipping } from "@/lib/order-shipping";
+import { getOrderNotes } from "@/lib/order-notes";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +54,13 @@ export default async function AdminOrderDetail({
   if (!scope.all && order.saleCode !== scope.saleCode) redirect("/admin");
 
   const inDelivery = order.status === "shipping" || order.status === "completed";
-  const [warehouseOptions, payment, tms, salespeople, shipping] = await Promise.all([
+  const [warehouseOptions, payment, tms, salespeople, shipping, notes] = await Promise.all([
     getOrderWarehouseOptions(order.orderNo),
     getOrderPayment(order.orderNo),
     inDelivery ? getOrderTms(order.orderNo) : Promise.resolve(null),
     scope.all ? listSalespeople() : Promise.resolve([]),
     getOrderShipping(order.orderNo),
+    getOrderNotes(order.orderNo),
   ]);
   const grandTotal = Math.max(0, order.subtotal + order.shippingFee - order.discount);
   const FLOW = order.paymentMethod === "cod" ? COD_FLOW : TRANSFER_FLOW;
@@ -236,6 +239,12 @@ export default async function AdminOrderDetail({
               {order.note && (
                 <Info icon={ICON.note} label="ໝາຍເຫດຈາກລູກຄ້າ" value={order.note} wide tone="amber" />
               )}
+              {order.giftMessage && (
+                <Info icon="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z" label="ຂໍ້ຄວາມຂອງຂວັນ" value={order.giftMessage} wide tone="amber" />
+              )}
+              {order.guestEmail && (
+                <Info icon="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" label="Guest Email" value={order.guestEmail} wide />
+              )}
             </div>
           </Card>
 
@@ -354,6 +363,14 @@ export default async function AdminOrderDetail({
               orderNo={order.orderNo}
               initial={shipping}
             />
+          </Card>
+
+          <Card>
+            <SectionTitle
+              title="ໝາຍເຫດພາຍໃນ"
+              subtitle="ບໍ່ສະແດງລູກຄ້າ — ສຳລັບທີມ admin"
+            />
+            <OrderNotesPanel orderNo={order.orderNo} initial={notes} />
           </Card>
 
         </aside>

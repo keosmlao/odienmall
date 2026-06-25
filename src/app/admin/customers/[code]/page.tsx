@@ -3,11 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import { isAdmin, isManager, getCustomerProfile } from "@/lib/auth";
 import { getOrdersByCustomer } from "@/lib/orders";
 import { listMemberTiers, getCustomerTier } from "@/lib/member-tier";
+import { getCustomerNotes } from "@/lib/customer-notes";
 import { formatKip } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import CustomerTierControl from "@/components/admin/CustomerTierControl";
+import CustomerNotesPanel from "@/components/admin/CustomerNotesPanel";
 import type { OrderStatus } from "@/lib/order-constants";
 import { PageHeader, Card, CardTitle, EmptyState } from "@/components/admin/ui";
+import { addCustomerNoteAction, deleteCustomerNoteAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +24,13 @@ export default async function AdminCustomerDetail({
   const { code } = await params;
   const customerCode = decodeURIComponent(code);
 
-  const [profile, orders, tiers, currentTier, manager] = await Promise.all([
+  const [profile, orders, tiers, currentTier, manager, customerNotes] = await Promise.all([
     getCustomerProfile(customerCode),
     getOrdersByCustomer(customerCode),
     listMemberTiers(),
     getCustomerTier(customerCode),
     isManager(),
+    getCustomerNotes(customerCode),
   ]);
 
   // Reachable only via the customers list, so an order history must exist even
@@ -73,6 +77,18 @@ export default async function AdminCustomerDetail({
           </div>
         )}
       </Card>
+
+      <div className="mt-5">
+        <Card>
+          <CardTitle hint="ໝາຍເຫດພາຍໃນ ຫຼື ການລະບຸ VIP/ບລ໋ອກ/ຂາຍສົ່ງ (ບໍ່ສະແດງໃຫ້ລູກຄ້າ)">ໝາຍເຫດ / ແຟລ໋ກ</CardTitle>
+          <CustomerNotesPanel
+            customerCode={customerCode}
+            initial={customerNotes}
+            addNote={addCustomerNoteAction}
+            deleteNote={deleteCustomerNoteAction}
+          />
+        </Card>
+      </div>
 
       <div className="mt-5">
         <Card>

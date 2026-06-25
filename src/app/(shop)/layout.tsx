@@ -13,6 +13,8 @@ import { getAnnouncement } from "@/lib/settings";
 import { getSession } from "@/lib/auth";
 import { getLocale } from "@/lib/i18n-server";
 import { LocaleProvider } from "@/lib/i18n-context";
+import PageTransitionLoader from "@/components/PageTransitionLoader";
+import LiffAutoLogin from "@/components/LiffAutoLogin";
 
 export default async function ShopLayout({
   children,
@@ -24,6 +26,7 @@ export default async function ShopLayout({
   ]);
   return (
     <LocaleProvider locale={locale}>
+      <PageTransitionLoader />
       <div className="shop-shell flex min-h-screen flex-col bg-[#f5f5f5]">
         {ann.enabled && ann.message && (
           <AnnouncementBar message={ann.message} link={ann.link} />
@@ -41,6 +44,12 @@ export default async function ShopLayout({
         <CartSync enabled={!!session} />
         {session && <CartSyncClient customerCode={session.code} />}
         <VisitTracker />
+        {process.env.NEXT_PUBLIC_LINE_LIFF_ID && (
+          <LiffAutoLogin
+            liffId={process.env.NEXT_PUBLIC_LINE_LIFF_ID}
+            loggedIn={!!session}
+          />
+        )}
       </div>
     </LocaleProvider>
   );

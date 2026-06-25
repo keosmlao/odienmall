@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProductByCode, getRelatedProducts, getFrequentlyBought, getSoldCount, getProductImageList } from "@/lib/catalog";
 import { getProductReviews } from "@/lib/reviews";
-import { getProductSpecs } from "@/lib/products-admin";
+import { getProductSpecs, getAcSetForProduct } from "@/lib/products-admin";
 import { getProductQuestions } from "@/lib/qna";
 import ProductQna from "@/components/ProductQna";
 import { getSession } from "@/lib/auth";
@@ -61,7 +61,7 @@ export default async function ProductPage({
   const session = await getSession();
   const locale = await getLocale();
   const displayName = localeName(product, locale);
-  const [related, frequentlyBought, soldCount, reviews, galleryImages, questions, specs] = await Promise.all([
+  const [related, frequentlyBought, soldCount, reviews, galleryImages, questions, specs, acSet] = await Promise.all([
     getRelatedProducts(product.categoryCode, product.code, 6),
     getFrequentlyBought(product.code, 6),
     getSoldCount(product.code),
@@ -69,6 +69,7 @@ export default async function ProductPage({
     getProductImageList(product.code),
     getProductQuestions(product.code),
     getProductSpecs(product.code),
+    getAcSetForProduct(product.code),
   ]);
   const outOfStock = product.stock <= 0;
   const lowStock = !outOfStock && product.stock <= 5;
@@ -316,30 +317,88 @@ export default async function ProductPage({
         </aside>
       </div>
 
-      {product.description && (
+      {(specs.length > 0 || product.description) && (
         <div className="mt-5 rounded-sm border border-slate-100 bg-white shadow-sm">
           <h2 className="border-b-2 border-orange-500 px-5 py-4 text-lg font-bold text-slate-900">ລາຍລະອຽດສິນຄ້າ</h2>
-          <p className="whitespace-pre-line px-5 py-6 text-sm leading-relaxed text-slate-600">
-            {product.description}
-          </p>
+          {specs.length > 0 ? (
+            <table className="w-full text-sm px-5">
+              <tbody className="divide-y divide-slate-50">
+                {specs.map((s) => (
+                  <tr key={s.id}>
+                    {s.label ? (
+                      <>
+                        <td className="py-2.5 pl-5 pr-4 w-40 font-semibold text-slate-500 align-top">{s.label}</td>
+                        <td className="py-2.5 pr-5 text-slate-800">{s.value}</td>
+                      </>
+                    ) : (
+                      <td colSpan={2} className="py-2.5 px-5 text-slate-700">{s.value}</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="whitespace-pre-line px-5 py-6 text-sm leading-relaxed text-slate-600">
+              {product.description}
+            </p>
+          )}
         </div>
       )}
 
-      {specs.length > 0 && (
-        <section className="mt-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-base font-black text-slate-800">ຂໍ້ມູນສະເພາະ</h2>
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-slate-50">
-              {specs.map((s) => (
-                <tr key={s.id}>
-                  <td className="py-2 pr-4 w-40 font-semibold text-slate-600 align-top">{s.label}</td>
-                  <td className="py-2 text-slate-800">{s.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+      {acSet && (() => {
+        const isC = acSet.codeC === product.code;
+        const pairedCode = isC ? acSet.codeH : acSet.codeC;
+        const pairedName = isC ? acSet.nameH : acSet.nameC;
+        const pairedPrice = isC ? acSet.priceH : acSet.priceC;
+        const pairedStock = isC ? acSet.stockH : acSet.stockC;
+        const setTotal = product.price != null && pairedPrice != null ? product.price + pairedPrice : null;
+        return (
+          <section className="mt-5 rounded-2xl border-2 border-sky-100 bg-sky-50/60 p-5 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-base">❄️</span>
+              <h2 className="text-base font-black text-slate-800">ຊຸດ AC (ຄູ່ກັນ)</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl border border-sky-200 bg-white p-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-sky-500 mb-1">ໜ່ວຍໃນ (Indoor)</div>
+                <Link href={`/product/${encodeURIComponent(acSet.codeC)}`} className={`font-bold leading-tight hover:text-brand ${acSet.codeC === product.code ? "text-brand" : "text-slate-800"}`}>
+                  {acSet.nameC}
+                </Link>
+                <div className="mt-1 text-xs text-slate-400 font-mono">{acSet.codeC}</div>
+                <div className="mt-2 font-extrabold text-orange-600">{acSet.priceC != null ? formatKip(acSet.priceC) : "ສອບຖາມລາຄາ"}</div>
+                <div className={`mt-0.5 text-[11px] font-semibold ${acSet.stockC > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {acSet.stockC > 0 ? `ມີສິນຄ້າ (${Math.round(acSet.stockC)})` : "ໝົດສິນຄ້າ"}
+                </div>
+              </div>
+              <div className="rounded-xl border border-sky-200 bg-white p-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-sky-500 mb-1">ໜ່ວຍນອກ (Outdoor)</div>
+                <Link href={`/product/${encodeURIComponent(acSet.codeH)}`} className={`font-bold leading-tight hover:text-brand ${acSet.codeH === product.code ? "text-brand" : "text-slate-800"}`}>
+                  {acSet.nameH}
+                </Link>
+                <div className="mt-1 text-xs text-slate-400 font-mono">{acSet.codeH}</div>
+                <div className="mt-2 font-extrabold text-orange-600">{acSet.priceH != null ? formatKip(acSet.priceH) : "ສອບຖາມລາຄາ"}</div>
+                <div className={`mt-0.5 text-[11px] font-semibold ${acSet.stockH > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {acSet.stockH > 0 ? `ມີສິນຄ້າ (${Math.round(acSet.stockH)})` : "ໝົດສິນຄ້າ"}
+                </div>
+              </div>
+            </div>
+            {setTotal != null && (
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-sky-200 bg-white px-4 py-2.5">
+                <span className="text-sm font-semibold text-slate-600">ລາຄາລວມຊຸດ</span>
+                <span className="text-lg font-black text-orange-600">{formatKip(setTotal)}</span>
+              </div>
+            )}
+            {pairedStock > 0 && (
+              <Link
+                href={`/product/${encodeURIComponent(pairedCode)}`}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300 bg-sky-100 py-2.5 text-sm font-bold text-sky-700 transition hover:bg-sky-200"
+              >
+                ເບິ່ງ {isC ? "ໜ່ວຍນອກ" : "ໜ່ວຍໃນ"}: {pairedName}
+              </Link>
+            )}
+          </section>
+        );
+      })()}
 
       <ProductReviews
         productCode={product.code}

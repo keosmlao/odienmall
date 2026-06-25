@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession, getCustomerProfile } from "@/lib/auth";
 import { getOrdersByCustomer } from "@/lib/orders";
 import { getBalance, getHistory, POINT_VALUE } from "@/lib/loyalty";
+import { getCustomerTier, getMemberDiscountPct } from "@/lib/member-tier";
 import { getSmlCustomerInsights } from "@/lib/sml-history";
 import { getCustomerAddresses } from "@/lib/addresses";
 import { onepayEnabled, onepayMerchantConfigured } from "@/lib/onepay";
@@ -53,6 +54,22 @@ const TILES = [
     icon: "M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM4 21v-2a6 6 0 0 1 6-6m5 8v-2a4 4 0 0 0-3-3.87M17 11l1.5 1.5L21 9",
   },
   {
+    href: "/account/returns",
+    label: "ຄືນສິນຄ້າ",
+    desc: "ປະຫວັດການຄືນ",
+    tone: "bg-violet-100 text-violet-600",
+    // return arrow + box
+    icon: "M9 14l-4-4 4-4 M5 10h11a4 4 0 0 1 0 8h-1",
+  },
+  {
+    href: "/account/questions",
+    label: "ຄຳຖາມ",
+    desc: "Q&A ຂອງຂ້ອຍ",
+    tone: "bg-sky-100 text-sky-600",
+    // chat bubble
+    icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  },
+  {
     href: "/products",
     label: "ຊ໊ອບປິ້ງ",
     desc: "ສືບຕໍ່ເລືອກຊື້",
@@ -98,13 +115,15 @@ export default async function AccountPage({
   const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
   const tab = ORDER_TABS.some((t) => t.key === rawTab) ? (rawTab as string) : "all";
 
-  const [profile, orders, addresses, pointBalance, pointHistory, sml] = await Promise.all([
+  const [profile, orders, addresses, pointBalance, pointHistory, sml, tier, memberPct] = await Promise.all([
     getCustomerProfile(session.code),
     getOrdersByCustomer(session.code),
     getCustomerAddresses(session.code),
     getBalance(session.code),
     getHistory(session.code, 8),
     getSmlCustomerInsights(session.code),
+    getCustomerTier(session.code),
+    getMemberDiscountPct(session.code),
   ]);
 
   const activeTab = ORDER_TABS.find((t) => t.key === tab) ?? ORDER_TABS[0];
@@ -132,11 +151,24 @@ export default async function AccountPage({
             <div className="min-w-0">
               <div className="truncate text-xl font-black leading-tight tracking-tight">{name}</div>
               <div className="text-[11px] font-medium text-white/70 mt-0.5">ລະຫັດລູກຄ້າ: {session.code}</div>
-              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold backdrop-blur tracking-wide">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-                  <path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" />
-                </svg>
-                ຄະແນນສະສົມ {points.toLocaleString()} ₭
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold backdrop-blur tracking-wide">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
+                    <path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" />
+                  </svg>
+                  ຄະແນນ {points.toLocaleString()} ₭
+                </div>
+                {tier && (
+                  <div className="inline-flex items-center gap-1 rounded-full bg-amber-400/80 px-3 py-1 text-[10px] font-bold text-amber-900 backdrop-blur">
+                    👑 {tier.name}
+                    {memberPct > 0 && ` · ສ່ວນຫຼຸດ ${memberPct}%`}
+                  </div>
+                )}
+                {!tier && memberPct > 0 && (
+                  <div className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold backdrop-blur">
+                    ສ່ວນຫຼຸດສະມາຊິກ {memberPct}%
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -225,7 +257,7 @@ export default async function AccountPage({
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         {TILES.map((t) => (
           <Link
             key={t.href}

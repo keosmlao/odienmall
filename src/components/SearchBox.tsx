@@ -88,11 +88,7 @@ export default function SearchBox() {
       className="flex w-full items-center"
       onSubmit={() => remember(query)}
     >
-      <div className="flex w-full items-center overflow-hidden rounded-lg border-2 border-orange-400 bg-white transition focus-within:border-orange-500 focus-within:shadow-[0_0_0_4px_rgba(249,115,22,0.10)]">
-        <svg viewBox="0 0 24 24" className="ml-2.5 h-4.5 w-4.5 shrink-0 text-slate-400 sm:ml-3 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.2-3.2" strokeLinecap="round" />
-        </svg>
+      <div className="flex h-10 sm:h-11 w-full items-center overflow-hidden rounded-lg border-2 border-orange-400 bg-white transition focus-within:border-orange-500 focus-within:shadow-[0_0_0_4px_rgba(249,115,22,0.10)]">
         <input
           type="text"
           name="q"
@@ -106,7 +102,7 @@ export default function SearchBox() {
             if (event.key === "Escape") setOpen(false);
           }}
           placeholder={t("search.placeholder")}
-          className="h-10 min-w-0 w-full bg-transparent px-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none sm:h-11 sm:px-3"
+          className="h-full flex-1 min-w-0 bg-transparent pl-3.5 pr-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none sm:pl-4 sm:pr-3"
           autoComplete="off"
         />
         {query && (
@@ -124,11 +120,14 @@ export default function SearchBox() {
         )}
         <button
           type="submit"
-          className="h-10 shrink-0 bg-gradient-to-r from-orange-500 to-rose-500 px-3 text-xs font-bold text-white transition hover:from-orange-600 hover:to-rose-600 sm:h-11 sm:px-8 sm:text-sm"
+          className="h-full shrink-0 bg-gradient-to-r from-orange-500 to-rose-500 px-4 text-xs font-bold text-white transition hover:from-orange-600 hover:to-rose-600 sm:px-7 sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer"
           aria-label={t("search.button")}
         >
-          <span className="hidden min-[390px]:inline">{t("search.button")}</span>
-          <span className="min-[390px]:hidden">ຄົ້ນ</span>
+          <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.4}>
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.2-3.2" strokeLinecap="round" />
+          </svg>
+          <span className="hidden sm:inline">{t("search.button")}</span>
         </button>
       </div>
     </form>

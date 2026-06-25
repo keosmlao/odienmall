@@ -28,6 +28,7 @@ import {
 import { logAudit } from "@/lib/audit";
 import { checkRateLimit, recordFailure, recordSuccess, LOCKOUT_MINUTES } from "@/lib/rate-limit";
 import { setOrderShipping } from "@/lib/order-shipping";
+import { addOrderNote, deleteOrderNote, type OrderNote } from "@/lib/order-notes";
 
 export type AdminLoginResult = { ok: true } | { ok: false; error: string };
 
@@ -249,6 +250,32 @@ export async function bulkCancelOrders(
     return { ok: false, error: `ຍົກເລີກລົ້ມເຫລວ: ${errors.join(", ")}` };
   }
   return { ok: true };
+}
+
+/** Add an internal admin note to an order (not visible to customers). */
+export async function addAdminOrderNote(
+  orderNo: string,
+  content: string,
+): Promise<{ ok: boolean; note?: OrderNote; error?: string }> {
+  if (!(await isAdmin())) return { ok: false, error: "ບໍ່ໄດ້ຮັບອະນຸຍາດ" };
+  try {
+    const session = await getAdminSession();
+    const note = await addOrderNote(orderNo, content, session?.code);
+    return { ok: true, note };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ຜິດພາດ" };
+  }
+}
+
+/** Delete an internal admin note by id. */
+export async function deleteAdminOrderNote(id: number): Promise<{ ok: boolean }> {
+  if (!(await isAdmin())) return { ok: false };
+  try {
+    await deleteOrderNote(id);
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
 }
 
 /** Save tracking number and carrier for an order (visible to customer). */

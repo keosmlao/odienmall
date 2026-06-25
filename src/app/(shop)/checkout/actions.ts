@@ -34,6 +34,8 @@ export interface PlaceOrderInput {
   shippingMethod?: string;
   voucherCode?: string | null;
   pointsToUse?: number;
+  giftMessage?: string | null;
+  guestEmail?: string | null;
   /** Affiliate placing the order on behalf of a customer (commission to them). */
   onBehalf?: boolean;
   items: OrderInputItem[];
@@ -220,6 +222,9 @@ export async function placeOrder(
         voucherCode: input.voucherCode,
         // The affiliate can't spend their own loyalty points on a customer order.
         pointsToUse: onBehalf ? undefined : input.pointsToUse,
+        giftMessage: input.giftMessage,
+        // Guest email only applies when not logged in
+        guestEmail: session ? null : input.guestEmail,
       },
       input.items ?? [],
     );
