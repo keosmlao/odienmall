@@ -32,11 +32,6 @@ export async function GET(req: NextRequest) {
   auth.searchParams.set("nonce", nonce);
   auth.searchParams.set("bot_prompt", "normal");
 
-  // DEBUG: confirm the exact redirect_uri sent to LINE (must match a registered
-  // callback URL CHARACTER-FOR-CHARACTER). Remove once LINE login is verified.
-  console.log("[LINE authorize] redirect_uri =", JSON.stringify(redirectUri));
-  console.log("[LINE authorize] full url      =", auth.toString());
-
   const res = NextResponse.redirect(auth);
   const cookie = {
     httpOnly: true,
