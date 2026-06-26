@@ -116,11 +116,11 @@ export function ProductGalleryForm({
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
         <h2 className="text-sm font-black text-slate-900">ຮູບສິນຄ້າ</h2>
-        <span className="text-[11px] font-bold text-slate-400">{images.length}/8 ຮູບ</span>
+        <span className="text-[11px] font-bold text-slate-500">{images.length}/8 ຮູບ</span>
       </div>
 
       {images.length === 0 ? (
-        <p className="mb-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs text-slate-400 font-semibold">
+        <p className="mb-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-xs text-slate-500 font-semibold">
           ຍັງບໍ່ມີຮູບ — ອັບໂຫຼດ ຫຼື ເພີ່ມດ້ວຍ URL ຂ້າງລຸ່ມ
         </p>
       ) : (
@@ -144,7 +144,7 @@ export function ProductGalleryForm({
                     disabled={pending}
                     onClick={() => run(() => makeImagePrimary(img.id, code))}
                     title="ຕັ້ງເປັນຮູບຫຼັກ"
-                    className="grid h-6 w-6 place-items-center rounded-md bg-white/95 text-slate-650 hover:text-orange-600 disabled:opacity-50 cursor-pointer shadow-sm transition"
+                    className="grid h-6 w-6 place-items-center rounded-md bg-white/95 text-slate-600 hover:text-orange-600 disabled:opacity-50 cursor-pointer shadow-sm transition"
                   >
                     <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>
                   </button>
@@ -172,7 +172,7 @@ export function ProductGalleryForm({
           accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
           onChange={onUpload}
-          className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-4 file:py-2.5 file:text-xs file:font-black file:text-white hover:file:bg-orange-600 file:transition file:cursor-pointer disabled:opacity-50"
+          className="block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-4 file:py-2.5 file:text-xs file:font-black file:text-white hover:file:bg-orange-600 file:transition file:cursor-pointer disabled:opacity-50"
           disabled={pending || images.length >= 8}
         />
 
@@ -188,7 +188,7 @@ export function ProductGalleryForm({
             type="button"
             onClick={onAddUrl}
             disabled={pending || !urlInput.trim()}
-            className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-650 transition hover:border-orange-350 hover:bg-orange-50/50 hover:text-orange-700 disabled:opacity-50 cursor-pointer"
+            className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 transition hover:border-orange-350 hover:bg-orange-50/50 hover:text-orange-700 disabled:opacity-50 cursor-pointer"
           >
             ເພີ່ມ
           </button>
@@ -264,7 +264,7 @@ export function ProductPublishForm({
       <button
         onClick={() => run(() => saveProductFlags(code, hidden, featured), "ບັນທຶກການເຜີຍແຜ່ແລ້ວ")}
         disabled={pending}
-        className="mt-4 w-full rounded-lg bg-slate-950 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer sm:w-auto sm:px-6"
+        className="mt-4 w-full rounded-lg bg-white py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer sm:w-auto sm:px-6"
       >
         {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກການເຜີຍແຜ່"}
       </button>
@@ -304,7 +304,7 @@ function ToggleRow({
     >
       <span>
         <span className="block text-xs font-bold text-slate-800">{label}</span>
-        <span className="block text-[10px] font-semibold text-slate-400 mt-0.5">{hint}</span>
+        <span className="block text-[10px] font-semibold text-slate-500 mt-0.5">{hint}</span>
       </span>
       <span className={`relative h-5 w-10 shrink-0 rounded-full transition duration-200 ${on ? accent : "bg-slate-300"}`}>
         <span
@@ -429,7 +429,7 @@ export function ProductDescriptionForm({
         )}
       </div>
 
-      <p className="mb-4 text-[10px] font-semibold text-slate-400 leading-normal">
+      <p className="mb-4 text-[10px] font-semibold text-slate-500 leading-normal">
         ພິມ <span className="font-bold text-slate-550">ຫົວຂໍ້</span> ແລ້ວກົດ Enter ໄປ
         <span className="font-bold text-slate-550"> ລາຍລະອຽດ</span> · ກົດ Enter ອີກເທື່ອ =
         ເພີ່ມແຖວໃໝ່. ປ່ອຍວ່າງໝົດ = ໃຊ້ຂໍ້ຄວາມ ERP ຕາມເດີມ.
@@ -437,11 +437,11 @@ export function ProductDescriptionForm({
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-          <p className="text-xs font-semibold text-slate-400">ຍັງບໍ່ມີລາຍການ</p>
+          <p className="text-xs font-semibold text-slate-500">ຍັງບໍ່ມີລາຍການ</p>
           <button
             type="button"
             onClick={addRow}
-            className="mt-3 inline-flex items-center gap-1 rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 cursor-pointer"
+            className="mt-3 inline-flex items-center gap-1 rounded-lg bg-white px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 cursor-pointer"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
             ເພີ່ມລາຍການທຳອິດ
@@ -450,7 +450,7 @@ export function ProductDescriptionForm({
       ) : (
         <div className="space-y-2">
           {/* Column Headers */}
-          <div className="flex items-center gap-2 px-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <div className="flex items-center gap-2 px-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
             <span className="w-6 shrink-0 text-center">#</span>
             <span className="min-w-[7rem] flex-1">ຫົວຂໍ້</span>
             <span className="min-w-[9rem] flex-[2]">ລາຍລະອຽດ</span>
@@ -470,17 +470,17 @@ export function ProductDescriptionForm({
                   onClick={() => moveRow(row.id, -1)}
                   disabled={idx === 0}
                   title="ຍ້າຍຂຶ້ນ"
-                  className="grid h-4 w-5 place-items-center rounded text-slate-300 transition hover:text-orange-600 disabled:opacity-0 cursor-pointer"
+                  className="grid h-4 w-5 place-items-center rounded text-slate-700 transition hover:text-orange-600 disabled:opacity-0 cursor-pointer"
                 >
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M18 15l-6-6-6 6" /></svg>
                 </button>
-                <span className="text-[10px] font-extrabold text-slate-400">{idx + 1}</span>
+                <span className="text-[10px] font-extrabold text-slate-500">{idx + 1}</span>
                 <button
                   type="button"
                   onClick={() => moveRow(row.id, 1)}
                   disabled={idx === rows.length - 1}
                   title="ຍ້າຍລົງ"
-                  className="grid h-4 w-5 place-items-center rounded text-slate-300 transition hover:text-orange-600 disabled:opacity-0 cursor-pointer"
+                  className="grid h-4 w-5 place-items-center rounded text-slate-700 transition hover:text-orange-600 disabled:opacity-0 cursor-pointer"
                 >
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                 </button>
@@ -522,7 +522,7 @@ export function ProductDescriptionForm({
                 type="button"
                 onClick={() => removeRow(row.id)}
                 title="ລຶບລາຍການ"
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-300 transition hover:bg-rose-50 hover:text-rose-500 cursor-pointer"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-700 transition hover:bg-rose-50 hover:text-rose-500 cursor-pointer"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
               </button>
@@ -543,7 +543,7 @@ export function ProductDescriptionForm({
       {/* Live Preview block */}
       {serialized.trim() ? (
         <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3 shadow-2xs">
-          <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">ຕົວຢ່າງໜ້າຮ້ານ</p>
+          <p className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">ຕົວຢ່າງໜ້າຮ້ານ</p>
           <p className="whitespace-pre-line text-xs font-semibold leading-relaxed text-slate-600">
             {serialized}
           </p>
@@ -552,7 +552,7 @@ export function ProductDescriptionForm({
 
       {/* Raw ERP detail box */}
       {erpDescription && (
-        <details className="mt-3 text-xs text-slate-400">
+        <details className="mt-3 text-xs text-slate-500">
           <summary className="cursor-pointer select-none font-bold hover:text-slate-600 outline-none">
             ເບິ່ງຂໍ້ຄວາມ ERP (ລ້າງແລ້ວ)
           </summary>
@@ -567,7 +567,7 @@ export function ProductDescriptionForm({
         <button
           onClick={saveDesc}
           disabled={pending || !descDirty || serialized.length > 2000}
-          className="rounded-lg bg-slate-950 px-6 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer"
+          className="rounded-lg bg-white px-6 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-60 cursor-pointer"
         >
           {pending
             ? "ກຳລັງບັນທຶກ..."

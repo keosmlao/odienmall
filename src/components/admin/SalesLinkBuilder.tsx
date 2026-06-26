@@ -82,11 +82,11 @@ export default function SalesLinkBuilder({
     <div className="space-y-5">
       {/* Salesperson Profile Card */}
       <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-900 text-sm font-black text-white shadow-md">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white text-sm font-black text-slate-900 shadow-md">
           {saleName ? saleName.trim().slice(0, 1).toUpperCase() : "?"}
         </span>
         <div className="flex flex-col min-w-0 leading-tight">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">ພະນັກງານຂາຍ</span>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">ພະນັກງານຂາຍ</span>
           <span className="text-sm font-black text-slate-800 mt-0.5 truncate">{saleName}</span>
           <span className="text-xs font-semibold text-slate-500 mt-0.5">ລະຫັດ: {saleCode}</span>
         </div>
@@ -120,7 +120,7 @@ export default function SalesLinkBuilder({
                 setProduct("");
                 setSearchQuery("");
               }}
-              className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-650 transition cursor-pointer"
+              className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
               title="ລຶບສິນຄ້າ"
             >
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -142,7 +142,7 @@ export default function SalesLinkBuilder({
                 placeholder="ຄົ້ນຫາດ້ວຍຊື່ ຫຼື ລະຫັດສິນຄ້າ..."
                 className="w-full rounded-xl border border-slate-250 bg-white pl-10 pr-4 py-3 text-sm font-semibold text-slate-700 placeholder-slate-350 transition-all duration-300 focus:border-orange-500 focus:outline-hidden focus:ring-4 focus:ring-orange-500/10"
               />
-              <span className="absolute left-3.5 top-3.5 text-slate-400">
+              <span className="absolute left-3.5 top-3.5 text-slate-500">
                 <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -179,21 +179,21 @@ export default function SalesLinkBuilder({
                       >
                         <div className="min-w-0 pr-3">
                           <div className="text-slate-800 font-bold truncate">{hit.name}</div>
-                          <div className="text-[10px] text-slate-400 font-medium mt-0.5 font-mono">ລະຫັດ: {hit.code}</div>
+                          <div className="text-[10px] text-slate-500 font-medium mt-0.5 font-mono">ລະຫັດ: {hit.code}</div>
                         </div>
                         <div className="shrink-0 text-right">
                           {hit.price ? (
                             <div className="text-orange-600 font-extrabold">{formatKip(hit.price)}</div>
                           ) : (
-                            <div className="text-slate-400 text-[10px]">ສອບຖາມລາຄາ</div>
+                            <div className="text-slate-500 text-[10px]">ສອບຖາມລາຄາ</div>
                           )}
-                          <div className="text-[9px] text-slate-450 mt-0.5">ຄົງເຫຼືອ: {hit.stock}</div>
+                          <div className="text-[9px] text-slate-500 mt-0.5">ຄົງເຫຼືອ: {hit.stock}</div>
                         </div>
                       </button>
                     ))
                   ) : (
                     !searching && (
-                      <div className="px-4 py-3 text-center text-xs font-bold text-slate-400">
+                      <div className="px-4 py-3 text-center text-xs font-bold text-slate-500">
                         ບໍ່ພົບສິນຄ້າ
                       </div>
                     )
@@ -221,7 +221,7 @@ export default function SalesLinkBuilder({
             className={`shrink-0 rounded-xl px-5 py-3 text-sm font-black transition-all duration-300 shadow-sm ${
               copied
                 ? "bg-emerald-500 text-white shadow-emerald-500/10"
-                : "bg-slate-900 text-white hover:bg-slate-800 shadow-slate-900/10 active:scale-97 cursor-pointer"
+                : "bg-white text-slate-900 hover:bg-slate-100 shadow-slate-900/10 active:scale-97 cursor-pointer"
             }`}
           >
             {copied ? (

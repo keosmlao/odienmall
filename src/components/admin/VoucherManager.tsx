@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { formatKip } from "@/lib/format";
 import type { Voucher } from "@/lib/vouchers";
 import { saveVoucher, toggleVoucher, removeVoucher } from "@/app/admin/vouchers/actions";
-import { Badge, EmptyState } from "@/components/admin/ui";
+import { Badge, EmptyState, TableShell, THEAD, TH, TBODY, TR, TD } from "@/components/admin/ui";
 
 const EMPTY = {
   id: 0,
@@ -95,13 +95,13 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
     });
   }
 
-  const inp = "w-full rounded-xl border border-slate-250 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 placeholder-slate-350 transition-all duration-300 focus:border-orange-500 focus:outline-hidden focus:ring-4 focus:ring-orange-500/10";
-  const lbl = "block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5";
+  const inp = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 placeholder-slate-400 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500 shadow-sm disabled:opacity-50 disabled:bg-slate-50";
+  const lbl = "block text-[10px] font-black uppercase tracking-wider text-slate-450 mb-1.5";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[24rem_1fr]">
-      {/* Create/Edit Form Container */}
-      <form onSubmit={submit} className="h-fit space-y-4 rounded-2xl border border-slate-200/85 bg-white p-5 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] hover:shadow-md hover:border-slate-300/80 transition-all duration-300">
+    <div className="grid gap-6 lg:grid-cols-12 items-start">
+      {/* Create/Edit Form Container (4 columns) */}
+      <form onSubmit={submit} className="lg:col-span-4 h-fit space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="border-b border-slate-100 pb-3">
           <h2 className="text-sm font-black text-slate-800 leading-tight">
             {editing ? `ແກ້ໄຂໂຄ້ດ ${form.code}` : "ສ້າງໂຄ້ດສ່ວນຫຼຸດໃໝ່"}
@@ -146,19 +146,19 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={lbl}>ຍອດຂັ້ນຕ່ຳ ₭</label>
+            <label className={lbl}>ຍອດຂັ້ນຕ່ຳ K</label>
             <input
               type="number"
               value={form.minSubtotal}
               onChange={(e) => set("minSubtotal", e.target.value)}
               className={inp}
               min={0}
-              placeholder="0 ₭"
+              placeholder="0 K"
             />
           </div>
           {form.kind === "percent" ? (
             <div>
-              <label className={lbl}>ສ່ວນຫຼຸດສູງສຸດ ₭</label>
+              <label className={lbl}>ສ່ວນຫຼຸດສູງສຸດ K</label>
               <input
                 type="number"
                 value={form.maxDiscount}
@@ -170,7 +170,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
             </div>
           ) : (
             <div className="opacity-45">
-              <label className={lbl}>ສ່ວນຫຼຸດສູງສຸດ ₭</label>
+              <label className={lbl}>ສ່ວນຫຼຸດສູງສຸດ K</label>
               <input
                 type="text"
                 disabled
@@ -227,29 +227,31 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
         </div>
 
         {/* Toggle option */}
-        <div className="pt-1.5">
-          <label className="flex items-center gap-2.5 text-xs font-bold text-slate-600 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => set("active", e.target.checked)}
-              className="h-4.5 w-4.5 rounded border-slate-350 text-orange-500 focus:ring-orange-500 cursor-pointer"
-            />
-            <span>ເປີດໃຊ້ງານຄູປ໋ອງນີ້</span>
+        <div className="pt-1 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="active-check"
+            checked={form.active}
+            onChange={(e) => set("active", e.target.checked)}
+            className="h-4.5 w-4.5 rounded border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer shadow-xs"
+          />
+          <label htmlFor="active-check" className="text-xs font-bold text-slate-650 cursor-pointer select-none">
+            ເປີດໃຊ້ງານຄູປ໋ອງນີ້
           </label>
         </div>
 
         {error && (
-          <p className="rounded-lg bg-rose-50 border border-rose-100/50 px-3 py-2 text-xs font-bold text-rose-600">
-            {error}
-          </p>
+          <div className="rounded-lg bg-rose-50 border border-rose-100 p-2.5 text-xs font-bold text-rose-600 flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
         )}
 
-        <div className="flex gap-2 pt-2 border-t border-slate-100/80">
+        <div className="flex gap-2 pt-3 border-t border-slate-100">
           <button
             type="submit"
             disabled={pending}
-            className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 py-3 text-xs font-black text-white shadow-sm shadow-orange-500/10 hover:shadow-orange-500/20 active:scale-97 transition-all duration-300 disabled:opacity-60 cursor-pointer"
+            className="flex-1 h-10 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-xs font-black text-white shadow-sm shadow-orange-500/10 hover:shadow-md hover:shadow-orange-500/20 active:scale-98 transition-all duration-200 disabled:opacity-60 cursor-pointer"
           >
             {pending ? "ກຳລັງບັນທຶກ..." : editing ? "ບັນທຶກ" : "ສ້າງຄູປ໋ອງ"}
           </button>
@@ -257,7 +259,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
             <button
               type="button"
               onClick={reset}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-500 hover:bg-slate-50 active:scale-97 transition-all duration-300 disabled:opacity-50 cursor-pointer"
+              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition shadow-xs cursor-pointer"
             >
               ຍົກເລີກ
             </button>
@@ -265,20 +267,20 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
         </div>
       </form>
 
-      {/* Coupons List Table */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.02),0_12px_24px_-4px_rgba(15,23,42,0.03)] hover:shadow-md hover:border-slate-300/80 transition-all duration-300">
-        <table className="w-full text-sm" style={{ minWidth: 640 }}>
-          <thead>
-            <tr className="border-b border-slate-200/60 bg-slate-50/70 text-slate-400 text-[10px] font-black uppercase tracking-wider">
-              <th className="px-6 py-4 font-black text-left">ໂຄ້ດ</th>
-              <th className="px-6 py-4 font-black text-left">ສ່ວນຫຼຸດ</th>
-              <th className="px-6 py-4 font-black text-right">ໃຊ້ແລ້ວ</th>
-              <th className="px-6 py-4 font-black text-left">ໝົດອາຍຸ</th>
-              <th className="px-6 py-4 font-black text-center">ສະຖານະ</th>
-              <th className="px-6 py-4 font-black" />
+      {/* Coupons List Table Card (8 columns) */}
+      <div className="lg:col-span-8">
+        <TableShell minWidth={640}>
+          <thead className={THEAD}>
+            <tr>
+              <th className={TH}>ໂຄ້ດ</th>
+              <th className={TH}>ສ່ວນຫຼຸດ</th>
+              <th className={`${TH} text-right`}>ໃຊ້ແລ້ວ</th>
+              <th className={TH}>ໝົດອາຍຸ</th>
+              <th className={`${TH} text-center w-28`}>ສະຖານະ</th>
+              <th className={`${TH} text-right w-24`} />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className={TBODY}>
             {vouchers.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-12">
@@ -291,15 +293,15 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
               </tr>
             ) : (
               vouchers.map((v) => (
-                <tr key={v.id} className="transition duration-150 hover:bg-slate-50/30">
-                  <td className="px-6 py-4 font-mono font-black text-slate-800 text-xs tracking-wider">{v.code}</td>
-                  <td className="px-6 py-4 text-slate-650 font-semibold text-xs">
+                <tr key={v.id} className={TR}>
+                  <td className={`${TD} font-mono font-black text-slate-800 text-xs tracking-wider`}>{v.code}</td>
+                  <td className={`${TD} text-slate-650 font-semibold text-xs`}>
                     {v.kind === "percent" ? (
-                      <span className="inline-flex items-center rounded-lg bg-orange-50 px-2 py-1 font-bold text-orange-700 ring-1 ring-inset ring-orange-200/50">
+                      <span className="inline-flex items-center rounded bg-orange-50 px-2 py-0.5 font-bold text-orange-700 ring-1 ring-inset ring-orange-200/50 shadow-2xs">
                         {v.value}%
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2 py-1 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200/50">
+                      <span className="inline-flex items-center rounded bg-emerald-50 px-2 py-0.5 font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200/50 shadow-2xs">
                         {formatKip(v.value)}
                       </span>
                     )}
@@ -309,7 +311,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right text-slate-650 font-bold text-xs">
+                  <td className={`${TD} text-right text-slate-600 font-bold text-xs tabular-nums`}>
                     {v.usedCount}
                     {v.usageLimit != null ? (
                       <span className="text-slate-400 font-medium"> / {v.usageLimit}</span>
@@ -317,25 +319,26 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
                       <span className="text-slate-400 font-medium"> / ∞</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-slate-450 font-semibold text-xs">
+                  <td className={`${TD} text-slate-500 font-semibold text-xs`}>
                     {v.expiresAt ? (
                       new Date(v.expiresAt).toLocaleDateString("lo-LA", { day: "2-digit", month: "2-digit", year: "numeric" })
                     ) : (
-                      <span className="text-slate-300 font-medium">—</span>
+                      <span className="text-slate-400 font-bold">—</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className={`${TD} text-center`}>
                     <button
                       onClick={() => toggle(v)}
                       disabled={pending}
-                      className="cursor-pointer transition-all duration-300 transform active:scale-95 disabled:opacity-50"
+                      className="cursor-pointer transition-all duration-200 transform active:scale-95 disabled:opacity-50"
+                      title={v.active ? "ກົດເພື່ອປິດໃຊ້ງານ" : "ກົດເພື່ອເປີດໃຊ້ງານ"}
                     >
                       <Badge tone={v.active ? "green" : "gray"}>
                         {v.active ? "ເປີດໃຊ້ງານ" : "ປິດໃຊ້ງານ"}
                       </Badge>
                     </button>
                   </td>
-                  <td className="px-6 py-4 text-right whitespace-nowrap text-xs">
+                  <td className={`${TD} text-right whitespace-nowrap text-xs`}>
                     <button
                       onClick={() => setForm(toForm(v))}
                       className="text-orange-600 hover:text-orange-700 hover:underline font-bold transition cursor-pointer"
@@ -354,7 +357,7 @@ export default function VoucherManager({ vouchers }: { vouchers: Voucher[] }) {
               ))
             )}
           </tbody>
-        </table>
+        </TableShell>
       </div>
     </div>
   );

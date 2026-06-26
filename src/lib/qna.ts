@@ -14,6 +14,7 @@ export interface ProductQuestion {
   answer: string | null;
   answeredAt: string | null;
   createdAt: string;
+  isHidden: boolean;
 }
 
 type Row = {
@@ -25,6 +26,7 @@ type Row = {
   answer: string | null;
   answered_at: Date | null;
   created_at: Date;
+  is_hidden: boolean;
 };
 
 function toQ(r: Row): ProductQuestion {
@@ -37,10 +39,11 @@ function toQ(r: Row): ProductQuestion {
     answer: r.answer,
     answeredAt: r.answered_at ? r.answered_at.toISOString() : null,
     createdAt: r.created_at.toISOString(),
+    isHidden: r.is_hidden,
   };
 }
 
-const COLS = `id, product_code, customer_code, customer_name, question, answer, answered_at, created_at`;
+const COLS = `id, product_code, customer_code, customer_name, question, answer, answered_at, created_at, is_hidden`;
 
 /** Public list for a product: answered + non-hidden (newest first). */
 export async function getProductQuestions(productCode: string): Promise<ProductQuestion[]> {

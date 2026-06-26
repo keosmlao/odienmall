@@ -71,7 +71,7 @@ export default function CustomerNotesPanel({ customerCode, initial, addNote, del
         <button
           type="submit"
           disabled={pending || !text.trim()}
-          className="shrink-0 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          className="shrink-0 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-900 disabled:opacity-50"
         >
           ເພີ່ມ
         </button>

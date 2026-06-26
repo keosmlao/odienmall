@@ -4,6 +4,7 @@ import { getAcSets } from "@/lib/products-admin";
 import { formatKip } from "@/lib/format";
 import AcSetForm from "./AcSetForm";
 import { removeAcSet } from "./actions";
+import { PageHeader } from "@/components/admin/ui";
 
 export default async function AcSetsPage() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -11,12 +12,10 @@ export default async function AcSetsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900">ຊຸດແອ (AC Sets)</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          ຈັດຄູ່ Indoor [C] + Outdoor [H] — storefront ຈະສະແດງເປັນຊຸດດຽວ ລາຄາລວມ
-        </p>
-      </div>
+      <PageHeader
+        title="ຊຸດແອ (AC Sets)"
+        subtitle="ຈັດຄູ່ Indoor [C] + Outdoor [H] — storefront ຈະສະແດງເປັນຊຸດດຽວ ລາຄາລວມ"
+      />
 
       <AcSetForm />
 

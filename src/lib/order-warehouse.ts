@@ -1,5 +1,6 @@
 import "server-only";
 import { pool, query, queryOne } from "./db";
+import { getSalesWarehouseCodes } from "./sales-warehouse";
 
 // One order ships from ONE warehouse. The admin picks a single warehouse for the
 // whole order; each line is auto-allocated to the best shelf of that warehouse.
@@ -125,24 +126,28 @@ export async function getOrderWarehouseOptions(orderNo: string): Promise<OrderWa
     }
   }
 
-  const warehouses: WarehouseOption[] = [...whMap.entries()].map(([whCode, w]) => {
-    const lines: StockLine[] = orderItems.map((it) => {
-      const b = w.best.get(it.productCode);
-      const available = b?.available ?? 0;
-      return {
-        orderItemId: it.orderItemId,
-        productCode: it.productCode,
-        productName: it.productName,
-        qty: it.qty,
-        unit: it.unit,
-        available,
-        shelfCode: b?.shelfCode ?? null,
-        shelfName: b?.shelfName ?? null,
-        ok: available >= it.qty,
-      };
+  // Restrict the offered warehouses to the configured sales warehouses (if any).
+  const salesCodes = await getSalesWarehouseCodes();
+  const warehouses: WarehouseOption[] = [...whMap.entries()]
+    .filter(([whCode]) => salesCodes.length === 0 || salesCodes.includes(whCode))
+    .map(([whCode, w]) => {
+      const lines: StockLine[] = orderItems.map((it) => {
+        const b = w.best.get(it.productCode);
+        const available = b?.available ?? 0;
+        return {
+          orderItemId: it.orderItemId,
+          productCode: it.productCode,
+          productName: it.productName,
+          qty: it.qty,
+          unit: it.unit,
+          available,
+          shelfCode: b?.shelfCode ?? null,
+          shelfName: b?.shelfName ?? null,
+          ok: available >= it.qty,
+        };
+      });
+      return { whCode, whName: w.whName, lines, canFulfill: lines.every((l) => l.ok) };
     });
-    return { whCode, whName: w.whName, lines, canFulfill: lines.every((l) => l.ok) };
-  });
   warehouses.sort(
     (a, b) => Number(b.canFulfill) - Number(a.canFulfill) || a.whName.localeCompare(b.whName),
   );
@@ -158,6 +163,10 @@ export async function allocateOrderToWarehouse(
   selectedBy?: string,
 ): Promise<void> {
   if (!whCode) throw new Error("ກະລຸນາເລືອກສາງ");
+  const salesCodes = await getSalesWarehouseCodes();
+  if (salesCodes.length > 0 && !salesCodes.includes(whCode)) {
+    throw new Error("ສາງນີ້ບໍ່ໄດ້ກຳນົດເປັນສາງຂາຍ — ເລືອກສາງຂາຍທີ່ກຳນົດໄວ້");
+  }
   const client = await pool.connect();
   try {
     await client.query("begin");

@@ -68,7 +68,7 @@ export default async function AdminProductDetail({
                 {product.isFeatured && <Badge tone="amber">ແນະນຳ</Badge>}
               </div>
             </dl>
-            <p className="mt-4 border-t border-slate-100 pt-3 text-[10px] font-bold text-slate-400">
+            <p className="mt-4 border-t border-slate-100 pt-3 text-[10px] font-bold text-slate-500">
               ຊື່, ລາຄາ, ສະຕັອກ ແລະ ໝວດ ມາຈາກລະບົບ ERP — ແກ້ໄຂຢູ່ ERP ເທົ່ານັ້ນ.
             </p>
           </Card>
@@ -96,7 +96,7 @@ export default async function AdminProductDetail({
           {product.price == null && (
             <Card>
               <CardTitle>ໂນດລາຄາ (Price note)</CardTitle>
-              <p className="mb-3 text-[11px] text-slate-450 leading-normal">
+              <p className="mb-3 text-[11px] text-slate-500 leading-normal">
                 ສິນຄ້ານີ້ບໍ່ມີລາຄາ POS — ຂໍ້ຄວາມນີ້ຈະສະແດງແທນ &quot;ສອບຖາມລາຄາ&quot; ທົ່ວໄປ
               </p>
               <PriceNoteForm code={product.code} initial={product.priceNote ?? null} />
@@ -143,7 +143,7 @@ export default async function AdminProductDetail({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between border-b border-slate-100/70 pb-2.5 text-xs font-semibold">
-      <dt className="text-slate-450 font-bold">{label}</dt>
+      <dt className="text-slate-500 font-bold">{label}</dt>
       <dd className="text-right text-slate-800 font-extrabold">{value}</dd>
     </div>
   );

@@ -39,8 +39,8 @@ export default async function AdminLayout({
         <header className="sticky top-0 z-20 hidden h-14 w-full items-center justify-between border-b border-slate-200 bg-white/85 px-5 backdrop-blur lg:flex print:hidden">
           <div className="absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,#f97316,#22c55e,#06b6d4,#e11d48)]" />
           <div className="flex items-center gap-2.5">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ລະບົບຈັດການ</span>
-            <svg className="h-3 w-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">ລະບົບຈັດການ</span>
+            <svg className="h-3 w-3 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
             <span className="rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-black text-orange-700">OdienMall Studio</span>

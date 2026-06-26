@@ -11,7 +11,7 @@ export default async function AdminVouchersPage() {
   if (!(await isManager())) redirect("/admin");
   const vouchers = await listVouchers();
   return (
-    <div>
+    <div className="w-full space-y-6">
       <PageHeader title="ຄູປ໋ອງ / ສ່ວນຫຼຸດ" subtitle="ສ້າງ ແລະ ຈັດການໂຄ້ດສ່ວນຫຼຸດສຳລັບ checkout" />
       <VoucherManager vouchers={vouchers} />
     </div>

@@ -28,7 +28,7 @@ function TierBadge({ code, name, discount }: { code: string | null; name: string
   const isBlack = code === "10106";
   const isPlat = code === "10105";
   const cls = isBlack
-    ? "bg-slate-900 text-white ring-slate-700"
+    ? "bg-white text-slate-900 ring-slate-700"
     : isPlat
     ? "bg-slate-100 text-slate-700 ring-slate-300"
     : isPremium

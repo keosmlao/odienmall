@@ -52,7 +52,7 @@ export default function WebGroupsForm({ options }: { options: GroupOption[] }) {
               <input type="checkbox" checked={on} onChange={() => toggle(o.code)} className="h-4 w-4 accent-orange-500" />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold text-slate-800">{o.name}</div>
-                <div className="text-[11px] text-slate-400">ກຸ່ມ {o.code} · {o.count.toLocaleString()} ສິນຄ້າ</div>
+                <div className="text-[11px] text-slate-500">ກຸ່ມ {o.code} · {o.count.toLocaleString()} ສິນຄ້າ</div>
               </div>
             </label>
           );

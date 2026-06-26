@@ -164,7 +164,7 @@ function MobileOrderCard({ o }: { o: OrderRow }) {
             {o.smlDocNo || o.orderNo}
           </Link>
           {o.smlDocNo && o.smlDocNo !== o.orderNo && (
-            <div className="font-mono text-[10px] text-slate-400 mt-0.5 truncate">{o.orderNo}</div>
+            <div className="font-mono text-[10px] text-slate-500 mt-0.5 truncate">{o.orderNo}</div>
           )}
         </div>
         <Badge tone={o.smlFlag === 44 ? "green" : o.smlFlag === 34 ? "amber" : "gray"}>
@@ -200,17 +200,17 @@ function MobileOrderCard({ o }: { o: OrderRow }) {
       {/* Status & Price Row */}
       <div className="mt-3.5 flex items-center justify-between pt-3 border-t border-slate-100">
         <div>
-          <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">ຍອດລວມ</div>
+          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">ຍອດລວມ</div>
           <div className="text-[15px] font-black text-price">{formatKip(o.subtotal)}</div>
         </div>
         <div className="text-right">
-          <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">ສະຖານະ</div>
+          <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">ສະຖານະ</div>
           <StatusBadge status={o.status as OrderStatus} />
         </div>
       </div>
 
       {/* Meta Info Row */}
-      <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-100/70 pt-2.5">
+      <div className="mt-3.5 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100/70 pt-2.5">
         <div>ພະນັກງານຂາຍ: <span className="font-bold text-slate-600">{o.saleName || "—"}</span></div>
         <div>{new Date(o.createdAt).toLocaleDateString("lo-LA")}</div>
       </div>
@@ -219,7 +219,7 @@ function MobileOrderCard({ o }: { o: OrderRow }) {
       <div className="mt-3.5 flex items-center gap-2 pt-2.5 border-t border-slate-100/70">
         <Link
           href={detailHref}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-orange-600"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-white transition hover:bg-orange-600"
         >
           ເບິ່ງລາຍລະອຽດ
         </Link>
@@ -236,12 +236,12 @@ function FilterChip({ href, label, count, active }: { href: string; label: strin
       href={href}
       className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-black transition ${
         active
-          ? "border-slate-950 bg-slate-950 text-white"
+          ? "border-slate-200 bg-white text-slate-900"
           : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
       }`}
     >
       {label}
-      <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${active ? "bg-white/15 text-white/90" : "bg-slate-100 text-slate-500"}`}>
+      <span className={`rounded-md px-2 py-0.5 text-[10px] font-extrabold ${active ? "bg-white/15 text-slate-900/90" : "bg-slate-100 text-slate-500"}`}>
         {count}
       </span>
     </Link>

@@ -40,7 +40,7 @@ export default function PriceNoteForm({
         <button type="submit" disabled={pending} className={BTN_PRIMARY}>
           {pending ? "..." : "ບັນທຶກ"}
         </button>
-        <span className="text-xs text-slate-400">{text.length}/120</span>
+        <span className="text-xs text-slate-500">{text.length}/120</span>
         {saved && <span className="text-xs font-semibold text-emerald-600">ບັນທຶກແລ້ວ ✓</span>}
         {error && <span className="text-xs font-semibold text-red-600">{error}</span>}
       </div>

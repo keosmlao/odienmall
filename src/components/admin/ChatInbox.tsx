@@ -192,7 +192,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
               placeholder="ຄົ້ນຫາ ຊື່ / ເບີ..."
               className="w-full rounded-xl border border-slate-250 bg-white pl-10 pr-4 py-2.5 text-sm font-semibold text-slate-700 placeholder-slate-350 transition-all duration-300 focus:border-orange-500 focus:outline-hidden focus:ring-4 focus:ring-orange-500/10"
             />
-            <span className="absolute left-3.5 top-3.5 text-slate-400">
+            <span className="absolute left-3.5 top-3.5 text-slate-500">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -242,8 +242,8 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
         {/* Thread List */}
         <div className="thin-scroll flex-1 space-y-1 overflow-y-auto p-2">
           {filteredThreads.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <svg viewBox="0 0 24 24" className="mx-auto h-8 w-8 text-slate-300 mb-2" fill="none" stroke="currentColor" strokeWidth={1.8}>
+            <div className="text-center py-12 text-slate-500">
+              <svg viewBox="0 0 24 24" className="mx-auto h-8 w-8 text-slate-700 mb-2" fill="none" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <p className="text-xs font-bold">ຍັງບໍ່ມີແຊັດ</p>
@@ -285,7 +285,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                         {t.name}
                       </span>
                       {t.lastMessageAt && (
-                        <span className="text-[9px] font-bold text-slate-400 shrink-0">
+                        <span className="text-[9px] font-bold text-slate-500 shrink-0">
                           {formatChatTime(t.lastMessageAt)}
                         </span>
                       )}
@@ -316,13 +316,13 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
       {/* Conversation viewport */}
       <section className="flex flex-1 flex-col bg-slate-50/50">
         {active == null ? (
-          <div className="grid flex-1 place-items-center text-center p-6 text-slate-400 bg-white">
+          <div className="grid flex-1 place-items-center text-center p-6 text-slate-500 bg-white">
             <div>
-              <svg viewBox="0 0 24 24" className="mx-auto h-12 w-12 text-slate-200 mb-3.5" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <svg viewBox="0 0 24 24" className="mx-auto h-12 w-12 text-slate-800 mb-3.5" fill="none" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <h3 className="text-sm font-bold text-slate-700">ເລືອກການສົນທະນາ</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+              <p className="text-xs text-slate-500 mt-1 max-w-[200px] leading-relaxed">
                 ເລືອກລູກຄ້າຈາກລາຍການທາງຊ້າຍມື ເພື່ອເລີ່ມການສົນທະນາ
               </p>
             </div>
@@ -337,13 +337,13 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
               </span>
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="text-sm font-black text-slate-800">{activeThread?.name ?? "ລູກຄ້າ"}</p>
-                <p className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                <p className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
                   {activeThread?.customerCode ? (
                     <span className="bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-lg text-slate-500 font-mono">
                       CODE: {activeThread.customerCode}
                     </span>
                   ) : (
-                    <span className="bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-lg text-slate-400">
+                    <span className="bg-slate-100 border border-slate-200/50 px-1.5 py-0.5 rounded-lg text-slate-500">
                       GUEST
                     </span>
                   )}
@@ -401,7 +401,7 @@ export default function ChatInbox({ initial }: { initial: Thread[] }) {
                           <MessageText text={m.body} admin={isAdminMsg} />
                         </div>
                         {/* Timestamp bubble */}
-                        <span className={`block mt-1 text-[9px] font-bold text-slate-400 ${isAdminMsg ? "text-right" : "text-left"}`}>
+                        <span className={`block mt-1 text-[9px] font-bold text-slate-500 ${isAdminMsg ? "text-right" : "text-left"}`}>
                           {m.isBot ? "AI · " : ""}
                           {new Date(m.createdAt).toLocaleTimeString("lo-LA", { hour: "2-digit", minute: "2-digit", hour12: false })}
                         </span>

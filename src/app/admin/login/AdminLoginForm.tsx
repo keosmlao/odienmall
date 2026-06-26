@@ -47,7 +47,7 @@ export default function AdminLoginForm() {
                 ລະຫັດພະນັກງານ
               </label>
               <div className="relative">
-                <Icon name="user" className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <Icon name="user" className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                 <input
                   id="emp"
                   required
@@ -66,7 +66,7 @@ export default function AdminLoginForm() {
                 ລະຫັດຜ່ານ
               </label>
               <div className="relative">
-                <Icon name="lock" className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <Icon name="lock" className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
                 <input
                   id="pw"
                   required
@@ -80,7 +80,7 @@ export default function AdminLoginForm() {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="adm-focus absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 transition hover:text-slate-700"
+                  className="adm-focus absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-500 transition hover:text-slate-700"
                   aria-label={showPw ? "ເຊື່ອງລະຫັດຜ່ານ" : "ສະແດງລະຫັດຜ່ານ"}
                 >
                   <Icon name={showPw ? "eyeOff" : "eye"} className="h-5 w-5" />
@@ -98,7 +98,7 @@ export default function AdminLoginForm() {
             <button
               type="submit"
               disabled={pending}
-              className="adm-focus flex w-full items-center justify-center gap-2 rounded-lg bg-[linear-gradient(90deg,#0f172a,#f97316)] py-3 text-sm font-black text-white shadow-sm shadow-orange-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="adm-focus flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 py-3 text-sm font-black text-white shadow-sm shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pending ? (
                 <>

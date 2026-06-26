@@ -22,6 +22,9 @@ import { getHomeBanners } from "@/lib/banners";
 import { SITE_URL } from "@/lib/config";
 import { listPublicVouchers } from "@/lib/vouchers";
 import VoucherRail from "@/components/VoucherRail";
+import { getSession } from "@/lib/auth";
+import { getCollectStatus, getPointRules, getProfilePointStatus } from "@/lib/engage-points";
+import EngagePointsCards from "@/components/EngagePointsCards";
 import { getActiveRewards } from "@/lib/rewards";
 import RewardsRail from "@/components/RewardsRail";
 
@@ -77,6 +80,16 @@ export default async function HomePage() {
     g.subs.map((s) => ({ mainCode: g.code, ...s })),
   );
 
+  // Engagement-points cards for logged-in customers (collect / share / profile).
+  const session = await getSession();
+  const engage = session?.code
+    ? {
+        status: await getCollectStatus(session.code),
+        rules: await getPointRules(),
+        profile: await getProfilePointStatus(session.code),
+      }
+    : null;
+
   return (
     <div>
       <JsonLd data={SITE_LD} />
@@ -88,32 +101,41 @@ export default async function HomePage() {
 
       <section
         aria-label="ບໍລິການຂອງຮ້ານ"
-        className="thin-scroll !mb-3 flex gap-2 overflow-x-auto !border-0 !bg-transparent !p-0 !shadow-none"
+        className="thin-scroll !mb-4 grid grid-cols-2 gap-2 overflow-x-auto sm:grid-cols-3 lg:grid-cols-5"
       >
         {[
-          { symbol: "✓", title: "ສິນຄ້າແທ້", text: "ຈາກ ODG", color: "bg-emerald-100 text-emerald-600", href: "/products" },
-          { symbol: "⚡", title: "Flash Sale", text: "ລາຄາພິເສດ", color: "bg-orange-100 text-orange-600", href: "/products" },
-          { symbol: "₭", title: "ຊຳລະສະດວກ", text: "BCEL OnePay", color: "bg-blue-100 text-blue-600", href: "/checkout" },
-          { symbol: "▣", title: "ຄູປ໋ອງ", text: "ຮັບສ່ວນຫຼຸດ", color: "bg-rose-100 text-rose-600", href: "/products" },
-          { symbol: "☏", title: "ຊ່ວຍເຫຼືອ", text: "020 5992 9992", color: "bg-violet-100 text-violet-600", href: "tel:+8562059929992" },
+          { title: "ສິນຄ້າແທ້ 100%", text: "ຈາກ ODG", color: "text-emerald-600 bg-emerald-50", href: "/products", icon: "M9 12l2 2 4-4M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7l7-4z" },
+          { title: "Flash Sale", text: "ລາຄາພິເສດ", color: "text-orange-600 bg-orange-50", href: "/flash-sales", icon: "M13 2L3 14h7l-1 8 10-12h-7l1-8z" },
+          { title: "ຊຳລະປອດໄພ", text: "BCEL OnePay", color: "text-blue-600 bg-blue-50", href: "/checkout", icon: "M3 10h18M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" },
+          { title: "ຄູປ໋ອງ", text: "ຮັບສ່ວນຫຼຸດ", color: "text-rose-600 bg-rose-50", href: "/products", icon: "M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4zM13 5v14" },
+          { title: "ຊ່ວຍເຫຼືອ 24/7", text: "020 5992 9992", color: "text-violet-600 bg-violet-50", href: "tel:+8562059929992", icon: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" },
         ].map((item) => (
           <Link
             key={item.title}
             href={item.href}
-            className="flex min-w-[190px] flex-1 items-center gap-3 rounded bg-white px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="group flex items-center gap-2.5 rounded-xl border border-slate-100 bg-white px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
           >
-            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg font-black ${item.color}`}>
-              {item.symbol}
+            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition group-hover:scale-105 ${item.color}`}>
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={item.icon} /></svg>
             </span>
-            <span>
-              <strong className="block text-sm font-bold text-slate-800">{item.title}</strong>
-              <span className="block text-[11px] text-slate-400">{item.text}</span>
+            <span className="min-w-0">
+              <strong className="block truncate text-[13px] font-black text-slate-800">{item.title}</strong>
+              <span className="block truncate text-[11px] text-slate-400">{item.text}</span>
             </span>
           </Link>
         ))}
       </section>
 
       <VoucherRail vouchers={vouchers} />
+
+      {engage && (
+        <EngagePointsCards
+          rules={engage.rules}
+          collect={engage.status}
+          profile={engage.profile}
+          shareUrl={SITE_URL}
+        />
+      )}
 
       {/* Flash sale */}
       {flash.products.length > 0 && flash.endsAt && (

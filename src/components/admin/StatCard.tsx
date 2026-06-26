@@ -39,7 +39,7 @@ export default function StatCard({
       className={`group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${borderClass}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</span>
+        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</span>
         {icon && (
           <span className={`grid h-8.5 w-8.5 shrink-0 place-items-center rounded-xl border transition-all duration-300 group-hover:scale-110 ${ICON_STYLE[tone] ?? ICON_STYLE.slate}`}>
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -51,7 +51,7 @@ export default function StatCard({
       <div className={`mt-3 text-2xl font-extrabold tracking-tight ${accent ? "text-price" : "text-slate-900"}`}>
         {value}
       </div>
-      {hint && <div className="mt-2 text-xs font-semibold text-slate-400">{hint}</div>}
+      {hint && <div className="mt-2 text-xs font-semibold text-slate-500">{hint}</div>}
     </div>
   );
 }

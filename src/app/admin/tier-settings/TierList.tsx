@@ -64,7 +64,7 @@ export default function TierList({ initialTiers }: TierListProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {tiers.map((t) => {
         const style = TIER_RANK_STYLES[Math.min(t.rank, 2)];
         const isEditing = editingCode === t.code;
@@ -72,32 +72,39 @@ export default function TierList({ initialTiers }: TierListProps) {
         return (
           <div
             key={t.code}
-            className={`rounded-2xl border transition-all duration-300 ${
+            className={`relative overflow-hidden rounded-2xl border bg-white shadow-sm transition-all duration-300 flex flex-col justify-between min-h-[280px] ${
               isEditing
-                ? "border-orange-500/50 bg-slate-900 shadow-[0_4px_20px_rgba(249,115,22,0.15)]"
-                : "border-slate-800 bg-slate-900/90 hover:border-slate-700/80 hover:shadow-md"
-            } p-5`}
+                ? "border-orange-500 shadow-[0_10px_30px_rgba(249,115,22,0.12)] ring-2 ring-orange-500/10"
+                : "border-slate-200 hover:border-slate-300 hover:shadow-md"
+            }`}
           >
+            {/* Card Header with Tier Status Gradient */}
+            <div className={`h-24 bg-gradient-to-br ${
+              t.rank === 0 ? "from-amber-400 to-yellow-500 text-amber-950" :
+              t.rank === 1 ? "from-slate-300 to-slate-500 text-white" :
+              "from-slate-800 to-slate-950 text-white"
+            } p-4 flex items-center justify-between relative`}>
+              <div className="space-y-0.5 z-10">
+                <h3 className="font-black text-base tracking-wide leading-tight">{t.name}</h3>
+                <span className={`font-mono text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
+                  t.rank === 0 ? "bg-amber-950/10 text-amber-900" : "bg-white/10 text-white/90"
+                }`}>
+                  CODE {t.code}
+                </span>
+              </div>
+              <span className="text-3xl filter drop-shadow-sm select-none z-10">{style.icon}</span>
+              {/* Decorative background shape */}
+              <div className="absolute right-[-10px] bottom-[-20px] text-8xl opacity-15 pointer-events-none select-none font-black font-sans leading-none">
+                {style.icon}
+              </div>
+            </div>
+
             {isEditing ? (
               // Editing Mode Form
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${style.badgeClass}`}
-                  >
-                    {style.icon}
-                  </div>
+              <div className="p-5 flex-1 flex flex-col justify-between gap-4">
+                <div className="space-y-3">
                   <div>
-                    <h3 className="font-extrabold text-white text-sm">{t.name}</h3>
-                    <span className="font-mono text-[10px] text-orange-400">
-                      ລະຫັດ: {t.code}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
                       ສ່ວນຫຼຸດ (%)
                     </label>
                     <input
@@ -108,11 +115,11 @@ export default function TierList({ initialTiers }: TierListProps) {
                       value={discountVal}
                       onChange={(e) => setDiscountVal(e.target.value)}
                       disabled={pending}
-                      className="w-full rounded-xl border border-slate-850 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50 transition-colors disabled:opacity-50"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition disabled:opacity-50"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
                       ຍອດສະສົມຕໍ່າສຸດ (₭)
                     </label>
                     <input
@@ -121,23 +128,23 @@ export default function TierList({ initialTiers }: TierListProps) {
                       value={minSpendVal}
                       onChange={(e) => setMinSpendVal(e.target.value)}
                       disabled={pending}
-                      className="w-full rounded-xl border border-slate-850 bg-slate-950 px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50 transition-colors disabled:opacity-50"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900 placeholder-slate-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition disabled:opacity-50"
                     />
                   </div>
+
+                  {error && (
+                    <p className="rounded-lg bg-rose-50 border border-rose-100 p-2 text-[10px] font-semibold text-rose-600">
+                      ⚠️ {error}
+                    </p>
+                  )}
                 </div>
 
-                {error && (
-                  <p className="rounded-lg bg-rose-950/40 border border-rose-900/30 px-3.5 py-2 text-xs font-semibold text-rose-450">
-                    ⚠️ {error}
-                  </p>
-                )}
-
-                <div className="flex justify-end gap-2 pt-2 border-t border-slate-850">
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 mt-auto">
                   <button
                     type="button"
                     onClick={cancelEdit}
                     disabled={pending}
-                    className="rounded-xl px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition disabled:opacity-50 cursor-pointer"
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition disabled:opacity-50 cursor-pointer"
                   >
                     ຍົກເລີກ
                   </button>
@@ -145,58 +152,43 @@ export default function TierList({ initialTiers }: TierListProps) {
                     type="button"
                     onClick={() => handleSave(t.code)}
                     disabled={pending}
-                    className="rounded-xl bg-orange-600 px-5 py-2 text-xs font-bold text-white shadow-md shadow-orange-600/10 hover:bg-orange-500 transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                    className="rounded-lg bg-orange-500 hover:bg-orange-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer active:scale-95"
                   >
-                    {pending ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກ"}
+                    {pending ? "..." : "ບັນທຶກ"}
                   </button>
                 </div>
               </div>
             ) : (
               // Display Mode Card
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0">
-                  <div
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl shadow-inner ${style.badgeClass}`}
-                  >
-                    {style.icon}
+              <div className="p-5 flex-1 flex flex-col justify-between gap-5">
+                <div className="space-y-4">
+                  {/* Discount Section */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ສ່ວນຫຼຸດເວັບໄຊທ໌</span>
+                    <span className="text-xl font-black text-emerald-600 tabular-nums">{t.discountPct}%</span>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-black text-white text-base">{t.name}</span>
-                      <span className="rounded bg-slate-800/80 px-2 py-0.5 font-mono text-[9px] font-extrabold text-orange-400">
-                        {t.code}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                      <span className="flex items-center gap-1">
-                        ສ່ວນຫຼຸດ:{" "}
-                        <span className="font-extrabold text-green-450 bg-green-500/10 px-2 py-0.5 rounded-md">
-                          {t.discountPct}%
-                        </span>
-                      </span>
-                      <span className="text-slate-700 font-extrabold select-none">•</span>
-                      <span className="flex items-center gap-1">
-                        ຍອດຂັ້ນຕ່ຳ:{" "}
-                        {t.minSpend > 0 ? (
-                          <span className="font-extrabold text-white">
-                            {t.minSpend.toLocaleString("lo-LA")} ₭
-                          </span>
-                        ) : (
-                          <span className="text-slate-550 font-semibold">0 ₭ (ເລີ່ມຕົ້ນ)</span>
-                        )}
-                      </span>
-                    </div>
+                  {/* Spend Threshold Section */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ຍອດໃຊ້ຈ່າຍສະສົມຂັ້ນຕ່ຳ</span>
+                    <span className="text-base font-black text-slate-800 tabular-nums">
+                      {t.minSpend > 0 ? (
+                        `${t.minSpend.toLocaleString("lo-LA")} ₭`
+                      ) : (
+                        <span className="text-slate-500 font-bold">0 ₭ (ເລີ່ມຕົ້ນ)</span>
+                      )}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 shrink-0">
-                  <div className="hidden sm:block text-right">
-                    <span className="text-[10px] font-bold text-slate-500 tracking-wider">sub_no {t.rank + 3}</span>
-                  </div>
+                {/* Footer Info & Action */}
+                <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-auto">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    sub_no {t.rank + 3}
+                  </span>
                   <button
                     type="button"
                     onClick={() => startEdit(t)}
-                    className="rounded-xl border border-slate-750 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:border-orange-500/30 hover:bg-slate-750 hover:text-white transition cursor-pointer"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:border-orange-500/30 hover:bg-orange-50 hover:text-orange-600 transition cursor-pointer active:scale-95 shadow-2xs"
                   >
                     ແກ້ໄຂ
                   </button>

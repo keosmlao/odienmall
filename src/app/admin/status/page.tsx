@@ -27,14 +27,14 @@ export default async function AdminStatusPage() {
         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="absolute inset-x-0 top-0 h-1 bg-slate-400" />
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-450">ລາຍການກວດສອບ</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">ລາຍການກວດສອບ</span>
             <span className="rounded-lg bg-slate-50 p-1.5 text-slate-500">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
             </span>
           </div>
-          <div className="mt-3 text-3xl font-black text-slate-900 leading-none">{totalCount} <span className="text-xs font-semibold text-slate-400">ລາຍການ</span></div>
+          <div className="mt-3 text-3xl font-black text-slate-900 leading-none">{totalCount} <span className="text-xs font-semibold text-slate-500">ລາຍການ</span></div>
         </div>
 
         <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50/20 p-4 shadow-sm sm:p-5">
@@ -73,7 +73,7 @@ export default async function AdminStatusPage() {
               </svg>
             </span>
           </div>
-          <div className="mt-3 text-3xl font-black text-slate-800 leading-none">{infoCount} <span className="text-xs font-semibold text-slate-400">ລາຍການ</span></div>
+          <div className="mt-3 text-3xl font-black text-slate-800 leading-none">{infoCount} <span className="text-xs font-semibold text-slate-500">ລາຍການ</span></div>
         </div>
       </div>
 
@@ -86,7 +86,7 @@ export default async function AdminStatusPage() {
           let borderTheme = "border-slate-200 hover:border-slate-300";
           let bgTheme = "bg-white";
           let leftBar = "bg-slate-300";
-          let badgeTheme = "bg-slate-100 text-slate-650";
+          let badgeTheme = "bg-slate-100 text-slate-600";
           let badgeText = "ຂໍ້ມູນ";
           let valueTextTheme = "text-slate-850";
 
@@ -115,7 +115,7 @@ export default async function AdminStatusPage() {
 
               <div className="pl-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[10px] font-black uppercase text-slate-400 tracking-wider truncate max-w-[70%]" title={i.label}>
+                  <span className="font-mono text-[10px] font-black uppercase text-slate-500 tracking-wider truncate max-w-[70%]" title={i.label}>
                     {i.label}
                   </span>
                   <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${badgeTheme}`}>
@@ -128,7 +128,7 @@ export default async function AdminStatusPage() {
                     {i.value}
                   </span>
                   {i.hint && (
-                    <p className="mt-2 text-xs font-semibold leading-normal text-slate-450">
+                    <p className="mt-2 text-xs font-semibold leading-normal text-slate-500">
                       {i.hint}
                     </p>
                   )}

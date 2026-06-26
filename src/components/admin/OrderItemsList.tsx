@@ -18,7 +18,7 @@ export interface OrderLineItem {
 export default function OrderItemsList({ items, itemCount }: { items: OrderLineItem[]; itemCount: number }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 py-3 text-center text-xs font-semibold text-slate-400">
+      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 py-3 text-center text-xs font-semibold text-slate-500">
         ຍັງບໍ່ມີລາຍລະອຽດ · {itemCount.toLocaleString()} ລາຍການ
       </div>
     );
@@ -40,13 +40,13 @@ export default function OrderItemsList({ items, itemCount }: { items: OrderLineI
             <p className="truncate text-xs font-semibold text-slate-800" title={item.productName}>
               {item.productName}
             </p>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
               <span className="font-mono">{item.productCode || "—"}</span>
-              <span className="text-slate-300">·</span>
+              <span className="text-slate-700">·</span>
               <span className="font-semibold text-slate-600">{item.qty.toLocaleString()}{item.unit ? ` ${item.unit}` : ""}</span>
               {item.unitPrice != null && (
                 <>
-                  <span className="text-slate-300">×</span>
+                  <span className="text-slate-700">×</span>
                   <span>{formatKip(item.unitPrice)}</span>
                 </>
               )}

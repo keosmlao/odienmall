@@ -862,6 +862,57 @@ create index if not exists reward_redemptions_status_idx on odg_ecom.reward_rede
 alter table odg_ecom.reward_redemptions add column if not exists sml_doc_no text;
 alter table odg_ecom.reward_redemptions add column if not exists transport_code text;
 
+-- ── Engagement points (profile completeness, daily collect, social share) ────
+-- Config singleton (id=1): per-rule enable + amount. Points are awarded to the ERP
+-- public.ar_customer.point_balance (the unified balance) and mirrored here as an
+-- audit/idempotency ledger.
+create table if not exists odg_ecom.point_rules (
+  id                  int          primary key default 1,
+  address_enabled     boolean      not null default true,
+  address_points      numeric(6,2) not null default 0.5,
+  birthday_enabled    boolean      not null default true,
+  birthday_points     numeric(6,2) not null default 0.5,
+  collect_enabled     boolean      not null default true,
+  collect_points      numeric(6,2) not null default 0.1,
+  collect_max_per_day int          not null default 3,
+  share_enabled       boolean      not null default true,
+  share_points        numeric(6,2) not null default 0.2,
+  share_max_per_day   int          not null default 1,
+  updated_by          text,
+  updated_at          timestamptz  not null default now()
+);
+insert into odg_ecom.point_rules (id) values (1) on conflict (id) do nothing;
+
+-- Ledger of engagement points awarded (idempotency + audit). kind:
+-- profile_address | profile_birthday | daily_collect | facebook_share
+create table if not exists odg_ecom.point_events (
+  id            bigint      generated always as identity primary key,
+  customer_code text        not null,
+  kind          text        not null,
+  points        numeric(6,2) not null,
+  event_date    date        not null default current_date,
+  created_at    timestamptz not null default now()
+);
+create index if not exists point_events_cust_idx on odg_ecom.point_events(customer_code, id desc);
+-- profile_* awarded once per customer (lifetime).
+create unique index if not exists point_events_once_idx
+  on odg_ecom.point_events(customer_code, kind)
+  where kind in ('profile_address','profile_birthday');
+-- daily_collect / facebook_share limited per day (enforced in code by counting rows).
+create index if not exists point_events_daily_idx
+  on odg_ecom.point_events(customer_code, kind, event_date);
+
+-- ── Sales warehouses (which ERP warehouses the web store sells/fulfils from) ──
+-- EMPTY = every warehouse is allowed (non-breaking default). When set, the admin
+-- order/requisition warehouse picker is restricted to these, and storefront stock
+-- can be scoped to them.
+create table if not exists odg_ecom.sales_warehouses (
+  wh_code    text        primary key,   -- ic_warehouse.code
+  sort_order int         not null default 0,
+  updated_at timestamptz not null default now(),
+  updated_by text
+);
+
 -- ── Retired tables (duplicated ERP data) ─────────────────────────────────────
 -- customer_tier / tier_settings → replaced by public.ar_customer_detail.group_sub_1
 -- + public.ar_group_sub (+ odg_ecom.tier_overrides for web overrides). Dropped so

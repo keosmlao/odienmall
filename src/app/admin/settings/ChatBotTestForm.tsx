@@ -39,7 +39,7 @@ export default function ChatBotTestForm() {
           type="button"
           onClick={runTest}
           disabled={pending}
-          className="min-h-11 rounded-xl bg-slate-900 px-4 text-sm font-black text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-white px-4 text-sm font-black text-slate-900 transition hover:bg-slate-100 disabled:opacity-60"
         >
           {pending ? "ກຳລັງທົດສອບ..." : "Test AI"}
         </button>

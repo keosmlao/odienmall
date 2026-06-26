@@ -100,7 +100,7 @@ export default function OrderBulkTable({ orders }: { orders: OrderRowData[] }) {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200/60 bg-slate-50/70 text-slate-400 text-[10px] font-black uppercase tracking-wider">
+            <tr className="border-b border-slate-200/60 bg-slate-50/70 text-slate-500 text-[10px] font-black uppercase tracking-wider">
               <th className="px-4 py-4">
                 <input
                   type="checkbox"

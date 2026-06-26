@@ -4,6 +4,9 @@ import { getSession, getCustomerProfile } from "@/lib/auth";
 import { getOrdersByCustomer } from "@/lib/orders";
 import { getBalance, getHistory } from "@/lib/loyalty";
 import { getCustomerTier, getMemberDiscountPct, getTierConfig } from "@/lib/member-tier";
+import { getCollectStatus, getPointRules } from "@/lib/engage-points";
+import { SITE_URL } from "@/lib/config";
+import CollectPointsWidget from "@/components/CollectPointsWidget";
 import { getSmlCustomerInsights } from "@/lib/sml-history";
 import { getCustomerAddresses } from "@/lib/addresses";
 import { onepayEnabled, onepayMerchantConfigured } from "@/lib/onepay";
@@ -22,6 +25,14 @@ export const dynamic = "force-dynamic";
 // Quick-action tiles. Icons are outline paths (one `d`, may hold several
 // subpaths) drawn at 24×24.
 const TILES = [
+  {
+    href: "/account/profile",
+    label: "ຂໍ້ມູນສ່ວນຕົວ",
+    desc: "ແກ້ໄຂ · ຮັບແຕ້ມ",
+    tone: "bg-amber-100 text-amber-600",
+    // user-edit
+    icon: "M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0z M4 21v-1a6 6 0 0 1 6-6h2 M18 14l3 3-4 4h-3v-3l4-4z",
+  },
   {
     href: "#orders",
     label: "ຄຳສັ່ງຊື້",
@@ -116,7 +127,7 @@ export default async function AccountPage({
   const rawTab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
   const tab = ORDER_TABS.some((t) => t.key === rawTab) ? (rawTab as string) : "all";
 
-  const [profile, orders, addresses, pointBalance, pointHistory, sml, tier, memberPct, tierConfig] = await Promise.all([
+  const [profile, orders, addresses, pointBalance, pointHistory, sml, tier, memberPct, tierConfig, collectStatus, pointRules] = await Promise.all([
     getCustomerProfile(session.code),
     getOrdersByCustomer(session.code),
     getCustomerAddresses(session.code),
@@ -126,6 +137,8 @@ export default async function AccountPage({
     getCustomerTier(session.code),
     getMemberDiscountPct(session.code),
     getTierConfig(),
+    getCollectStatus(session.code),
+    getPointRules(),
   ]);
 
   const activeTab = ORDER_TABS.find((t) => t.key === tab) ?? ORDER_TABS[0];
@@ -283,6 +296,9 @@ export default async function AccountPage({
                   <a href="/account/rewards" className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-200">
                     ປະຫວັດການແລກ
                   </a>
+                  <a href="/account/profile" className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-200">
+                    ⭐ ຕື່ມຂໍ້ມູນຮັບແຕ້ມ
+                  </a>
                 </div>
               </div>
               <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-600 shadow-sm shadow-amber-500/5">
@@ -291,6 +307,16 @@ export default async function AccountPage({
                 </svg>
               </div>
             </div>
+            {(pointRules.collectEnabled || pointRules.shareEnabled) && (
+              <div className="mt-4 border-t border-amber-200/40 pt-4">
+                <CollectPointsWidget
+                  compact
+                  collect={collectStatus}
+                  share={{ enabled: pointRules.shareEnabled, points: pointRules.sharePoints, remaining: pointRules.shareMaxPerDay }}
+                  shareUrl={SITE_URL}
+                />
+              </div>
+            )}
             {pointHistory.length > 0 && (
               <div className="mt-4 border-t border-amber-200/40 pt-4">
                 <p className="text-[10px] font-extrabold text-amber-850 uppercase tracking-wider mb-2.5">ປະຫວັດຄະແນນຫຼ້າສຸດ</p>

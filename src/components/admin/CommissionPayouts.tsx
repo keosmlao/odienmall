@@ -18,7 +18,7 @@ interface Earner {
 // + an inline payment (defaults to the outstanding amount). Manager-only action.
 export default function CommissionPayouts({ earners }: { earners: Earner[] }) {
   if (earners.length === 0) {
-    return <p className="py-6 text-center text-sm text-slate-400">ຍັງບໍ່ມີຄອມມິສຊັນທີ່ໄດ້ຮັບ</p>;
+    return <p className="py-6 text-center text-sm text-slate-500">ຍັງບໍ່ມີຄອມມິສຊັນທີ່ໄດ້ຮັບ</p>;
   }
   return (
     <div className="divide-y divide-slate-100">
@@ -51,10 +51,10 @@ function PayoutRow({ earner }: { earner: Earner }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-800">{earner.saleName}</div>
-          <div className="text-[11px] text-slate-400">{earner.saleCode} · {earner.rate}%</div>
+          <div className="text-[11px] text-slate-500">{earner.saleCode} · {earner.rate}%</div>
         </div>
         <div className="shrink-0 text-right text-xs">
-          <div className="text-slate-400">ໄດ້ຮັບ {formatKip(earner.earnedAll)} · ຈ່າຍແລ້ວ {formatKip(earner.paid)}</div>
+          <div className="text-slate-500">ໄດ້ຮັບ {formatKip(earner.earnedAll)} · ຈ່າຍແລ້ວ {formatKip(earner.paid)}</div>
           <div className={`font-extrabold ${earner.outstanding > 0 ? "text-price" : "text-emerald-600"}`}>
             ຄ້າງ {formatKip(earner.outstanding)}
           </div>

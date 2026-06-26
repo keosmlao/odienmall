@@ -57,7 +57,7 @@ export default function SalesTargetRow({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-bold text-slate-800">{saleName}</div>
-          <div className="text-[11px] text-slate-400">{saleCode}</div>
+          <div className="text-[11px] text-slate-500">{saleCode}</div>
         </div>
         <div className="shrink-0 text-right">
           <div className="text-sm font-extrabold text-price">{formatKip(revenueMonth)}</div>
@@ -73,14 +73,14 @@ export default function SalesTargetRow({
               <button onClick={save} disabled={pending} className="rounded-lg bg-brand px-2.5 py-1 text-xs font-bold text-white disabled:opacity-50">
                 {pending ? "..." : "✓"}
               </button>
-              <button onClick={() => { setEditing(false); setDraft(String(monthlyTarget || "")); }} className="px-1 text-xs text-slate-400">✕</button>
+              <button onClick={() => { setEditing(false); setDraft(String(monthlyTarget || "")); }} className="px-1 text-xs text-slate-500">✕</button>
             </div>
           ) : (
             <div className="mt-1 flex items-center justify-end gap-2">
               <button onClick={() => setEditing(true)} className="text-[11px] font-semibold text-slate-500 hover:text-brand-dark">
                 ເປົ້າ: {formatKip(monthlyTarget)} ✎
               </button>
-              <button onClick={remove} disabled={pending} className="text-[11px] font-semibold text-rose-400 hover:text-rose-600">ລຶບ</button>
+              <button onClick={remove} disabled={pending} className="text-[11px] font-semibold text-rose-600 hover:text-rose-600">ລຶບ</button>
             </div>
           )}
         </div>

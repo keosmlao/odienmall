@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getAllRewards, type AdminPromotion } from "@/lib/rewards-admin";
+import { PageHeader, ButtonLink, Badge } from "@/components/admin/ui";
 import PromoImageManager from "./PromoImageManager";
 
 export const metadata: Metadata = { title: "ຂອງລາງວັນ" };
@@ -29,29 +30,17 @@ export default async function AdminRewardsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">ຂອງລາງວັນ</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            ຈັດການຮູບສຳລັບຂອງລາງວັນແຕ້ມ · {promos.length} ລາຍການ · {withImg} ມີຮູບ
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <a
-            href="/admin/rewards/redemptions"
-            className="rounded-full bg-orange-500 px-3 py-1 font-bold text-white transition hover:bg-orange-600"
-          >
-            ການແລກ (ໃບຂໍເບີກ) ›
-          </a>
-          <span className="rounded-full bg-green-50 px-3 py-1 font-semibold text-green-700">
-            {active.length} ກຳລັງໃຊ້
-          </span>
-          <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-500">
-            {expired.length} ໝົດອາຍຸ
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        title="ຂອງລາງວັນ"
+        subtitle={`ຈັດການຮູບສຳລັບຂອງລາງວັນແຕ້ມ · ${promos.length} ລາຍການ · ${withImg} ມີຮູບ`}
+        actions={
+          <>
+            <ButtonLink href="/admin/rewards/redemptions" variant="primary">ການແລກ (ໃບຂໍເບີກ)</ButtonLink>
+            <Badge tone="green">{active.length} ກຳລັງໃຊ້</Badge>
+            <Badge tone="gray">{expired.length} ໝົດອາຍຸ</Badge>
+          </>
+        }
+      />
 
       {/* Active rewards */}
       {active.length > 0 && (
@@ -66,7 +55,7 @@ export default async function AdminRewardsPage() {
       {/* Expired */}
       {expired.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-400">
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">
             ໝົດອາຍຸ ({expired.length})
           </h2>
           <PromoGrid promos={expired} dimmed />
@@ -105,7 +94,7 @@ function PromoCard({ promo }: { promo: AdminPromotion }) {
         <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-800">
           {promo.name}
         </p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-500">
           {promo.icCode}
         </p>
 
@@ -123,7 +112,7 @@ function PromoCard({ promo }: { promo: AdminPromotion }) {
           )}
         </div>
 
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-slate-500">
           {fmtDate(promo.fromDate)} – {fmtDate(promo.toDate)}
         </p>
       </div>

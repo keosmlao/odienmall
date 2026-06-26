@@ -108,6 +108,13 @@ const NAV: NavItem[] = [
     icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10",
   },
   {
+    href: "/admin/stock",
+    label: "ສິນຄ້າຄົງເຫຼືອ",
+    group: "ສິນຄ້າ",
+    match: (p: string) => p.startsWith("/admin/stock"),
+    icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10 M3 12l9 4 9-4",
+  },
+  {
     href: "/admin/brands",
     label: "Logo Brand",
     group: "ສິນຄ້າ",
@@ -192,6 +199,14 @@ const NAV: NavItem[] = [
     icon: "M12 2l2.4 5.3 5.6.5-4.1 3.7 1.2 5.5L12 14.3l-5.1 2.7 1.2-5.5L4 7.8l5.6-.5L12 2zM5 21h14",
   },
   {
+    href: "/admin/point-rules",
+    label: "ເງື່ອນໄຂແຕ້ມ",
+    group: "ລູກຄ້າ",
+    managerOnly: true,
+    match: (p: string) => p.startsWith("/admin/point-rules"),
+    icon: "M12 2l2.4 5.3 5.6.5-4.1 3.7 1.2 5.5L12 14.3l-5.1 2.7 1.2-5.5L4 7.8l5.6-.5L12 2z",
+  },
+  {
     href: "/admin/settings",
     label: "ຕັ້ງຄ່າ",
     group: "ລາຍງານ ແລະ ລະບົບ",
@@ -261,7 +276,7 @@ export default function AdminNav({
           className={`adm-focus group flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-black transition-all duration-200 ${
             active
               ? "bg-gradient-to-r from-orange-600 to-amber-500 text-white border-orange-500/20 shadow-md shadow-orange-600/10"
-              : "bg-slate-900 text-slate-400 border-slate-800/80 hover:text-white hover:bg-slate-850"
+              : "bg-white text-slate-500 border-slate-200 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
           <svg
@@ -291,32 +306,32 @@ export default function AdminNav({
         href={n.href}
         onClick={onClick}
         aria-current={active ? "page" : undefined}
-        className={`adm-focus group relative flex shrink-0 items-center gap-2.5 text-[13px] font-bold transition-all duration-200 rounded-xl px-3 py-2 ${
+        className={`adm-focus group relative flex shrink-0 items-center gap-3 rounded-lg py-2 pl-3 pr-2.5 text-[13px] font-semibold transition-colors duration-150 ${
           active
-            ? "bg-gradient-to-r from-orange-600 to-amber-500 text-white shadow-lg shadow-orange-600/15"
-            : "text-slate-400 hover:bg-white/5 hover:text-white hover:translate-x-0.5"
+            ? "bg-orange-50 text-orange-700"
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
         }`}
       >
+        {/* Left accent bar for the active item */}
         <span
-          className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition-all duration-200 ${
-            active
-              ? "border-white/10 bg-white/10 text-white"
-              : "border-slate-800 bg-slate-900 text-slate-450 group-hover:border-slate-700 group-hover:text-white group-hover:scale-105"
+          className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-orange-500 transition-all duration-200 ${
+            active ? "opacity-100" : "opacity-0"
           }`}
+        />
+        <svg
+          viewBox="0 0 24 24"
+          className={`h-[18px] w-[18px] shrink-0 transition-colors ${
+            active ? "text-orange-600" : "text-slate-400 group-hover:text-slate-600"
+          }`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-3.5 w-3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d={n.icon} />
-          </svg>
-        </span>
-        <span className="flex-1">{n.label}</span>
+          <path d={n.icon} />
+        </svg>
+        <span className="flex-1 truncate">{n.label}</span>
         {n.href === "/admin" && pendingOrders > 0 && <Counter value={pendingOrders} />}
         {n.href === "/admin/chat" && chatUnread > 0 && <Counter value={chatUnread} />}
         {n.href === "/admin/returns" && returnsPending > 0 && <Counter value={returnsPending} />}
@@ -329,77 +344,56 @@ export default function AdminNav({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col overflow-hidden border-r border-slate-900 bg-slate-950 text-slate-100 lg:flex print:!hidden shadow-2xl">
-        <div className="border-b border-slate-900 p-4">
-          <Link
-            href="/admin/dashboard"
-            className="adm-focus flex items-center gap-3 rounded-xl border border-slate-900 bg-slate-900/60 p-3 transition hover:border-orange-500/50 hover:bg-slate-900"
-          >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-800 bg-slate-950">
-              <Image src="/odm.png" alt="ODIENMALL" width={52} height={38} className="h-8 w-auto object-contain" priority />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col overflow-hidden border-r border-slate-200 bg-white text-slate-900 lg:flex print:!hidden shadow-[4px_0_24px_-12px_rgba(15,23,42,0.12)]">
+        <div className="px-5 pb-3 pt-5">
+          <Link href="/admin/dashboard" className="adm-focus flex items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 shadow-sm shadow-orange-500/25">
+              <Image src="/odm.png" alt="ODIENMALL" width={48} height={36} className="h-6 w-auto object-contain brightness-0 invert" priority />
             </span>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block text-sm font-black tracking-[0.08em] text-white">ODIENMALL</span>
-              <span className="mt-0.5 block text-[10px] font-extrabold tracking-wider text-orange-500">ADMIN STUDIO</span>
-            </span>
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" title="Online" />
+              <span className="block text-[15px] font-black tracking-tight text-slate-900">OdienMall</span>
+              <span className="mt-0.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Admin
+              </span>
             </span>
           </Link>
         </div>
 
-        <nav className="thin-scroll relative flex flex-1 flex-col gap-3 overflow-y-auto px-3 py-4">
+        <nav className="thin-scroll relative flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-3">
           {groupedNav.map(({ group, items }, groupIndex) => {
             const headingId = `admin-nav-${groupIndex}`;
-
             return (
-              <section
-                key={group}
-                aria-labelledby={headingId}
-                className={groupIndex === 0 ? "space-y-1.5" : "border-t border-slate-900/60 pt-4 space-y-1.5"}
-              >
-                <div className="mb-1.5 px-3">
-                  <h2
-                    id={headingId}
-                    className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 font-sans"
-                  >
-                    {group}
-                  </h2>
-                </div>
-                <div className="space-y-1">
-                  {items.map((item) => renderLink(item, false))}
-                </div>
+              <section key={group} aria-labelledby={headingId} className="space-y-0.5">
+                <h2 id={headingId} className="mb-1 px-3 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  {group}
+                </h2>
+                {items.map((item) => renderLink(item, false))}
               </section>
             );
           })}
         </nav>
 
-        <div className="border-t border-slate-900 bg-slate-950 p-3">
+        <div className="border-t border-slate-100 p-3">
           {adminName && (
-            <div className="mb-3 flex items-center gap-3 rounded-xl border border-slate-900 bg-slate-900/60 p-3">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-400 text-sm font-black text-white shadow-md">
+            <div className="mb-2 flex items-center gap-2.5 rounded-xl px-2 py-1.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-orange-500 to-amber-400 text-sm font-black text-white shadow-sm">
                 {adminName.slice(0, 1)}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-xs font-black text-white">{adminName}</div>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  </span>
+                <div className="truncate text-[13px] font-bold text-slate-900">{adminName}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                   {role === "staff" ? "Staff" : "Manager"}
                 </div>
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/" className="adm-focus group flex items-center justify-center gap-2 rounded-xl border border-slate-900 bg-slate-900/50 px-2 py-2.5 text-xs font-bold text-slate-300 transition hover:border-orange-500/50 hover:bg-slate-900 hover:text-white hover:-translate-y-0.5">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500 transition-colors group-hover:text-orange-500" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg>
+          <div className="grid grid-cols-2 gap-1.5">
+            <Link href="/" className="adm-focus group flex items-center justify-center gap-1.5 rounded-lg bg-slate-50 px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400 transition-colors group-hover:text-orange-500" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg>
               <span>ໜ້າຮ້ານ</span>
             </Link>
-            <button onClick={logout} disabled={pending} className="adm-focus group flex items-center justify-center gap-2 rounded-xl border border-slate-900 bg-slate-900/50 px-2 py-2.5 text-xs font-bold text-slate-300 transition hover:border-rose-500/50 hover:bg-rose-955/20 hover:text-rose-400 disabled:opacity-50 hover:-translate-y-0.5">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-500 transition-colors group-hover:text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></svg>
+            <button onClick={logout} disabled={pending} className="adm-focus group flex items-center justify-center gap-1.5 rounded-lg bg-slate-50 px-2 py-2 text-xs font-bold text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-slate-400 transition-colors group-hover:text-rose-500" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></svg>
               <span>{pending ? "..." : "ອອກລະບົບ"}</span>
             </button>
           </div>
@@ -407,25 +401,25 @@ export default function AdminNav({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-35 border-b border-slate-900 bg-slate-950 text-white backdrop-blur-xl lg:hidden print:hidden">
+      <div className="sticky top-0 z-35 border-b border-slate-200 bg-white text-slate-900 backdrop-blur-xl lg:hidden print:hidden">
         <div className="flex items-center gap-3 px-4 py-3">
-          <Link href="/admin/dashboard" className="adm-focus grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-800 bg-slate-900">
+          <Link href="/admin/dashboard" className="adm-focus grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white">
             <Image src="/odm.png" alt="ODIENMALL" width={42} height={30} className="h-6 w-auto object-contain" priority />
           </Link>
           <span className="min-w-0 flex-1">
             <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-500">OdienMall Admin</span>
-            <span className="block truncate text-xs font-bold text-white">{activeItem?.label || "ລະບົບຈັດການ"}</span>
+            <span className="block truncate text-xs font-bold text-slate-900">{activeItem?.label || "ລະບົບຈັດການ"}</span>
           </span>
           {adminName && (
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-400 text-[10px] font-black text-white shadow-sm">
               {adminName.slice(0, 1)}
             </span>
           )}
-          <button onClick={logout} disabled={pending} className="adm-focus shrink-0 rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-450 transition hover:bg-rose-955/20 hover:text-rose-500 disabled:opacity-50" aria-label="ອອກຈາກລະບົບ">
+          <button onClick={logout} disabled={pending} className="adm-focus shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50" aria-label="ອອກຈາກລະບົບ">
             <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" /></svg>
           </button>
         </div>
-        <nav className="thin-scroll flex items-center gap-1.5 overflow-x-auto border-t border-slate-900 bg-slate-950 px-3 py-2.5">{nav.map((n) => renderLink(n, true))}</nav>
+        <nav className="thin-scroll flex items-center gap-1.5 overflow-x-auto border-t border-slate-200 bg-white px-3 py-2.5">{nav.map((n) => renderLink(n, true))}</nav>
       </div>
     </>
   );

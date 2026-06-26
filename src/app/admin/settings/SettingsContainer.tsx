@@ -145,7 +145,7 @@ export default function SettingsContainer({
                   <span className={`block text-xs font-black ${isActive ? "text-orange-950" : "text-slate-700"}`}>
                     {tab.label}
                   </span>
-                  <span className="mt-1 block text-[10px] text-slate-450 font-semibold truncate">
+                  <span className="mt-1 block text-[10px] text-slate-500 font-semibold truncate">
                     {tab.desc}
                   </span>
                 </div>

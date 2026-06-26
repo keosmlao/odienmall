@@ -45,7 +45,7 @@ export default async function AdminSalesTargetsPage({
         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="absolute inset-x-0 top-0 h-1 bg-slate-400" />
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-450">ເປົ້າໝາຍລວມ ({month})</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">ເປົ້າໝາຍລວມ ({month})</span>
             <span className="rounded-lg bg-slate-50 p-1.5 text-slate-500">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />

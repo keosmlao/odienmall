@@ -118,14 +118,14 @@ export default function CommissionManager({
             <div key={o.saleCode} className="flex items-center justify-between gap-3 py-2.5 text-sm">
               <div className="min-w-0">
                 <div className="truncate font-bold text-slate-800">{o.saleName}</div>
-                <div className="text-[11px] text-slate-400">{o.saleCode} · {o.rate}%</div>
+                <div className="text-[11px] text-slate-500">{o.saleCode} · {o.rate}%</div>
               </div>
               <div className="flex shrink-0 items-center gap-3 text-right">
                 <div>
-                  <div className="text-[10px] text-slate-400">ຄອມເດືອນນີ້</div>
+                  <div className="text-[10px] text-slate-500">ຄອມເດືອນນີ້</div>
                   <div className="font-bold text-price">{formatKip(o.earnedMonth)}</div>
                 </div>
-                <button onClick={() => remove(o.saleCode)} disabled={pending} className="text-[11px] font-semibold text-rose-400 hover:text-rose-600">ລຶບ</button>
+                <button onClick={() => remove(o.saleCode)} disabled={pending} className="text-[11px] font-semibold text-rose-600 hover:text-rose-600">ລຶບ</button>
               </div>
             </div>
           ))}

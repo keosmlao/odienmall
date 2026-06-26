@@ -68,7 +68,7 @@ export default function AiKnowledgeForm({ initial }: { initial: AiKnowledge }) {
         <p className="text-xs font-semibold text-slate-500">
           {content.length.toLocaleString("en-US")} / 12,000
           {initial.updatedAt && (
-            <span className="ml-2 text-slate-400" suppressHydrationWarning>
+            <span className="ml-2 text-slate-500" suppressHydrationWarning>
               ອັບເດດ: {new Date(initial.updatedAt).toLocaleString("lo-LA")}
             </span>
           )}

@@ -41,14 +41,14 @@ export default async function AdminSalesCommissionPage() {
         <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="absolute inset-x-0 top-0 h-1 bg-slate-400" />
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-slate-450">ອັດຕາມາດຕະຖານ</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">ອັດຕາມາດຕະຖານ</span>
             <span className="rounded-lg bg-slate-50 p-1.5 text-slate-500">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
             </span>
           </div>
-          <div className="mt-3 text-3xl font-black text-slate-900 leading-none">{defaultRate || 0} <span className="text-xs font-semibold text-slate-400">%</span></div>
+          <div className="mt-3 text-3xl font-black text-slate-900 leading-none">{defaultRate || 0} <span className="text-xs font-semibold text-slate-500">%</span></div>
         </div>
 
         {/* Total Earned */}

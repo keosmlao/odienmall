@@ -116,12 +116,12 @@ export default async function AdminSalesLinkPage() {
                 })()}
               </div>
             ) : (
-              <div className="text-center py-4 text-slate-400">
+              <div className="text-center py-4 text-slate-500">
                 <svg viewBox="0 0 24 24" className="mx-auto h-8 w-8 text-slate-350 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-xs font-bold text-slate-500">ຍັງບໍ່ມີການຕັ້ງເປົ້າໝາຍ</p>
-                <p className="text-[10px] text-slate-400 mt-1">ຕິດຕໍ່ຜູ້ຈັດການເພື່ອຕັ້ງເປົ້າໝາຍຍອດຂາຍຂອງທ່ານ</p>
+                <p className="text-[10px] text-slate-500 mt-1">ຕິດຕໍ່ຜູ້ຈັດການເພື່ອຕັ້ງເປົ້າໝາຍຍອດຂາຍຂອງທ່ານ</p>
               </div>
             )}
           </Card>
@@ -131,11 +131,11 @@ export default async function AdminSalesLinkPage() {
             <CardTitle>ຜົນງານທັງໝົດ</CardTitle>
             <div className="space-y-3.5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="text-xs font-bold text-slate-400">ອໍເດີທັງໝົດ</span>
+                <span className="text-xs font-bold text-slate-500">ອໍເດີທັງໝົດ</span>
                 <span className="text-sm font-black text-slate-800">{stats.ordersAll.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400">ຍອດຂາຍສະສົມ</span>
+                <span className="text-xs font-bold text-slate-500">ຍອດຂາຍສະສົມ</span>
                 <span className="text-sm font-black text-price">{formatKip(stats.revenueAll)}</span>
               </div>
             </div>
@@ -144,7 +144,7 @@ export default async function AdminSalesLinkPage() {
           {/* Sales Guide Card */}
           <Card>
             <CardTitle>ຄຳແນະນຳໃນການຂາຍ</CardTitle>
-            <ul className="space-y-3 text-xs leading-relaxed text-slate-650 font-semibold">
+            <ul className="space-y-3 text-xs leading-relaxed text-slate-600 font-semibold">
               <li className="flex items-start gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-orange-50 border border-orange-100 text-[10px] font-black text-orange-600">1</span>
                 <span><strong>ແບ່ງປັນໃນສື່ສັງຄົມ:</strong> ໂພສລິ້ງລົງໃນ Facebook, LINE ຫຼື WhatsApp Status ພ້ອມຮູບພາບສິນຄ້າທີ່ໜ້າສົນໃຈ.</span>

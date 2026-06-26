@@ -67,7 +67,7 @@ export default function OrderRowExpandable({
             </Badge>
           </div>
           {o.smlDocNo && o.smlDocNo !== o.orderNo && (
-            <div className="mt-1 font-mono text-[10px] text-slate-400">{o.orderNo}</div>
+            <div className="mt-1 font-mono text-[10px] text-slate-500">{o.orderNo}</div>
           )}
         </td>
 
@@ -92,10 +92,10 @@ export default function OrderRowExpandable({
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             className={`adm-focus inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-black transition ${
-              open ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+              open ? "border-slate-200 bg-white text-slate-900" : "border-slate-200 bg-white text-slate-600 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
             }`}
           >
-            <span className={`grid h-4 w-4 place-items-center rounded-md text-[9px] font-extrabold ${open ? "bg-white/15 text-white" : "bg-orange-500 text-white"}`}>{o.itemCount}</span>
+            <span className={`grid h-4 w-4 place-items-center rounded-md text-[9px] font-extrabold ${open ? "bg-white/15 text-slate-900" : "bg-orange-500 text-white"}`}>{o.itemCount}</span>
             ລາຍການ
             <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
           </button>
@@ -104,18 +104,18 @@ export default function OrderRowExpandable({
         {/* Total */}
         <td className="px-6 py-4 align-top whitespace-nowrap text-right">
           <div className="text-[13px] font-black text-price">{formatKip(o.subtotal)}</div>
-          <div className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">ລວມສິນຄ້າ</div>
+          <div className="mt-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">ລວມສິນຄ້າ</div>
         </td>
 
         {/* Salesperson */}
         <td className="px-6 py-4 align-top whitespace-nowrap text-xs font-bold text-slate-600">
-          {o.saleName ?? <span className="text-slate-300">—</span>}
+          {o.saleName ?? <span className="text-slate-700">—</span>}
         </td>
 
         {/* Status + date */}
         <td className="px-6 py-4 align-top whitespace-nowrap">
           <StatusBadge status={o.status as OrderStatus} />
-          <div className="mt-2 text-[10px] font-semibold text-slate-400">{new Date(o.createdAt).toLocaleDateString("lo-LA")}</div>
+          <div className="mt-2 text-[10px] font-semibold text-slate-500">{new Date(o.createdAt).toLocaleDateString("lo-LA")}</div>
         </td>
 
         {/* Actions */}

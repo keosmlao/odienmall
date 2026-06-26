@@ -128,7 +128,7 @@ export default function ProductSpecsEditor({
         <span className="text-xs text-slate-500 font-semibold">
           {specs.length > 0 ? `${specs.length} ລາຍການ` : "ຍັງບໍ່ມີ"}
           {specs.length === 0 && erpDescription?.trim() && (
-            <span className="ml-1 text-slate-400">· ໃຊ້ຂໍ້ຄວາມ ERP ຕາມເດີມ</span>
+            <span className="ml-1 text-slate-500">· ໃຊ້ຂໍ້ຄວາມ ERP ຕາມເດີມ</span>
           )}
         </span>
         <div className="flex gap-2">
@@ -159,7 +159,7 @@ export default function ProductSpecsEditor({
       {specs.length > 0 && (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs font-semibold text-slate-400">
+            <tr className="border-b border-slate-100 text-left text-xs font-semibold text-slate-500">
               <th className="pb-1.5 pr-2 w-8">#</th>
               <th className="pb-1.5 pr-4 w-36">ຫົວຂໍ້</th>
               <th className="pb-1.5 pr-4">ລາຍລະອຽດ</th>
@@ -170,7 +170,7 @@ export default function ProductSpecsEditor({
             {specs.map((s, idx) =>
               editId === s.id ? (
                 <tr key={s.id}>
-                  <td className="py-1.5 pr-2 text-xs text-slate-300">{idx + 1}</td>
+                  <td className="py-1.5 pr-2 text-xs text-slate-700">{idx + 1}</td>
                   <td className="py-1.5 pr-2">
                     <input
                       value={editLabel}
@@ -206,8 +206,8 @@ export default function ProductSpecsEditor({
                 </tr>
               ) : (
                 <tr key={s.id} className="group">
-                  <td className="py-1.5 pr-2 text-xs text-slate-300">{idx + 1}</td>
-                  <td className="py-1.5 pr-4 font-semibold text-slate-600">{s.label || <span className="text-slate-300">—</span>}</td>
+                  <td className="py-1.5 pr-2 text-xs text-slate-700">{idx + 1}</td>
+                  <td className="py-1.5 pr-4 font-semibold text-slate-600">{s.label || <span className="text-slate-700">—</span>}</td>
                   <td className="py-1.5 pr-4 text-slate-700">{s.value}</td>
                   <td className="py-1.5">
                     <span className="flex gap-1 opacity-0 transition group-hover:opacity-100">
@@ -265,7 +265,7 @@ export default function ProductSpecsEditor({
           + ເພີ່ມ
         </button>
       </div>
-      <p className="text-[10px] text-slate-400">
+      <p className="text-[10px] text-slate-500">
         Enter ທີ່ ຫົວຂໍ້ → ໄປ ລາຍລະອຽດ · Enter ທີ່ ລາຍລະອຽດ = ເພີ່ມແຖວ · ປ່ອຍວ່າງໝົດ = ໃຊ້ຂໍ້ຄວາມ ERP
       </p>
       {error && <p className="text-xs font-semibold text-red-600">{error}</p>}

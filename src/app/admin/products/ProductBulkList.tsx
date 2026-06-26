@@ -179,7 +179,7 @@ function BulkBtn({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-50 ${
+      className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-900 transition disabled:opacity-50 ${
         danger ? "bg-rose-500 hover:bg-rose-600" : "bg-brand hover:bg-brand-dark"
       }`}
     >
