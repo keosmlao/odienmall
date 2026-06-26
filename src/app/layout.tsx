@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   applicationName: "ODIENMALL",
   manifest: "/manifest.json",
   title: {
-    default: "ODIENMALL",
+    default: "ODIENMALL — ເຮັດໃຫ້ຊີວິດງ່າຍຂຶ້ນ",
     template: "%s | ODIENMALL",
   },
   description: DESCRIPTION,
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "ODIENMALL",
     locale: "lo_LA",
-    title: "ODIENMALL",
+    title: "ODIENMALL — ເຮັດໃຫ້ຊີວິດງ່າຍຂຶ້ນ",
     description: DESCRIPTION,
     url: SITE_URL,
     images: [{ url: "/odm.png", width: 852, height: 606, alt: "ODIENMALL" }],

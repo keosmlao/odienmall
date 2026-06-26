@@ -110,7 +110,7 @@ export default function Header({
       </div>
 
       <div className="mx-auto grid max-w-[1400px] grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-7 sm:px-4 sm:py-4">
-        <Link href="/" className="flex shrink-0 items-center transition-transform hover:scale-[1.02]" aria-label="ODIENMALL">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5 transition-transform hover:scale-[1.02]" aria-label="ODIENMALL">
           <span className="flex h-11 w-14 items-center justify-center rounded-xl border border-slate-100 bg-white p-1.5 shadow-sm sm:h-16 sm:w-20">
             <Image
               src="/odm.png"
@@ -120,6 +120,10 @@ export default function Header({
               priority
               className="h-full w-full object-contain"
             />
+          </span>
+          <span className="hidden leading-tight lg:block">
+            <span className="block text-base font-black tracking-tight text-slate-800">ODIENMALL</span>
+            <span className="block text-[11px] font-bold text-orange-500">ເຮັດໃຫ້ຊີວິດງ່າຍຂຶ້ນ</span>
           </span>
         </Link>
 

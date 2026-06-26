@@ -6,7 +6,7 @@ import {
   getPromoProducts,
   getFeaturedProducts,
 } from "@/lib/catalog";
-import GroupTile from "@/components/GroupTile";
+import { hashHue } from "@/lib/format";
 import ProductGrid from "@/components/ProductGrid";
 import SectionHeader from "@/components/SectionHeader";
 import RecentlyViewed from "@/components/RecentlyViewed";
@@ -152,21 +152,33 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Categories (product groups — matches the top GroupMenu nav) */}
+      {/* Categories (product groups — matches the top GroupMenu nav). Same grid
+          style as the brands section below. */}
       {subTiles.length > 0 && (
-        <section className="!mb-4 overflow-hidden rounded-lg bg-white shadow-sm">
-          <SectionHeader title="ໝວດໝູ່ສິນຄ້າ" href="/products" />
-          <div className="thin-scroll flex gap-1 overflow-x-auto p-2 sm:gap-2 sm:p-3">
-            {subTiles.slice(0, 16).map((s) => (
-              <div key={s.code} className="w-24 shrink-0 rounded-xl transition hover:bg-orange-50/60 sm:w-28">
-                <GroupTile
-                  mainCode={s.mainCode}
-                  code={s.code}
-                  name={s.name}
-                  productCount={s.productCount}
-                />
-              </div>
-            ))}
+        <section className="!mb-4 !p-0">
+          <SectionHeader title="ໝວດໝູ່ສິນຄ້າ" href="/products" flush />
+          <div className="grid grid-cols-3 divide-x divide-y divide-slate-100 sm:grid-cols-4 md:grid-cols-6">
+            {subTiles.slice(0, 12).map((s) => {
+              const hue = hashHue(s.code);
+              return (
+                <Link
+                  key={`${s.mainCode}-${s.code}`}
+                  href={`/group/${encodeURIComponent(s.mainCode)}/${encodeURIComponent(s.code)}`}
+                  className="group flex min-h-28 flex-col items-center justify-center gap-2 bg-white p-3 text-center transition hover:relative hover:z-10 hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <span
+                    className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg font-black transition group-hover:scale-105"
+                    style={{ backgroundColor: `hsl(${hue} 75% 92%)`, color: `hsl(${hue} 55% 38%)` }}
+                  >
+                    {s.name.slice(0, 1)}
+                  </span>
+                  <span className="line-clamp-2 text-sm font-bold leading-tight text-gray-700 transition group-hover:text-brand-dark">
+                    {s.name}
+                  </span>
+                  <span className="text-[11px] text-gray-400">{s.productCount} ລາຍການ</span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
