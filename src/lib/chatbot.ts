@@ -6,6 +6,7 @@ import { getOrdersByCustomer, getTrackOrderByNo, getOrderNosByPhone, getOrderTms
 import { STATUS_LABEL, type OrderStatus } from "./order-constants";
 import { getAiKnowledge, getChatBotEnabled } from "./settings";
 import { activeFlashMap } from "./flash";
+import { WEB_ITEM } from "./catalog";
 import { logAiChat } from "./ai-logs";
 
 export { aiConfigured };
@@ -56,6 +57,23 @@ const PRODUCT_STOP_WORDS = new Set([
   "price", "product", "recommend", "thanks", "thank",
 ]);
 
+// Lao appliance nouns → the English terms the ERP actually stores in product names
+// (`ic_inventory.name_1` is mostly English for these categories). A customer typing
+// "ແອ" should match the English "AIR …" units — NOT only the Lao-named compressors
+// ("ຄອມເພັດເຊີແອ"), which is what a raw "ແອ" substring match hits. The Lao token is
+// REPLACED by its English equivalents (these categories are English-named in this ERP).
+const PRODUCT_SYNONYMS: Record<string, string[]> = {
+  "ແອ": ["air"],
+  "ແອร์": ["air"],
+  "ຕູ້ເຢັນ": ["refrigerator", "fridge"],
+  "ໂທລະທັດ": ["tv", "television"],
+  "ໂທລະພາບ": ["tv", "television"],
+  "ຈັກຊັກຜ້າ": ["washing", "washer"],
+  "ພັດລົມ": ["fan"],
+  "ໄມໂຄເວຟ": ["microwave"],
+  "ຕູ້ແຊ່": ["freezer"],
+};
+
 function productSearchWords(text: string): string[] {
   const seen = new Set<string>();
   const words = text
@@ -80,39 +98,38 @@ async function findProducts(text: string): Promise<string> {
   const words = productSearchWords(text);
   if (words.length === 0) return "";
   const minMatchWords = words.length >= 3 ? 2 : 1;
-  const hiddenSql = `not exists (
-    select 1 from odg_ecom.product_overlays h
-     where h.product_code = i.code and h.is_hidden
-  )`;
-  const likes = words.map(
-    (_, i) =>
-      `(i.name_1 ilike $${i + 1} or i.name_2 ilike $${i + 1} or i.name_eng_1 ilike $${i + 1}
-        or i.code ilike $${i + 1} or br.name_1 ilike $${i + 1} or ca.name_1 ilike $${i + 1}
-        or gm.name_1 ilike $${i + 1} or gs.name_1 ilike $${i + 1}
-        or ov.description ilike $${i + 1} or i.description ilike $${i + 1})`,
+  // Expand each word to its ERP-language equivalents (see PRODUCT_SYNONYMS). A word
+  // "matches" if ANY of its patterns hit, so each word still contributes at most 1 to
+  // the score — synonyms widen recall without inflating the score.
+  const groups = words.map((w) => PRODUCT_SYNONYMS[w.toLowerCase()] ?? [w]);
+  const params: string[] = [];
+  const idxByWord = groups.map((g) =>
+    g.map((p) => {
+      params.push(`%${p}%`);
+      return params.length; // 1-based $ placeholder index
+    }),
   );
-  const matchScoreSql = words
-    .map(
-      (_, i) =>
-        `(case when ${likes[i]} then 1 else 0 end)`,
-    )
+  const anyCol = (i: number) =>
+    `(i.name_1 ilike $${i} or i.name_2 ilike $${i} or i.name_eng_1 ilike $${i}
+        or i.code ilike $${i} or br.name_1 ilike $${i} or ca.name_1 ilike $${i}
+        or gm.name_1 ilike $${i} or gs.name_1 ilike $${i}
+        or ov.description ilike $${i} or i.description ilike $${i})`;
+  const anyName = (i: number) =>
+    `(i.code ilike $${i} or i.name_1 ilike $${i} or i.name_2 ilike $${i} or i.name_eng_1 ilike $${i})`;
+  const matchScoreSql = idxByWord
+    .map((idxs) => `(case when ${idxs.map(anyCol).join(" or ")} then 1 else 0 end)`)
     .join(" + ");
-  const nameScoreSql = words
-    .map(
-      (_, i) =>
-        `(case when i.code ilike $${i + 1}
-             or i.name_1 ilike $${i + 1}
-             or i.name_2 ilike $${i + 1}
-             or i.name_eng_1 ilike $${i + 1}
-          then 1 else 0 end)`,
-    )
+  const nameScoreSql = idxByWord
+    .map((idxs) => `(case when ${idxs.map(anyName).join(" or ")} then 1 else 0 end)`)
     .join(" + ");
-  const params = words.map((w) => `%${w}%`);
+  // Use the SAME predicate the storefront uses (catalog.ts WEB_ITEM): web groups,
+  // not-hidden, in stock — and crucially the AC [SET]/[C]/[H] handling (an AC set's
+  // stock lives on the [C] item at code+1). The old filter used `is_eordershow = 1`
+  // + `i.balance_qty > 0`, which matched almost no air-conditioners (sets carry 0 own
+  // stock and most are is_eordershow=0), so the bot found nothing for real, buyable
+  // items and the LLM hallucinated a product with a dead `/product/<code>` link.
   const whereSql = `
-      i.is_eordershow = 1
-      and i.group_main in (select group_main from odg_ecom.web_groups)
-      and coalesce(i.balance_qty,0) > 0
-      and ${hiddenSql}
+      ${WEB_ITEM}
       and (${matchScoreSql}) >= ${minMatchWords}`;
   const [rows, facets] = await Promise.all([
     query<{
@@ -231,6 +248,36 @@ async function findProducts(text: string): Promise<string> {
   return `${productLines}${facetLines}`;
 }
 
+/** Product codes the bot is allowed to link to: exactly those surfaced in the DB
+ *  context. Codes are stored URL-encoded in `→ /product/<code>` lines. */
+function validProductCodes(productContext: string): Set<string> {
+  const codes = new Set<string>();
+  for (const m of productContext.matchAll(/\/product\/([^\s)]+)/g)) {
+    let code = m[1];
+    try { code = decodeURIComponent(code); } catch { /* keep raw */ }
+    codes.add(code.replace(/[.,;:)\]}>]+$/, "").toLowerCase());
+  }
+  return codes;
+}
+
+/** Guard against fabricated product links. The model is told the link format is
+ *  `/product/ລະຫັດ`; with no product context it sometimes invents a product and
+ *  emits that literal placeholder (a dead 404 link) or makes up a code. If the reply
+ *  links to any code NOT present in the grounding data, the whole "we have it" claim
+ *  is untrustworthy, so we replace it with an honest not-found reply. */
+function sanitizeProductLinks(reply: string, productContext: string): string {
+  const links = [...reply.matchAll(/\/product\/([^\s)]+)/g)];
+  if (links.length === 0) return reply;
+  const valid = validProductCodes(productContext);
+  const hasFabricated = links.some((m) => {
+    let code = m[1];
+    try { code = decodeURIComponent(code); } catch { /* keep raw */ }
+    return !valid.has(code.replace(/[.,;:)\]}>]+$/, "").toLowerCase());
+  });
+  if (!hasFabricated) return reply;
+  return "ຂໍໂທດ ຕອນນີ້ຂ້ອຍຫາສິນຄ້ານີ້ໃນລະບົບບໍ່ພົບ. ລອງພິມຍີ່ຫໍ້/ລຸ້ນ ໃຫ້ລະອຽດຂຶ້ນ ຫຼື ຄົ້ນຫາໃນໜ້າຮ້ານ ແລ້ວຂ້ອຍຈະຊ່ວຍຫາໃຫ້ 🙏";
+}
+
 export interface ChatBotTestResult {
   ok: boolean;
   provider: AiProvider;
@@ -337,7 +384,8 @@ function buildSystem(productContext: string, orderContext: string, extraKnowledg
 - ຕອບຄຳຖາມລ່າສຸດຂອງລູກຄ້າເທົ່ານັ້ນ. ຖ້າ topic ປ່ຽນ ໃຫ້ຕອບ topic ໃໝ່ ຢ່າໃຊ້ topic ເກົ່າ.
 - ຕອບຈາກຂໍ້ມູນລຸ່ມນີ້ເທົ່ານັ້ນ. ຫ້າມແຕ່ງລາຄາ/ຂໍ້ມູນເອງ.
 - ຕອບບໍ່ເກີນ 3 ປະໂຫຍກ ຫຼື 3 bullet; ເນັ້ນຊື່ສິນຄ້າ, ລາຄາ, link.
-- ຖ້າພົບສິນຄ້າ ຕ້ອງໃສ່ link ສິນຄ້າທຸກຄັ້ງ (ຮູບແບບ /product/ລະຫັດ). ຢ່າຕັດ link ອອກ.
+- ໃສ່ link ສະເພາະສິນຄ້າທີ່ມີໃນ "ສິນຄ້າທີ່ກ່ຽວຂ້ອງ" ລຸ່ມນີ້ ໂດຍ copy link /product/... ຕາມຂໍ້ມູນເປັນຕົວໜັງສື. ຫ້າມແຕ່ງລະຫັດ/link ເອງ ແລະ ຫ້າມໃຊ້ຄຳວ່າ "ລະຫັດ" ໃນ link.
+- ຖ້າບໍ່ມີສິນຄ້າໃນຂໍ້ມູນລຸ່ມນີ້ → ບອກວ່າຫາບໍ່ພົບ ແລະ ໃຫ້ລູກຄ້າພິມລາຍລະອຽດເພີ່ມ. ຫ້າມອ້າງວ່າ "ມີສິນຄ້າ" ຫຼື ສ້າງ link ຂຶ້ນເອງ.
 - ສະຖານະອໍເດີ: ຕອບຈາກຂໍ້ມູນອໍເດີລຸ່ມ; ຖ້າບໍ່ມີໃຫ້ຂໍເລກອໍເດີ/login; ຍັງບໍ່ໄດ້ → ${HANDOFF}
 - ຄືນ/ຮ້ອງຮຽນ/ຂໍລົມພະນັກງານ → ຕອບສັ້ນ + ${HANDOFF}
 - ບໍ່ຮູ້ → ບອກ + ${HANDOFF}
@@ -466,7 +514,7 @@ export async function testChatBot(question: string): Promise<ChatBotTestResult> 
       model: ai.model,
       botEnabled,
       hasDbContext: !!productContext,
-      reply: reply.replaceAll(HANDOFF, "").trim() || reply,
+      reply: sanitizeProductLinks(reply.replaceAll(HANDOFF, "").trim() || reply, productContext),
       error: null,
     };
   } catch (e) {
@@ -612,7 +660,7 @@ export async function botReply(threadId: number, latestText: string): Promise<vo
 
     const HANDOFF_MSG = "ກຳລັງສົ່ງຕໍ່ໃຫ້ພະນັກງານຊ່ວຍເພີ່ມເຕີມ — ກະລຸນາລໍຖ້າສັກຄູ່ 🙏";
     const handoff = reply.includes(HANDOFF);
-    const clean = reply.replaceAll(HANDOFF, "").trim();
+    const clean = sanitizeProductLinks(reply.replaceAll(HANDOFF, "").trim(), productContext);
     if (handoff) {
       const took = await setHumanTaken(threadId);
       if (took) {

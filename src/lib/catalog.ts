@@ -87,7 +87,7 @@ const _AC_PREV_CODE = `left(i.code, length(i.code)-length(substring(i.code from 
     || lpad(greatest(0,substring(i.code from '[0-9]+$')::int-1)::text,
             length(substring(i.code from '[0-9]+$')),'0')`;
 
-const WEB_ITEM = `i.group_main between '11' and '14' and ${NOT_HIDDEN}
+export const WEB_ITEM = `i.group_main between '11' and '14' and ${NOT_HIDDEN}
   -- hide all AC [H] items (outdoor units are never shown directly)
   and not (i.group_main = '12' and i.name_1 like '%[H]%')
   -- hide AC [C] items that already have a [SET] counterpart at code-1
