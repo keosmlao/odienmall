@@ -81,7 +81,7 @@ export default function HomeBannerSlider({ slides = [] }: { slides?: BannerSlide
         touchStart.current = null;
       }}
     >
-      <div className="relative h-full min-h-[260px] overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5 sm:min-h-[380px]">
+      <div className="relative h-full min-h-[326px] overflow-hidden rounded-[22px] shadow-sm ring-1 ring-black/5 sm:min-h-[380px] sm:rounded-2xl">
         {items.map((slide, index) => (
           <div
             key={slide.id ?? slide.title}
@@ -99,29 +99,35 @@ export default function HomeBannerSlider({ slides = [] }: { slides?: BannerSlide
                   : `linear-gradient(125deg, ${slide.backgroundFrom} 0%, ${slide.backgroundTo} 100%)`,
               }}
             />
-            {/* soft decorative orbs */}
-            <div className="pointer-events-none absolute -right-16 -top-28 h-72 w-72 rounded-full bg-white/20 blur-2xl sm:h-96 sm:w-96" />
-            <div className="pointer-events-none absolute -bottom-24 -left-12 h-60 w-60 rounded-full bg-black/10 blur-2xl" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+            {/* soft decorative layers */}
+            <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border border-white/15 bg-white/15 sm:-right-16 sm:-top-28 sm:h-96 sm:w-96" />
+            <div className="pointer-events-none absolute -bottom-32 -left-20 h-64 w-64 rounded-full bg-black/10 sm:h-72 sm:w-72" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-white/5 sm:bg-gradient-to-r sm:from-black/20 sm:via-transparent sm:to-transparent" />
+
+            {!slide.imageUrl && (
+              <div className="pointer-events-none absolute -right-3 top-5 grid h-28 w-28 place-items-center rounded-full border border-white/15 bg-white/10 text-6xl font-black text-white/15 sm:hidden">
+                {slide.visual}
+              </div>
+            )}
 
             {/* content */}
-            <div className="relative grid h-full grid-cols-[1fr_auto] items-center gap-4 px-5 py-8 text-white sm:px-12 sm:py-10 lg:px-16">
-              <div className="max-w-2xl">
-                <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white ring-1 ring-white/25 backdrop-blur-sm sm:text-xs">
+            <div className="relative flex h-full items-end px-5 pb-14 pt-7 text-white sm:grid sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4 sm:px-12 sm:py-10 lg:px-16">
+              <div className="relative z-[1] min-w-0 max-w-2xl">
+                <span className="inline-flex max-w-full items-center truncate rounded-full bg-white/15 px-3 py-1 text-[9px] font-extrabold uppercase tracking-[0.2em] text-white ring-1 ring-white/25 backdrop-blur-sm sm:text-xs">
                   {slide.eyebrow}
                 </span>
-                <h1 className="mt-3 text-2xl font-black leading-[1.12] drop-shadow-sm sm:text-4xl lg:text-5xl">
+                <h1 className="mt-3 max-w-[19rem] text-[clamp(1.65rem,7.6vw,2.15rem)] font-black leading-[1.18] tracking-[-0.025em] drop-shadow-sm sm:max-w-2xl sm:text-4xl sm:leading-[1.12] lg:text-5xl">
                   {slide.title}
                 </h1>
-                <p className="mt-2.5 max-w-xl text-xs leading-5 text-white/90 sm:text-base sm:leading-7">
+                <p className="mt-2.5 line-clamp-2 max-w-[20rem] text-[13px] leading-5 text-white/85 sm:max-w-xl sm:text-base sm:leading-7">
                   {slide.description}
                 </p>
                 <Link
                   href={slide.link}
-                  className="group/btn mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-xs font-bold text-slate-900 shadow-xl transition hover:-translate-y-0.5 sm:px-8 sm:py-3 sm:text-sm"
+                  className="group/btn mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-black text-slate-900 shadow-[0_10px_30px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 active:scale-[0.98] sm:mt-5 sm:rounded-full sm:px-8 sm:py-3 sm:text-sm"
                 >
                   {slide.buttonText}
-                  <span aria-hidden className="transition-transform group-hover/btn:translate-x-0.5">→</span>
+                  <span aria-hidden className="text-base leading-none transition-transform group-hover/btn:translate-x-0.5">→</span>
                 </Link>
               </div>
               {!slide.imageUrl && (
@@ -165,15 +171,16 @@ export default function HomeBannerSlider({ slides = [] }: { slides?: BannerSlide
         )}
 
         {items.length > 1 && (
-          <div className="absolute bottom-4 left-5 z-10 flex gap-2 sm:left-12 lg:left-16">
+          <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 sm:left-12 sm:bottom-4 sm:translate-x-0 lg:left-16">
             {items.map((slide, index) => (
               <button
                 key={slide.id ?? slide.title}
                 type="button"
                 aria-label={`Banner ${index + 1}`}
+                aria-current={active === index ? "true" : undefined}
                 onClick={() => setActive(index)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  active === index ? "w-8 bg-white" : "w-3 bg-white/50 hover:bg-white/70"
+                className={`h-2 rounded-full ring-1 ring-white/15 transition-all duration-300 ${
+                  active === index ? "w-7 bg-white" : "w-2 bg-white/45 hover:bg-white/70"
                 }`}
               />
             ))}
