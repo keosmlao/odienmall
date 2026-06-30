@@ -125,6 +125,8 @@ export async function previewVoucher(
 
 export interface OrderQrPayload {
   qrDataUrl: string;
+  /** Raw EMVCo payload passed to the BCEL One app (includes the fixed amount). */
+  qrString: string;
   /** Real order total. */
   amount: number;
   /** Amount encoded in the QR (different only in test mode). */
@@ -248,6 +250,7 @@ export async function placeOrder(
           orderNo,
           qr: {
             qrDataUrl,
+            qrString: rec.qrc,
             amount,
             qrAmount: rec.amount,
             expiresAt: rec.expiresAt,

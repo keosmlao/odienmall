@@ -157,14 +157,14 @@ export default async function HomePage() {
       {subTiles.length > 0 && (
         <section className="!mb-4 !p-0">
           <SectionHeader title="ໝວດໝູ່ສິນຄ້າ" href="/products" flush />
-          <div className="grid grid-cols-3 divide-x divide-y divide-slate-100 sm:grid-cols-4 md:grid-cols-6">
+          <div className="flex snap-x snap-mandatory divide-x divide-slate-100 overflow-x-auto [scrollbar-width:none] sm:grid sm:grid-cols-4 sm:snap-none sm:divide-y sm:overflow-visible md:grid-cols-6 [&::-webkit-scrollbar]:hidden">
             {subTiles.slice(0, 12).map((s) => {
               const hue = hashHue(s.code);
               return (
                 <Link
                   key={`${s.mainCode}-${s.code}`}
                   href={`/group/${encodeURIComponent(s.mainCode)}/${encodeURIComponent(s.code)}`}
-                  className="group flex min-h-28 flex-col items-center justify-center gap-2 bg-white p-3 text-center transition hover:relative hover:z-10 hover:-translate-y-0.5 hover:shadow-lg"
+                  className="group flex min-h-28 w-[28vw] shrink-0 snap-start flex-col items-center justify-center gap-2 bg-white p-3 text-center transition hover:relative hover:z-10 hover:-translate-y-0.5 hover:shadow-lg sm:w-auto sm:shrink"
                 >
                   <span
                     className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg font-black transition group-hover:scale-105"

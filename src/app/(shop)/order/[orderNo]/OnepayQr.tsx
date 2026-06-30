@@ -62,7 +62,8 @@ function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-// Open BCEL One app using the official custom URL scheme (bcelone://?qrc=…).
+// Open BCEL One app using the custom URL scheme. The qrc is the complete EMVCo
+// payload; tag 54 inside it carries the server-generated fixed LAK amount.
 // Waits 2 s then falls back to the relevant app-store page if the app is not installed.
 function openBcelOne(qrString: string) {
   window.location.href = `bcelone://?qrc=${encodeURIComponent(qrString)}`;
@@ -140,15 +141,31 @@ export default function OnepayQr({
         setStatus(res.status);
         setNow(Date.now());
         triesRef.current = 0;
+        return res;
       }
+      return null;
     } finally {
       setBusy(false);
     }
   }, [orderNo]);
 
-  function openPay() {
+  async function openPay() {
+    const stale = !!qr?.expiresAt && Date.parse(qr.expiresAt) <= Date.now();
+    const activeQrString = clientQrString ?? qr?.qrString ?? null;
     setOpen(true);
-    if (!qr || (qr.expiresAt && Date.parse(qr.expiresAt) <= Date.now())) generate();
+
+    // On mobile, the payment button hands the complete amount-bearing QR
+    // payload directly to BCEL One. Keep the modal open behind the bank app so
+    // polling/callback status is visible when the customer returns.
+    if (mobile && activeQrString && !stale) {
+      openBcelOne(activeQrString);
+      return;
+    }
+
+    if (!qr || stale) {
+      const fresh = await generate();
+      if (mobile && fresh?.ok) openBcelOne(fresh.qrString);
+    }
   }
 
   // When opened straight as a modal with no QR yet (e.g. the account "ຊຳລະເງິນ"

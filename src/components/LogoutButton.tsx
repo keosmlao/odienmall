@@ -1,12 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useSyncExternalStore, useTransition } from "react";
 import { logout } from "@/app/(shop)/login/actions";
+
+const subscribeBrowserEnvironment = () => () => {};
+
+function isLineBrowser(): boolean {
+  return /\bLine\//i.test(navigator.userAgent || "");
+}
 
 export default function LogoutButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const insideLine = useSyncExternalStore(
+    subscribeBrowserEnvironment,
+    isLineBrowser,
+    // Hide during SSR/hydration to avoid briefly flashing Logout inside LINE.
+    () => true,
+  );
+
+  if (insideLine) return null;
+
   return (
     <button
       onClick={() =>

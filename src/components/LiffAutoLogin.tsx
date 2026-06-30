@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 declare global {
   interface Window {
     liff?: {
-      init(input: { liffId: string }): Promise<void>;
+      init(input: { liffId: string; withLoginOnExternalBrowser?: boolean }): Promise<void>;
       isLoggedIn(): boolean;
       login(input?: { redirectUri?: string }): void;
       getIDToken(): string | null;
@@ -55,16 +55,22 @@ export default function LiffAutoLogin({
       try {
         await loadLiffSdk();
         if (!window.liff) return;
-        await window.liff.init({ liffId });
+        await window.liff.init({
+          liffId,
+          // An OA endpoint URL opens in LINE's in-app browser, which LIFF treats
+          // as an external browser. Ask LIFF to authenticate there automatically;
+          // a LIFF URL already authenticates during init.
+          withLoginOnExternalBrowser: true,
+        });
 
-        // Only auto-login when running inside the LINE Mini App client
-        if (!window.liff.isInClient()) return;
-
-        // In-app the user is already signed into LINE, so isLoggedIn() is true and
-        // we read the id token directly. If somehow not logged in, do NOT call
-        // liff.login() (its redirect_uri must be whitelisted and often 400s) — the
-        // user can tap the LINE button, which uses the OAuth flow.
-        if (!window.liff.isLoggedIn()) return;
+        if (!window.liff.isLoggedIn()) {
+          // Defensive fallback for older LIFF SDK behavior. Never call login()
+          // inside the LIFF browser because init handles authentication there.
+          if (!window.liff.isInClient()) {
+            window.liff.login({ redirectUri: window.location.href });
+          }
+          return;
+        }
 
         const idToken = window.liff.getIDToken();
         if (!idToken) return;

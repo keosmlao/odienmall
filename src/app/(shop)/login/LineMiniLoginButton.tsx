@@ -6,7 +6,7 @@ import { useState } from "react";
 declare global {
   interface Window {
     liff?: {
-      init(input: { liffId: string }): Promise<void>;
+      init(input: { liffId: string; withLoginOnExternalBrowser?: boolean }): Promise<void>;
       isLoggedIn(): boolean;
       login(input?: { redirectUri?: string }): void;
       getIDToken(): string | null;

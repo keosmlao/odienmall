@@ -187,6 +187,7 @@ export default function CheckoutForm({
         amount={modalQr.amount}
         initialQr={{
           qrDataUrl: modalQr.qrDataUrl,
+          qrString: modalQr.qrString,
           amount: modalQr.qrAmount,
           expiresAt: modalQr.expiresAt,
           status: modalQr.status,

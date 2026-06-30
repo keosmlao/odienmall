@@ -118,3 +118,28 @@ test("LINE Login keeps public callback URLs behind a localhost reverse proxy", a
   assert.match(callback, /lineAppUrl\(req, redirectTo\)/);
   assert.doesNotMatch(callback, /new URL\([^\n]+req\.url/);
 });
+
+test("LINE OA in-app browser automatically authenticates through LIFF", async () => {
+  const autoLogin = await read("src/components/LiffAutoLogin.tsx");
+  const logout = await read("src/components/LogoutButton.tsx");
+
+  assert.match(autoLogin, /withLoginOnExternalBrowser:\s*true/);
+  assert.match(autoLogin, /if \(!window\.liff\.isInClient\(\)\)/);
+  assert.match(autoLogin, /window\.liff\.login\(\{ redirectUri: window\.location\.href \}\)/);
+  assert.doesNotMatch(autoLogin, /Only auto-login when running inside the LINE Mini App client/);
+  assert.match(logout, /navigator\.userAgent/);
+  assert.match(logout, /if \(insideLine\) return null/);
+});
+
+test("mobile BCEL handoff carries the server-generated fixed amount QR", async () => {
+  const checkoutAction = await read("src/app/(shop)/checkout/actions.ts");
+  const checkoutForm = await read("src/app/(shop)/checkout/CheckoutForm.tsx");
+  const paymentUi = await read("src/app/(shop)/order/[orderNo]/OnepayQr.tsx");
+  const onepay = await read("src/lib/onepay.ts");
+
+  assert.match(checkoutAction, /qrString:\s*rec\.qrc/);
+  assert.match(checkoutForm, /qrString:\s*modalQr\.qrString/);
+  assert.match(paymentUi, /openBcelOne\(activeQrString\)/);
+  assert.match(paymentUi, /openBcelOne\(fresh\.qrString\)/);
+  assert.match(onepay, /tlv\("54", String\(Math\.round\(opts\.amount\)\)\)/);
+});
