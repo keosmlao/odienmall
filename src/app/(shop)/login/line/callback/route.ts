@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateLineCustomer, setSessionCookie } from "@/lib/auth";
 import { signPayload } from "@/lib/session";
-import { lineCallbackUrl } from "@/lib/line-oauth";
+import { lineAppUrl, lineCallbackUrl } from "@/lib/line-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ function safeRedirect(value: string | undefined): string {
 }
 
 function loginUrl(req: NextRequest, error: string) {
-  return new URL(`/login?error=${encodeURIComponent(error)}`, req.url);
+  return lineAppUrl(req, `/login?error=${encodeURIComponent(error)}`);
 }
 
 export async function GET(req: NextRequest) {
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
       // First-time / un-matched LINE account → send to the linking page where the
       // user proves ownership with their normal credentials. Carry the verified
       // LINE identity in a short-lived signed cookie (can't be forged).
-      const link = NextResponse.redirect(new URL("/login/line/link", req.url));
+      const link = NextResponse.redirect(lineAppUrl(req, "/login/line/link"));
       link.cookies.delete(STATE_COOKIE);
       link.cookies.set(PENDING_COOKIE, signPayload(lineIdentity), {
         httpOnly: true,
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
       return link;
     }
 
-    const res = NextResponse.redirect(new URL(redirectTo, req.url));
+    const res = NextResponse.redirect(lineAppUrl(req, redirectTo));
     res.cookies.delete(STATE_COOKIE);
     res.cookies.delete(REDIRECT_COOKIE);
     await setSessionCookie(sess);

@@ -106,3 +106,15 @@ test("high-risk admin mutations write audit events", async () => {
     assert.match(source, new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 });
+
+test("LINE Login keeps public callback URLs behind a localhost reverse proxy", async () => {
+  const oauth = await read("src/lib/line-oauth.ts");
+  const callback = await read("src/app/(shop)/login/line/callback/route.ts");
+
+  assert.match(oauth, /if \(configured\) return configured/);
+  assert.match(oauth, /export function lineAppUrl/);
+  assert.match(callback, /lineAppUrl\(req, `\/login\?error=/);
+  assert.match(callback, /lineAppUrl\(req, "\/login\/line\/link"\)/);
+  assert.match(callback, /lineAppUrl\(req, redirectTo\)/);
+  assert.doesNotMatch(callback, /new URL\([^\n]+req\.url/);
+});
